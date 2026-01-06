@@ -4,8 +4,7 @@
 
 @layer base {
   :root {
-    /* Base Colors - Slate */
-    --background: 210 40% 98%;
+    --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --primary: 262 83% 58%;
     --primary-foreground: 210 40% 98%;
@@ -13,7 +12,7 @@
     --secondary-foreground: 222.2 47.4% 11.2%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 93%;
+    --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -24,21 +23,20 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 262 83% 58%;
-    --radius: 0.75rem;
+    --radius: 0.5rem;
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+  html {
+    scroll-behavior: smooth;
   }
 
   body {
-    background-color: hsl(210 40% 98%);
-    color: hsl(222.2 84% 4.9%);
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
 }
 
-/* Custom Utilities for your Design System */
+/* Custom Gradients - Using raw CSS */
 .bg-gradient-brand {
   background: linear-gradient(to right, rgb(37, 99, 235), rgb(139, 92, 246), rgb(147, 51, 234));
 }
