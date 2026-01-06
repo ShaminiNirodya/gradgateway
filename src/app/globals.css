@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Base Colors - Slate */
+    --background: 210 40% 98%; /* Light gray background like Page 2 */
+    --foreground: 222.2 84% 4.9%;
+
+    /* PRIMARY: The Violet/Purple from Figma headers */
+    --primary: 262 83% 58%; /* #8b5cf6 - Violet 500/600 */
+    --primary-foreground: 210 40% 98%;
+
+    /* SECONDARY: Used for light backgrounds in cards */
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    /* ACCENT: For hover states */
+    --accent: 210 40% 93%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    /* UI Elements */
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    
+    /* Borders & Inputs */
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 262 83% 58%; /* Focus ring matches primary */
+    
+    /* Rounding - Heavy rounding based on screenshots */
+    --radius: 0.75rem; /* 12px */
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    /* Add dark mode overrides here later if needed */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom Utilities for your Design System */
+@layer utilities {
+  /* The Gradient Header Background found in Screenshots 1, 2, 3, 12 */
+  .bg-gradient-brand {
+    @apply bg-gradient-to-r from-blue-600 via-violet-600 to-purple-600;
+  }
+  
+  /* The Gradient Text found in Headings */
+  .text-gradient-brand {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-violet-600;
+  }
+}
