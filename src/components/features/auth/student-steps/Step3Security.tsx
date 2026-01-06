@@ -21,46 +21,41 @@ export default function Step3Security({ onComplete, onBack }: Step3Props) {
 
   return (
     <motion.form 
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
       onSubmit={handleSubmit(onComplete)} 
       className="space-y-6"
     >
-      <div className="space-y-4">
-        {/* Password */}
+      <div className="space-y-5">
         <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <Label className="text-slate-600 font-bold ml-1">Password</Label>
           <div className="relative">
-            <Lock className="absolute left-3 top-2.5 h-5 w-5 text-slate-400" />
-            <Input id="password" type="password" {...register("password")} className="pl-10" placeholder="Min 8 characters" />
+            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+            <Input {...register("password")} type="password" className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 transition-all font-medium" placeholder="•••••••••" />
           </div>
-          {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
+          {errors.password && <p className="text-xs text-red-500 font-bold ml-2">{errors.password.message}</p>}
         </div>
 
-        {/* Confirm Password */}
         <div className="space-y-2">
-          <Label htmlFor="confirmPassword">Confirm Password</Label>
+          <Label className="text-slate-600 font-bold ml-1">Confirm Password</Label>
           <div className="relative">
-            <ShieldCheck className="absolute left-3 top-2.5 h-5 w-5 text-slate-400" />
-            <Input id="confirmPassword" type="password" {...register("confirmPassword")} className="pl-10" placeholder="Re-enter password" />
+            <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+            <Input {...register("confirmPassword")} type="password" className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 transition-all font-medium" placeholder="•••••••••" />
           </div>
-          {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword.message}</p>}
+          {errors.confirmPassword && <p className="text-xs text-red-500 font-bold ml-2">{errors.confirmPassword.message}</p>}
         </div>
 
-        {/* OTP Simulation Note */}
-        <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-700">
-          <p>We will send a 6-digit verification code to your email after you click Create Account.</p>
+        <div className="bg-indigo-50 border-none rounded-2xl p-5">
+          <p className="text-sm text-[#6C5DD3] font-medium leading-relaxed">
+            We will send a 6-digit verification code to your email. Please check your inbox (and spam folder) after clicking Create Account.
+          </p>
         </div>
       </div>
 
-      <div className="flex gap-3 pt-4">
-        <Button type="button" variant="outline" onClick={onBack} className="w-1/3">
-          Back
-        </Button>
-        <Button type="submit" className="w-2/3 bg-gradient-to-r from-violet-600 to-blue-600 hover:opacity-90">
-          Create Account
-        </Button>
+      <div className="flex gap-4 pt-6">
+        <Button type="button" variant="ghost" onClick={onBack} className="w-1/3 h-14 rounded-2xl text-slate-500 font-bold hover:bg-slate-100 hover:text-slate-700">Back</Button>
+        <Button type="submit" className="w-2/3 h-14 rounded-2xl bg-[#6C5DD3] hover:bg-[#5b4eb8] text-white text-lg font-bold shadow-lg shadow-indigo-200">Create Account</Button>
       </div>
     </motion.form>
   );
