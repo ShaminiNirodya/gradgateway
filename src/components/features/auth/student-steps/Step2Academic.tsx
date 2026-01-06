@@ -48,130 +48,91 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
 
   return (
     <motion.form 
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      transition={{ duration: 0.3 }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
       onSubmit={handleSubmit(onNext)} 
       className="space-y-6"
     >
       <div className="space-y-5">
-        
-        {/* University Selection (Custom Select) */}
+        {/* University */}
         <div className="space-y-2">
-          <Label className="text-slate-700 font-medium">University</Label>
+          <Label className="text-slate-600 font-bold ml-1">University</Label>
           <Controller
             name="university"
             control={control}
             render={({ field }) => (
               <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <SelectTrigger className="h-11 border-slate-200 bg-slate-50/50 focus:ring-violet-500 hover:border-violet-300 transition-colors">
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <GraduationCap className="w-4 h-4 text-violet-500" />
-                    <SelectValue placeholder="Select your university" />
+                <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3] data-[state=open]:border-[#6C5DD3]">
+                  <div className="flex items-center gap-3 text-slate-700">
+                    <GraduationCap className="w-5 h-5 text-[#6C5DD3]" />
+                    <SelectValue placeholder="Select University" />
                   </div>
                 </SelectTrigger>
-                <SelectContent>
-                  {UNIVERSITIES.map((uni) => (
-                    <SelectItem key={uni} value={uni}>{uni}</SelectItem>
-                  ))}
+                <SelectContent className="rounded-xl border-none shadow-xl">
+                  {UNIVERSITIES.map((u) => <SelectItem key={u} value={u} className="rounded-lg my-1 cursor-pointer">{u}</SelectItem>)}
                 </SelectContent>
               </Select>
             )}
           />
-          {errors.university && <p className="text-xs text-red-500 font-medium ml-1">{errors.university.message}</p>}
+          {errors.university && <p className="text-xs text-red-500 font-bold ml-2">{errors.university.message}</p>}
         </div>
 
         {/* Student ID */}
         <div className="space-y-2">
-          <Label className="text-slate-700 font-medium">Student Registration ID</Label>
-          <div className="relative group">
-            <Hash className="absolute left-3 top-3 h-5 w-5 text-slate-400 group-focus-within:text-violet-500 transition-colors" />
-            <Input 
-              id="studentId" 
-              {...register("studentId")} 
-              className="pl-10 h-11 border-slate-200 bg-slate-50/50 focus:border-violet-500 transition-all" 
-              placeholder="e.g. 2025001" 
-            />
+          <Label className="text-slate-600 font-bold ml-1">Student ID</Label>
+          <div className="relative">
+            <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+            <Input {...register("studentId")} className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 transition-all font-medium" placeholder="e.g. 2025001" />
           </div>
-          {errors.studentId && <p className="text-xs text-red-500 font-medium ml-1">{errors.studentId.message}</p>}
+          {errors.studentId && <p className="text-xs text-red-500 font-bold ml-2">{errors.studentId.message}</p>}
         </div>
 
-        {/* Degree Program (Custom Select) */}
+        {/* Degree */}
         <div className="space-y-2">
-          <Label className="text-slate-700 font-medium">Degree Program</Label>
+          <Label className="text-slate-600 font-bold ml-1">Degree Program</Label>
           <Controller
             name="degree"
             control={control}
             render={({ field }) => (
               <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <SelectTrigger className="h-11 border-slate-200 bg-slate-50/50 focus:ring-violet-500 hover:border-violet-300 transition-colors">
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <BookOpen className="w-4 h-4 text-violet-500" />
-                    <SelectValue placeholder="Select degree program" />
+                <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3]">
+                  <div className="flex items-center gap-3 text-slate-700">
+                    <BookOpen className="w-5 h-5 text-[#6C5DD3]" />
+                    <SelectValue placeholder="Select Degree" />
                   </div>
                 </SelectTrigger>
-                <SelectContent>
-                  {DEGREES.map((deg) => (
-                    <SelectItem key={deg} value={deg}>{deg}</SelectItem>
-                  ))}
+                <SelectContent className="rounded-xl border-none shadow-xl">
+                  {DEGREES.map((d) => <SelectItem key={d} value={d} className="rounded-lg my-1 cursor-pointer">{d}</SelectItem>)}
                 </SelectContent>
               </Select>
             )}
           />
-          {errors.degree && <p className="text-xs text-red-500 font-medium ml-1">{errors.degree.message}</p>}
+          {errors.degree && <p className="text-xs text-red-500 font-bold ml-2">{errors.degree.message}</p>}
         </div>
 
-        {/* GPA & Year Row */}
-        <div className="grid grid-cols-2 gap-5">
+        {/* GPA & Year */}
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label className="text-slate-700 font-medium">Current GPA</Label>
-            <div className="relative group">
-                <Award className="absolute left-3 top-3 h-5 w-5 text-slate-400 group-focus-within:text-violet-500 transition-colors" />
-                <Input 
-                  id="gpa" 
-                  {...register("gpa")} 
-                  className="pl-10 h-11 border-slate-200 bg-slate-50/50 focus:border-violet-500 transition-all"
-                  placeholder="e.g. 3.8" 
-                  type="number" 
-                  step="0.01" 
-                />
+            <Label className="text-slate-600 font-bold ml-1">GPA</Label>
+            <div className="relative">
+                <Award className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                <Input {...register("gpa")} type="number" step="0.01" className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 font-medium" placeholder="3.8" />
             </div>
-             {errors.gpa && <p className="text-xs text-red-500 font-medium ml-1">{errors.gpa.message}</p>}
           </div>
-
           <div className="space-y-2">
-            <Label className="text-slate-700 font-medium">Graduation Year</Label>
-            <div className="relative group">
-                <Calendar className="absolute left-3 top-3 h-5 w-5 text-slate-400 group-focus-within:text-violet-500 transition-colors" />
-                <Input 
-                  id="gradYear" 
-                  {...register("gradYear")} 
-                  className="pl-10 h-11 border-slate-200 bg-slate-50/50 focus:border-violet-500 transition-all"
-                  placeholder="e.g. 2026" 
-                  type="number" 
-                />
+            <Label className="text-slate-600 font-bold ml-1">Grad Year</Label>
+            <div className="relative">
+                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                <Input {...register("gradYear")} type="number" className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 font-medium" placeholder="2026" />
             </div>
-            {errors.gradYear && <p className="text-xs text-red-500 font-medium ml-1">{errors.gradYear.message}</p>}
           </div>
         </div>
       </div>
 
       <div className="flex gap-4 pt-6">
-        <Button 
-            type="button" 
-            variant="outline" 
-            onClick={onBack} 
-            className="w-1/3 h-11 text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900"
-        >
-          Back
-        </Button>
-        <Button 
-            type="submit" 
-            className="w-2/3 h-11 bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-200 hover:shadow-violet-300 transition-all"
-        >
-          Next: Security
-        </Button>
+        <Button type="button" variant="ghost" onClick={onBack} className="w-1/3 h-14 rounded-2xl text-slate-500 font-bold hover:bg-slate-100 hover:text-slate-700">Back</Button>
+        <Button type="submit" className="w-2/3 h-14 rounded-2xl bg-[#6C5DD3] hover:bg-[#5b4eb8] text-white text-lg font-bold shadow-lg shadow-indigo-200">Next Step</Button>
       </div>
     </motion.form>
   );
