@@ -7,6 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AuthService } from "@/lib/services/auth.service";
+import { StorageService } from "@/lib/services/storage.service";
+import { useToast } from "@/components/ui/toast";
+import { API_URL } from "@/lib/config";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -24,9 +28,15 @@ const AVAILABLE_TECHS = [
 
 export default function NewProjectPage() {
     const router = useRouter();
-    const [images, setImages] = useState<string[]>([]);
+    const { show } = useToast();
+    const [imageFiles, setImageFiles] = useState<File[]>([]);
+    const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedTechs, setSelectedTechs] = useState<string[]>([]);
+    const [title, setTitle] = useState("");
+    const [description, setDescription] = useState("");
+    const [githubUrl, setGithubUrl] = useState("");
+    const [demoUrl, setDemoUrl] = useState("");
 
     const handleAddTech = (tech: string) => {
         if (!selectedTechs.includes(tech)) {
@@ -40,21 +50,121 @@ export default function NewProjectPage() {
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            const url = URL.createObjectURL(e.target.files[0]);
-            setImages([...images, url]);
+            const file = e.target.files[0];
+            const preview = URL.createObjectURL(file);
+            setImageFiles([...imageFiles, file]);
+            setImagePreviews([...imagePreviews, preview]);
         }
     };
 
     const removeImage = (index: number) => {
-        setImages(images.filter((_, i) => i !== index));
+        setImageFiles(imageFiles.filter((_, i) => i !== index));
+        setImagePreviews(imagePreviews.filter((_, i) => i !== index));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        router.push("/dashboard/student/projects");
+
+        try {
+            const token = await AuthService.getIdToken();
+            if (!token) {
+                show({
+                    title: "Authentication Error",
+                    description: "Please log in again to continue.",
+                    variant: "error",
+                    duration: 3000
+                });
+                setIsSubmitting(false);
+                return;
+            }
+
+            // Upload images to Firebase Storage and get URLs
+            let imageUrls: Array<{ url: string; mimeType: string }> = [];
+            if (imageFiles.length > 0) {
+                try {
+                    // Generate a temporary project ID for organizing uploads
+                    const tempProjectId = `project-${Date.now()}`;
+                    const urls = await StorageService.uploadProjectImages(imageFiles, tempProjectId);
+                    imageUrls = urls.map((url, index) => ({
+                        url: url,
+                        mimeType: imageFiles[index].type || "image/jpeg"
+                    }));
+                    show({
+                        title: "Images Uploaded",
+                        description: `${imageUrls.length} image(s) uploaded to Firebase successfully`,
+                        variant: "success",
+                        duration: 2000
+                    });
+                } catch (uploadError) {
+                    show({
+                        title: "Image Upload Failed",
+                        description: uploadError instanceof Error ? uploadError.message : "Failed to upload images",
+                        variant: "error",
+                        duration: 3000
+                    });
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
+
+            const projectData = {
+                title: title,
+                description: description,
+                techStack: selectedTechs.join(", "),
+                repositoryUrl: githubUrl || null,
+                demoUrl: demoUrl || null,
+                isPublic: true,
+                images: imageUrls.length > 0 ? imageUrls : null
+            };
+
+            console.log("Sending project data:", projectData);
+
+            const response = await fetch(`${API_URL}/api/projects`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify(projectData)
+            });
+
+            console.log("Response status:", response.status);
+            const responseData = await response.json();
+            console.log("Response data:", responseData);
+
+            if (!response.ok) {
+                show({
+                    title: "Error Creating Project",
+                    description: responseData.message || response.statusText,
+                    variant: "error",
+                    duration: 4000
+                });
+                setIsSubmitting(false);
+                return;
+            }
+
+            // Success - show notification and redirect
+            show({
+                title: "Success",
+                description: "Project created successfully!",
+                variant: "success",
+                duration: 2500
+            });
+            
+            setTimeout(() => {
+                router.push("/dashboard/student/projects");
+            }, 500);
+        } catch (error) {
+            console.error("Error creating project:", error);
+            show({
+                title: "Error Creating Project",
+                description: error instanceof Error ? error.message : "An unknown error occurred",
+                variant: "error",
+                duration: 4000
+            });
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -77,7 +187,14 @@ export default function NewProjectPage() {
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="title">Project Title</Label>
-                        <Input id="title" placeholder="e.g. E-Commerce Dashboard" required className="rounded-xl h-12" />
+                        <Input 
+                            id="title" 
+                            placeholder="e.g. E-Commerce Dashboard" 
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            required 
+                            className="rounded-xl h-12" 
+                        />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -103,6 +220,8 @@ export default function NewProjectPage() {
                         <textarea
                             id="desc"
                             placeholder="Describe your project..."
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
                             className="flex min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C5DD3] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         />
                     </div>
@@ -146,18 +265,30 @@ export default function NewProjectPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="github">GitHub URL</Label>
-                            <Input id="github" placeholder="https://github.com/..." className="rounded-xl h-12" />
+                            <Input 
+                                id="github" 
+                                placeholder="https://github.com/..." 
+                                value={githubUrl}
+                                onChange={(e) => setGithubUrl(e.target.value)}
+                                className="rounded-xl h-12" 
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="demo">Live Demo URL</Label>
-                            <Input id="demo" placeholder="https://..." className="rounded-xl h-12" />
+                            <Input 
+                                id="demo" 
+                                placeholder="https://..." 
+                                value={demoUrl}
+                                onChange={(e) => setDemoUrl(e.target.value)}
+                                className="rounded-xl h-12" 
+                            />
                         </div>
                     </div>
 
                     <div className="space-y-2">
                         <Label>Project Images</Label>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {images.map((img, i) => (
+                            {imagePreviews.map((img, i) => (
                                 <div key={i} className="aspect-square relative rounded-xl overflow-hidden border border-slate-200 group">
                                     <img src={img} className="w-full h-full object-cover" />
                                     <button type="button" onClick={() => removeImage(i)} className="absolute top-1 right-1 bg-white/90 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white">

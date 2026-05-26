@@ -1,3 +1,9 @@
+export interface ProjectImage {
+  id: string;
+  imageUrl: string; // Data URI or URL
+  displayOrder: number;
+}
+
 export interface ProjectItem {
   id: string;
   studentProfileId: string;
@@ -10,4 +16,5 @@ export interface ProjectItem {
   isPublic: boolean;
   createdAt: string;
   updatedAt: string;
+  images?: ProjectImage[] | null;
 }

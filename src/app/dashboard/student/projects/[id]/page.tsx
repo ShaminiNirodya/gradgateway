@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Github, Globe, Calendar, User, Lock, Globe2 } from "lucide-react";
+import { ArrowLeft, Github, Globe, Calendar, User, Lock, Globe2, Pencil } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AuthService } from "@/lib/services/auth.service";
@@ -79,6 +79,12 @@ export default function ProjectDetailsPage() {
   }, [project?.studentName]);
 
   const heroImage = useMemo(() => {
+    // Use first uploaded image if available
+    if (project?.images && project.images.length > 0) {
+      return project.images[0].imageUrl;
+    }
+
+    // Fallback to Unsplash image
     const keywords = [
       techStack[0],
       techStack[1],
@@ -89,7 +95,7 @@ export default function ProjectDetailsPage() {
       .join(",");
 
     return `https://source.unsplash.com/1600x900/?${encodeURIComponent(keywords)}`;
-  }, [normalizedTitle, techStack]);
+  }, [normalizedTitle, techStack, project?.images]);
 
   if (loading) {
     return <div className="bg-white rounded-2xl p-8 shadow-sm">Loading project details...</div>;
@@ -108,11 +114,17 @@ export default function ProjectDetailsPage() {
 
   return (
     <div className="max-w-6xl mx-auto pb-20 space-y-8">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-4">
         <Button variant="ghost" asChild className="pl-0 group">
           <Link href="/dashboard/student/projects">
             <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
             Back to Projects
+          </Link>
+        </Button>
+        <Button asChild className="bg-[#6C5DD3] hover:bg-[#5b4eb8]">
+          <Link href={`/dashboard/student/projects/${id}/edit`}>
+            <Pencil className="w-4 h-4 mr-2" />
+            Edit Project
           </Link>
         </Button>
       </div>
@@ -128,10 +140,6 @@ export default function ProjectDetailsPage() {
           </div>
 
           <div className="rounded-3xl p-8 bg-gradient-to-br from-[#5b4eb8] via-[#6C5DD3] to-[#8a7cff] text-white shadow-lg">
-            <div className="flex items-center gap-2 mb-3">
-              {project.isPublic ? <Globe2 className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-              <span className="text-xs font-bold uppercase tracking-wider">{project.isPublic ? "Public project" : "Private project"}</span>
-            </div>
             <h1 className="text-3xl md:text-4xl font-bold">{normalizedTitle}</h1>
             <p className="mt-4 text-indigo-100 leading-relaxed">{normalizedDescription}</p>
           </div>
@@ -147,6 +155,23 @@ export default function ProjectDetailsPage() {
               {techStack.length === 0 && <p className="text-sm text-slate-500">No technologies listed.</p>}
             </div>
           </div>
+
+          {project.images && project.images.length > 0 && (
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+              <h2 className="font-bold text-xl text-slate-900 mb-5">Project Images</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {project.images.map((img) => (
+                  <div key={img.id} className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                    <img
+                      src={img.imageUrl}
+                      alt={`Project image ${img.displayOrder + 1}`}
+                      className="w-full h-48 object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="space-y-6 lg:sticky lg:top-8">

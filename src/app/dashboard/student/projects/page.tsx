@@ -101,10 +101,8 @@ export default function StudentProjectsPortfolio() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+        <div className="grid grid-cols-1 gap-4 mt-6">
           <StatCard label="Total Projects" value={projects.length} />
-          <StatCard label="Visible to Recruiters" value={totalPublic} />
-          <StatCard label="Filtered Results" value={filteredProjects.length} />
         </div>
       </div>
 
@@ -127,48 +125,63 @@ export default function StudentProjectsPortfolio() {
               .slice(0, 4);
 
             return (
-              <div key={project.id} className="bg-white rounded-[24px] shadow-sm p-6 border border-slate-100">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-lg">{project.title}</h3>
-                    <p className="text-sm text-slate-500 line-clamp-2 mt-1">{project.description}</p>
+              <div key={project.id} className="bg-white rounded-[24px] shadow-sm border border-slate-100 overflow-hidden">
+                {/* Image Thumbnail */}
+                {project.images && project.images.length > 0 ? (
+                  <div className="w-full h-40 overflow-hidden bg-slate-100">
+                    <img
+                      src={project.images[0].imageUrl}
+                      alt={project.title}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                  <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${project.isPublic ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-                    {project.isPublic ? "Public" : "Private"}
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {skills.map((skill) => (
-                    <span key={skill} className="px-2 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700">
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-between mt-6">
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <Calendar className="w-4 h-4" />
-                    <span>Updated {new Date(project.updatedAt).toLocaleDateString("en-LK")}</span>
+                ) : (
+                  <div className="w-full h-40 bg-gradient-to-br from-[#5b4eb8] via-[#6C5DD3] to-[#8a7cff] flex items-center justify-center">
+                    <span className="text-white text-sm font-medium opacity-60">No image</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {project.repositoryUrl && (
-                      <Button asChild variant="outline" size="sm">
-                        <a href={project.repositoryUrl} target="_blank" rel="noopener noreferrer">
-                          <Github className="w-4 h-4 mr-1" /> Code
-                        </a>
+                )}
+
+                <div className="p-6 space-y-4">
+                    <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-lg">{project.title}</h3>
+                      <p className="text-sm text-slate-500 line-clamp-2 mt-1">{project.description}</p>
+                    </div>
+                    {/* Removed Public/Private badge per request */}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {skills.map((skill) => (
+                      <span key={skill} className="px-2 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700">
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <Calendar className="w-4 h-4" />
+                      <span>Updated {new Date(project.updatedAt).toLocaleDateString("en-LK")}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {project.repositoryUrl && (
+                        <Button asChild variant="outline" size="sm">
+                          <a href={project.repositoryUrl} target="_blank" rel="noopener noreferrer">
+                            <Github className="w-4 h-4 mr-1" /> Code
+                          </a>
+                        </Button>
+                      )}
+                      {project.demoUrl && (
+                        <Button asChild variant="outline" size="sm">
+                          <a href={project.demoUrl} target="_blank" rel="noopener noreferrer">
+                            <Globe className="w-4 h-4 mr-1" /> Demo
+                          </a>
+                        </Button>
+                      )}
+                      <Button asChild size="sm">
+                        <Link href={`/dashboard/student/projects/${project.id}`}>View</Link>
                       </Button>
-                    )}
-                    {project.demoUrl && (
-                      <Button asChild variant="outline" size="sm">
-                        <a href={project.demoUrl} target="_blank" rel="noopener noreferrer">
-                          <Globe className="w-4 h-4 mr-1" /> Demo
-                        </a>
-                      </Button>
-                    )}
-                    <Button asChild size="sm">
-                      <Link href={`/dashboard/student/projects/${project.id}`}>View</Link>
-                    </Button>
+                    </div>
                   </div>
                 </div>
               </div>
