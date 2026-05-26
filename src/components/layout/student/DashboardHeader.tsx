@@ -1,9 +1,33 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Bell, Search, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useStudentProfile } from "@/lib/hooks/useStudentProfile";
+import { AuthService } from "@/lib/services/auth.service";
+import { DashboardService } from "@/lib/services/dashboard.service";
 
 export default function DashboardHeader() {
+  const { profile, initials } = useStudentProfile();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const loadNotifications = async () => {
+      try {
+        const token = await AuthService.getIdToken();
+        if (!token) return;
+        const notifications = await DashboardService.getMyNotifications(token);
+        setUnreadCount(notifications.filter((n) => !n.isRead).length);
+      } catch {
+        setUnreadCount(0);
+      }
+    };
+
+    loadNotifications();
+  }, []);
+
   return (
     <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-40">
       
@@ -34,12 +58,12 @@ export default function DashboardHeader() {
 
         <Button variant="ghost" size="icon" className="relative text-slate-500 hover:bg-slate-50">
           <Bell className="w-5 h-5" />
-          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
+          {unreadCount > 0 && <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>}
         </Button>
 
         <Avatar className="h-8 w-8 border border-slate-200 cursor-pointer hover:ring-2 hover:ring-slate-100 transition-all">
-          <AvatarImage src="https://github.com/shadcn.png" />
-          <AvatarFallback className="bg-slate-100 text-slate-700 font-medium text-xs">KP</AvatarFallback>
+          <AvatarImage src={profile?.photoDataUrl} />
+          <AvatarFallback className="bg-slate-100 text-slate-700 font-medium text-xs">{initials}</AvatarFallback>
         </Avatar>
       </div>
     </header>

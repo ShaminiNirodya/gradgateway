@@ -1,0 +1,27 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ring_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#37B3E3" />
+      <stop offset="100%" stop-color="#1E40AF" />
+    </linearGradient>
+    <linearGradient id="g_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E40AF" />
+      <stop offset="100%" stop-color="#37B3E3" />
+    </linearGradient>
+  </defs>
+
+  <!-- Outer Ring (3D effect with stroke) -->
+  <circle cx="256" cy="256" r="220" stroke="url(#ring_grad)" stroke-width="40" fill="none" />
+  
+  <!-- Stylized G (following the circular path) -->
+  <path d="M410 256C410 341.052 341.052 410 256 410C170.948 410 102 341.052 102 256C102 170.948 170.948 102 256 102" stroke="url(#g_grad)" stroke-width="45" stroke-linecap="round" fill="none" />
+  <path d="M256 256H410" stroke="url(#g_grad)" stroke-width="45" stroke-linecap="round" fill="none" />
+  
+  <!-- The Graduation Cap (Sitting on the G) -->
+  <path d="M256 40L140 100L256 160L372 100L256 40Z" fill="#1E40AF" stroke="#37B3E3" stroke-width="4" />
+  <path d="M160 110V200" stroke="#37B3E3" stroke-width="12" stroke-linecap="round" />
+  <rect x="150" y="190" width="20" height="35" rx="4" fill="#37B3E3" />
+  
+  <!-- Decorative highlight -->
+  <path d="M256 80L340 120" stroke="white" stroke-width="2" stroke-opacity="0.3" />
+</svg>

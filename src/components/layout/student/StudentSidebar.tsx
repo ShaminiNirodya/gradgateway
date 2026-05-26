@@ -8,35 +8,50 @@ import {
   MessageSquare,
   Settings,
   LogOut,
+  GraduationCap,
+  Briefcase,
   Compass,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/lib/contexts/AuthContext";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useStudentProfile } from "@/lib/hooks/useStudentProfile";
 
 const navItems = [
-  { name: "Dashboard", href: "/student", icon: LayoutGrid },
-  { name: "My Projects", href: "/student/projects", icon: Folder },
-  { name: "Messages", href: "/student/messages", icon: MessageSquare },
-  { name: "Discover", href: "/student/discover", icon: Compass },
-  { name: "Settings", href: "/student/settings", icon: Settings },
-];
-
-const network = [
-  { name: "Sarah J.", img: "https://i.pravatar.cc/150?u=1", role: "Recruiter" },
-  { name: "Mike T.", img: "https://i.pravatar.cc/150?u=2", role: "Developer" },
-  { name: "Anna W.", img: "https://i.pravatar.cc/150?u=3", role: "Mentor" },
+  { name: "Dashboard", href: "/dashboard/student", icon: LayoutGrid },
+  { name: "My Projects", href: "/dashboard/student/projects", icon: Folder },
+  { name: "Messages", href: "/dashboard/student/messages", icon: MessageSquare },
+  { name: "Openings", href: "/dashboard/student/openings", icon: Compass },
+  { name: "Applications", href: "/dashboard/student/applications", icon: Briefcase },
+  { name: "Settings", href: "/dashboard/student/settings", icon: Settings },
 ];
 
 export default function StudentSidebar() {
   const pathname = usePathname();
+  const { signOut } = useAuth();
+  const router = useRouter();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const { profile, displayName, initials } = useStudentProfile();
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      router.push("/login");
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-white w-72 p-6 overflow-y-auto">
       <div className="flex items-center gap-3 px-2 mb-12">
-        <div className="w-10 h-10 bg-[#6C5DD3] rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
-          <Compass className="w-6 h-6" />
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden">
+          <img src="/logo.svg" alt="GradGateway Logo" className="w-full h-full object-contain" />
         </div>
-        <span className="font-bold text-2xl text-slate-800 tracking-tight">GradGt.</span>
+        <span className="font-extrabold text-2xl text-slate-800 tracking-tight">GradGateway</span>
       </div>
 
       <div className="space-y-8 flex-1">
@@ -50,7 +65,7 @@ export default function StudentSidebar() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-semibold transition-all duration-300",
+                    "flex items-center gap-4 px-4 py-3.5 rounded-[24px] text-sm font-bold transition-all duration-300",
                     isActive
                       ? "bg-[#6C5DD3] text-white shadow-lg shadow-indigo-200"
                       : "text-slate-500 hover:text-[#6C5DD3] hover:bg-slate-50"
@@ -63,30 +78,59 @@ export default function StudentSidebar() {
             })}
           </div>
         </div>
+      </div>
 
-        <div>
-          <p className="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Network</p>
-          <div className="space-y-4 px-4">
-            {network.map((person) => (
-              <div key={person.name} className="flex items-center gap-3 cursor-pointer group">
-                <Avatar className="h-9 w-9 border-2 border-white shadow-sm">
-                  <AvatarImage src={person.img} />
-                  <AvatarFallback>{person.name[0]}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm font-bold text-slate-700 group-hover:text-[#6C5DD3] transition-colors">{person.name}</p>
-                  <p className="text-xs text-slate-400">{person.role}</p>
-                </div>
-              </div>
-            ))}
+      <div className="mt-6 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-10 w-10 border border-slate-200">
+            <AvatarImage src={profile?.photoDataUrl} />
+            <AvatarFallback className="bg-slate-100 text-slate-700 font-bold">{initials}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-slate-800 truncate">{displayName}</p>
+            <p className="text-xs text-slate-500 truncate">{profile?.university || "Student"}</p>
           </div>
         </div>
       </div>
 
-      <button className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-red-500 transition-colors mt-6 font-semibold">
+      <button
+        onClick={() => setShowLogoutConfirm(true)}
+        className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-red-500 transition-colors mt-6 font-semibold"
+      >
         <LogOut className="w-5 h-5" />
         Log Out
       </button>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
+            onClick={() => setShowLogoutConfirm(false)}
+          />
+          <div className="relative bg-white rounded-[32px] p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-95 fade-in duration-300">
+            <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-6 mx-auto">
+              <LogOut className="w-8 h-8 text-red-500" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-800 text-center mb-2">Logout</h3>
+            <p className="text-slate-500 text-center mb-8 font-medium">Are you sure you want to log out of your account?</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant="ghost"
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleLogout}
+              >
+                Log Out
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

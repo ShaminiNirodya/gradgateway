@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { User, Mail, Phone, Camera } from "lucide-react";
 import { motion } from "framer-motion";
+import { useRef, useState } from "react";
 
 interface Step1Props {
   onNext: (data: PersonalInfoData) => void;
@@ -15,10 +16,38 @@ interface Step1Props {
 }
 
 export default function Step1Personal({ onNext, defaultValues }: Step1Props) {
-  const { register, handleSubmit, formState: { errors } } = useForm<PersonalInfoData>({
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [preview, setPreview] = useState<string | null>(
+    (defaultValues as any)?.photoDataUrl ?? null
+  );
+
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<PersonalInfoData>({
     resolver: zodResolver(personalInfoSchema),
-    defaultValues: defaultValues || { fullName: "", email: "", phone: "+94" }
+    defaultValues: defaultValues || { fullName: "", email: "", phone: "+94", photoDataUrl: (defaultValues as any)?.photoDataUrl }
   });
+
+  const onPickFile = () => fileInputRef.current?.click();
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    const maxBytes = 2 * 1024 * 1024; // 2MB
+    if (file.size > maxBytes) {
+      alert("Image is too large. Please select a file under 2MB.");
+      e.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = String(reader.result || "");
+      setPreview(url);
+      setValue("photoDataUrl", url, { shouldValidate: false, shouldDirty: true });
+      try {
+        sessionStorage.setItem("register.student.photo", url);
+      } catch {}
+    };
+    reader.readAsDataURL(file);
+  };
 
   return (
     <motion.form 
@@ -30,14 +59,21 @@ export default function Step1Personal({ onNext, defaultValues }: Step1Props) {
     >
       {/* Profile Photo Uploader */}
       <div className="flex flex-col items-center justify-center mb-8">
-        <div className="relative group cursor-pointer">
-          <div className="w-28 h-28 rounded-full bg-slate-50 border-4 border-white shadow-lg flex items-center justify-center group-hover:bg-slate-100 transition-colors">
-            <Camera className="w-10 h-10 text-slate-300 group-hover:text-[#6C5DD3] transition-colors" />
+        <button type="button" onClick={onPickFile} className="relative group cursor-pointer outline-none">
+          <div className="w-28 h-28 rounded-full bg-slate-50 border-4 border-white shadow-lg overflow-hidden flex items-center justify-center group-hover:bg-slate-100 transition-colors">
+            {preview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={preview} alt="Profile preview" className="w-full h-full object-cover" />
+            ) : (
+              <Camera className="w-10 h-10 text-slate-300 group-hover:text-[#6C5DD3] transition-colors" />
+            )}
           </div>
           <div className="absolute bottom-0 right-0 w-8 h-8 bg-[#6C5DD3] rounded-full flex items-center justify-center text-white border-2 border-white shadow-sm">
             <div className="text-lg leading-none mb-0.5">+</div>
           </div>
-        </div>
+        </button>
+        <input ref={fileInputRef} type="file" accept="image/*" onChange={onFileChange} className="hidden" />
+        <input type="hidden" {...register("photoDataUrl")} />
         <span className="text-sm font-bold text-slate-500 mt-3">Upload Photo</span>
       </div>
 

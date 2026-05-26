@@ -6,32 +6,32 @@ import { academicInfoSchema, AcademicInfoData } from "@/lib/validators/student-r
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@/components/ui/select";
 import { motion } from "framer-motion";
-import { GraduationCap, BookOpen, Calendar, Award, Hash } from "lucide-react";
+import { GraduationCap, BookOpen, Calendar, Award } from "lucide-react";
 
 // Mock Data
 const UNIVERSITIES = [
-  "University of Moratuwa", 
-  "University of Colombo", 
+  "University of Moratuwa",
+  "University of Colombo",
   "University of Peradeniya",
   "University of Kelaniya",
   "University of Jayewardenepura",
-  "SLIIT", 
-  "IIT", 
+  "SLIIT",
+  "IIT",
   "NSBM"
 ];
 
 const DEGREES = [
-  "BSc (Hons) Computer Science", 
-  "BSc (Hons) Software Engineering", 
-  "BSc (Hons) Information Systems", 
+  "BSc (Hons) Computer Science",
+  "BSc (Hons) Software Engineering",
+  "BSc (Hons) Information Systems",
   "BSc (Hons) Data Science",
   "BSc (Hons) Cyber Security"
 ];
@@ -47,11 +47,11 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
   });
 
   return (
-    <motion.form 
+    <motion.form
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      onSubmit={handleSubmit(onNext)} 
+      onSubmit={handleSubmit(onNext)}
       className="space-y-6"
     >
       <div className="space-y-5">
@@ -76,16 +76,6 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
             )}
           />
           {errors.university && <p className="text-xs text-red-500 font-bold ml-2">{errors.university.message}</p>}
-        </div>
-
-        {/* Student ID */}
-        <div className="space-y-2">
-          <Label className="text-slate-600 font-bold ml-1">Student ID</Label>
-          <div className="relative">
-            <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-            <Input {...register("studentId")} className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 transition-all font-medium" placeholder="e.g. 2025001" />
-          </div>
-          {errors.studentId && <p className="text-xs text-red-500 font-bold ml-2">{errors.studentId.message}</p>}
         </div>
 
         {/* Degree */}
@@ -116,15 +106,15 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
           <div className="space-y-2">
             <Label className="text-slate-600 font-bold ml-1">GPA</Label>
             <div className="relative">
-                <Award className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                <Input {...register("gpa")} type="number" step="0.01" className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 font-medium" placeholder="3.8" />
+              <Award className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+              <Input {...register("gpa")} type="number" step="0.01" className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 font-medium" placeholder="3.8" />
             </div>
           </div>
           <div className="space-y-2">
             <Label className="text-slate-600 font-bold ml-1">Grad Year</Label>
             <div className="relative">
-                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                <Input {...register("gradYear")} type="number" className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 font-medium" placeholder="2026" />
+              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+              <Input {...register("gradYear")} type="number" className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 font-medium" placeholder="2026" />
             </div>
           </div>
         </div>

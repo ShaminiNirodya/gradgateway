@@ -11,6 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/contexts/AuthContext";
+import { UserRole } from "@/lib/types/auth";
 
 interface LoginFormProps {
   role: "student" | "company";
@@ -18,8 +20,10 @@ interface LoginFormProps {
 
 export default function LoginForm({ role }: LoginFormProps) {
   const router = useRouter();
+  const { signIn } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginData>({
     resolver: zodResolver(loginSchema),
@@ -28,14 +32,48 @@ export default function LoginForm({ role }: LoginFormProps) {
 
   const onSubmit = async (data: LoginData) => {
     setIsLoading(true);
-    setTimeout(() => {
-      console.log(`LOGIN AS ${role.toUpperCase()}:`, data);
+    setError(null);
+
+    try {
+      const expectedRole: UserRole = role === "company" ? "Company" : "Student";
+      const userData = await signIn(data.email, data.password, expectedRole);
+      
+      // Navigate based on the user's role from backend
+      switch(userData.role) {
+        case "Admin":
+          router.push("/dashboard/admin");
+          break;
+        case "Student":
+          router.push("/dashboard/student");
+          break;
+        case "Company":
+          router.push("/dashboard/company");
+          break;
+        default:
+          router.push("/");
+      }
+    } catch (err: any) {
+      console.error("Login error:", err);
+      
+      // Handle Firebase auth errors
+      if (err.code === 'auth/user-not-found') {
+        setError("No account found with this email");
+      } else if (err.code === 'auth/wrong-password') {
+        setError("Incorrect password");
+      } else if (err.code === 'auth/invalid-email') {
+        setError("Invalid email address");
+      } else if (err.code === 'auth/user-disabled') {
+        setError("This account has been disabled");
+      } else if (err.code === 'auth/invalid-credential') {
+        setError("Invalid email or password");
+      } else if (typeof err?.message === "string" && err.message.startsWith("Role mismatch:")) {
+        setError(err.message.replace("Role mismatch: ", ""));
+      } else {
+        setError(err.message || "Failed to sign in. Please try again.");
+      }
+    } finally {
       setIsLoading(false);
-      
-       if (role === "student") router.push("/student");
-      else router.push("/dashboard/company");
-      
-    }, 1500);
+    }
   };
 
   return (
@@ -99,6 +137,13 @@ export default function LoginForm({ role }: LoginFormProps) {
           </Label>
         </div>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm font-semibold">
+          {error}
+        </div>
+      )}
 
       <Button 
         type="submit" 

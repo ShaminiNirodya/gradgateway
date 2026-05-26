@@ -46,11 +46,6 @@ export default function Step3Security({ onComplete, onBack }: Step3Props) {
           {errors.confirmPassword && <p className="text-xs text-red-500 font-bold ml-2">{errors.confirmPassword.message}</p>}
         </div>
 
-        <div className="bg-indigo-50 border-none rounded-2xl p-5">
-          <p className="text-sm text-[#6C5DD3] font-medium leading-relaxed">
-            We will send a 6-digit verification code to your email. Please check your inbox (and spam folder) after clicking Create Account.
-          </p>
-        </div>
       </div>
 
       <div className="flex gap-4 pt-6">
