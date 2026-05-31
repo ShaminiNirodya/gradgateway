@@ -30,13 +30,14 @@ const INDUSTRIES = [
 ];
 
 interface Step1Props {
-  onNext: (data: CompanyInfoData) => void;
+  onNext: (data: CompanyInfoData & { logoFile?: File }) => void;
   defaultValues?: Partial<CompanyInfoData>;
 }
 
 export default function Step1Company({ onNext, defaultValues }: Step1Props) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [preview, setPreview] = useState<string | null>((defaultValues as any)?.logoDataUrl ?? null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const {
     register,
     handleSubmit,
@@ -78,16 +79,23 @@ export default function Step1Company({ onNext, defaultValues }: Step1Props) {
       e.target.value = "";
       return;
     }
+    
+    // Store the file for later upload
+    setLogoFile(file);
+    
+    // Create preview URL
     const reader = new FileReader();
     reader.onload = () => {
       const url = String(reader.result || "");
       setPreview(url);
       setValue("logoDataUrl", url, { shouldValidate: false, shouldDirty: true });
-      try {
-        sessionStorage.setItem("register.company.logo", url);
-      } catch {}
     };
     reader.readAsDataURL(file);
+  };
+
+  const onSubmit = (data: CompanyInfoData) => {
+    // Pass both form data and the file object
+    onNext({ ...data, logoFile: logoFile || undefined });
   };
 
   return (
@@ -95,7 +103,7 @@ export default function Step1Company({ onNext, defaultValues }: Step1Props) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      onSubmit={handleSubmit(onNext)}
+      onSubmit={handleSubmit(onSubmit)}
       className="space-y-6"
     >
       {/* Company Logo Uploader */}

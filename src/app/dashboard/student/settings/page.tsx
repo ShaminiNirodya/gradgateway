@@ -6,7 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, Shield, User } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Bell, Shield, User, Search } from "lucide-react";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useStudentProfile } from "@/lib/hooks/useStudentProfile";
 import { AuthService } from "@/lib/services/auth.service";
 import { StudentService } from "@/lib/services/student.service";
@@ -14,17 +21,87 @@ import { auth } from "@/lib/firebase";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/contexts/AuthContext";
 
+const AVAILABLE_DEGREES = [
+    // Computer Science & IT
+    "BSc (Hons) Computer Science", "BSc Computer Science", "BSc Information Technology",
+    "BSc Software Engineering", "BSc Information Systems", "BSc Cyber Security",
+    "BSc Data Science", "BSc Artificial Intelligence", "BSc Computer Engineering",
+    
+    // Engineering
+    "BEng (Hons) Electrical Engineering", "BEng (Hons) Mechanical Engineering",
+    "BEng (Hons) Civil Engineering", "BEng (Hons) Electronic Engineering",
+    "BEng (Hons) Chemical Engineering", "BEng (Hons) Biomedical Engineering",
+    
+    // Business & Management
+    "BBA Business Administration", "BSc Business Management", "BSc Accounting & Finance",
+    "BSc Marketing", "BSc Human Resource Management", "BSc Economics",
+    
+    // Sciences
+    "BSc (Hons) Mathematics", "BSc (Hons) Physics", "BSc (Hons) Chemistry",
+    "BSc (Hons) Biology", "BSc (Hons) Biotechnology", "BSc (Hons) Environmental Science",
+    
+    // Arts & Social Sciences
+    "BA (Hons) Psychology", "BA (Hons) Sociology", "BA (Hons) English",
+    "BA (Hons) Mass Communication", "BA (Hons) Political Science",
+    
+    // Design & Creative
+    "BDes Graphic Design", "BDes UI/UX Design", "BDes Product Design",
+    "BA (Hons) Fine Arts", "BSc Multimedia Technology",
+    
+    // Other
+    "LLB Law", "MBBS Medicine", "BArch Architecture"
+].sort();
+
+const AVAILABLE_UNIVERSITIES = [
+    // State Universities
+    "University of Colombo",
+    "University of Peradeniya",
+    "University of Moratuwa",
+    "University of Kelaniya",
+    "University of Sri Jayewardenepura",
+    "University of Ruhuna",
+    "Eastern University",
+    "University of Jaffna",
+    "Sabaragamuwa University",
+    "Wayamba University",
+    "Rajarata University",
+    "South Eastern University",
+    "Uva Wellassa University",
+    "University of the Visual & Performing Arts",
+    "Open University of Sri Lanka",
+    
+    // Private & International
+    "SLIIT - Sri Lanka Institute of Information Technology",
+    "IIT - Informatics Institute of Technology",
+    "NSBM Green University",
+    "NIBM - National Institute of Business Management",
+    "Horizon Campus",
+    "Asia Pacific Institute of Information Technology (APIIT)",
+    "Aquinas College of Higher Studies",
+    "KIU - Kaatsu International University",
+    
+    // International Branch Campuses
+    "Monash University - Sri Lanka Campus",
+    "Curtin University - Sri Lanka Campus",
+    
+    // Other
+    "Other"
+].sort();
+
+const GRADUATION_YEARS = Array.from({ length: 16 }, (_, i) => 2020 + i);
+
 export default function StudentSettingsPage() {
     const { userData, resetPassword, changePassword } = useAuth();
     const { show } = useToast();
     const { profile, initials, loading, refresh } = useStudentProfile();
     const [isSaving, setIsSaving] = useState(false);
-    const [headline, setHeadline] = useState("");
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [degree, setDegree] = useState("");
+    const [university, setUniversity] = useState("");
+    const [gradYear, setGradYear] = useState("");
+    const [currentYear, setCurrentYear] = useState<number>(1);
     const [gpa, setGpa] = useState("");
-    const [bio, setBio] = useState("");
     const [certificationsText, setCertificationsText] = useState("");
     const [awardsText, setAwardsText] = useState("");
     const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
@@ -33,6 +110,10 @@ export default function StudentSettingsPage() {
     const [confirmNewPassword, setConfirmNewPassword] = useState("");
     const [isChangingPassword, setIsChangingPassword] = useState(false);
     const [isSendingReset, setIsSendingReset] = useState(false);
+    const [degreeSearch, setDegreeSearch] = useState("");
+    const [isDegreeDropdownOpen, setIsDegreeDropdownOpen] = useState(false);
+    const [universitySearch, setUniversitySearch] = useState("");
+    const [isUniversityDropdownOpen, setIsUniversityDropdownOpen] = useState(false);
 
     useEffect(() => {
         if (!profile) return;
@@ -44,9 +125,10 @@ export default function StudentSettingsPage() {
         setFirstName(localFirst);
         setLastName(localLast);
         setDegree(profile.degree || "");
+        setUniversity(profile.university || "");
+        setGradYear(String(profile.gradYear || ""));
+        setCurrentYear(profile.currentYear || 1);
         setGpa(String(profile.gpa ?? ""));
-        setHeadline(`${profile.degree || "Student"}`.trim());
-        setBio(`${profile.university} • Graduating ${profile.gradYear}`);
         setCertificationsText((profile.certifications || []).join("\n"));
         setAwardsText((profile.awards || []).join("\n"));
     }, [profile]);
@@ -72,10 +154,11 @@ export default function StudentSettingsPage() {
                 fullName,
                 phone: profile.phone,
                 photoDataUrl: profile.photoDataUrl,
-                university: profile.university,
+                university,
                 studentId: profile.studentId,
                 degree,
-                gradYear: String(profile.gradYear),
+                gradYear,
+                currentYear,
                 gpa,
                 certifications: certificationsText.split(/\r?\n/).map((v) => v.trim()).filter(Boolean),
                 awards: awardsText.split(/\r?\n/).map((v) => v.trim()).filter(Boolean),
@@ -195,10 +278,6 @@ export default function StudentSettingsPage() {
                                     <AvatarFallback className="bg-slate-100 text-slate-400 text-2xl font-bold">{initials}</AvatarFallback>
                                 </Avatar>
                             </div>
-                            <div className="flex-1">
-                                <label className="text-sm font-medium text-slate-700 mb-1 block">Headline</label>
-                                <Input value={headline} onChange={(e) => setHeadline(e.target.value)} className="rounded-xl w-full" />
-                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -212,15 +291,144 @@ export default function StudentSettingsPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label>Major / Degree</Label>
-                                <Input value={degree} onChange={(e) => setDegree(e.target.value)} className="rounded-xl" />
+                                <DropdownMenu open={isDegreeDropdownOpen} onOpenChange={setIsDegreeDropdownOpen}>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            className="w-full h-10 justify-start text-left font-normal rounded-xl border-slate-200 hover:bg-slate-50"
+                                        >
+                                            {degree || "Select your degree..."}
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" className="bg-white w-[400px] rounded-xl shadow-xl border-slate-100 p-0">
+                                        <div className="sticky top-0 bg-white border-b border-slate-100 p-2">
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Search degrees..."
+                                                    value={degreeSearch}
+                                                    onChange={(e) => setDegreeSearch(e.target.value)}
+                                                    onKeyDown={(e) => e.stopPropagation()}
+                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                    className="pl-9 h-9 rounded-lg border-slate-200 focus:border-[#6C5DD3] focus:ring-[#6C5DD3]"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="max-h-60 overflow-y-auto">
+                                            {AVAILABLE_DEGREES
+                                                .filter(d => d.toLowerCase().includes(degreeSearch.toLowerCase()))
+                                                .map((degreeOption) => (
+                                                    <DropdownMenuItem
+                                                        key={degreeOption}
+                                                        onClick={() => {
+                                                            setDegree(degreeOption);
+                                                            setDegreeSearch("");
+                                                            setIsDegreeDropdownOpen(false);
+                                                        }}
+                                                        className="font-medium text-slate-600 focus:bg-indigo-50 focus:text-[#6C5DD3] cursor-pointer py-2.5 px-3"
+                                                    >
+                                                        {degreeOption}
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            {AVAILABLE_DEGREES
+                                                .filter(d => d.toLowerCase().includes(degreeSearch.toLowerCase()))
+                                                .length === 0 && (
+                                                <div className="p-4 text-sm text-slate-400 text-center">
+                                                    No degrees found
+                                                </div>
+                                            )}
+                                        </div>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Current Academic Year</Label>
+                                <Select value={String(currentYear)} onValueChange={(val) => setCurrentYear(parseInt(val))}>
+                                    <SelectTrigger className="rounded-xl h-10">
+                                        <SelectValue placeholder="Select Year" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl">
+                                        <SelectItem value="1" className="rounded-lg cursor-pointer">1st Year</SelectItem>
+                                        <SelectItem value="2" className="rounded-lg cursor-pointer">2nd Year</SelectItem>
+                                        <SelectItem value="3" className="rounded-lg cursor-pointer">3rd Year</SelectItem>
+                                        <SelectItem value="4" className="rounded-lg cursor-pointer">4th Year</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="space-y-2">
                                 <Label>Current GPA</Label>
                                 <Input value={gpa} onChange={(e) => setGpa(e.target.value)} className="rounded-xl" placeholder="e.g. 3.8" />
                             </div>
-                            <div className="space-y-2 md:col-span-2">
-                                <Label>About / Bio</Label>
-                                <textarea className="flex min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C5DD3]" value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tell us about yourself..." />
+                            <div className="space-y-2">
+                                <Label>University</Label>
+                                <DropdownMenu open={isUniversityDropdownOpen} onOpenChange={setIsUniversityDropdownOpen}>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            className="w-full h-10 justify-start text-left font-normal rounded-xl border-slate-200 hover:bg-slate-50"
+                                        >
+                                            {university || "Select your university..."}
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" className="bg-white w-[400px] rounded-xl shadow-xl border-slate-100 p-0">
+                                        <div className="sticky top-0 bg-white border-b border-slate-100 p-2">
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Search universities..."
+                                                    value={universitySearch}
+                                                    onChange={(e) => setUniversitySearch(e.target.value)}
+                                                    onKeyDown={(e) => e.stopPropagation()}
+                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                    className="pl-9 h-9 rounded-lg border-slate-200 focus:border-[#6C5DD3] focus:ring-[#6C5DD3]"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="max-h-60 overflow-y-auto">
+                                            {AVAILABLE_UNIVERSITIES
+                                                .filter(u => u.toLowerCase().includes(universitySearch.toLowerCase()))
+                                                .map((uni) => (
+                                                    <DropdownMenuItem
+                                                        key={uni}
+                                                        onClick={() => {
+                                                            setUniversity(uni);
+                                                            setUniversitySearch("");
+                                                            setIsUniversityDropdownOpen(false);
+                                                        }}
+                                                        className="font-medium text-slate-600 focus:bg-indigo-50 focus:text-[#6C5DD3] cursor-pointer py-2.5 px-3"
+                                                    >
+                                                        {uni}
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            {AVAILABLE_UNIVERSITIES
+                                                .filter(u => u.toLowerCase().includes(universitySearch.toLowerCase()))
+                                                .length === 0 && (
+                                                <div className="p-4 text-sm text-slate-400 text-center">
+                                                    No universities found
+                                                </div>
+                                            )}
+                                        </div>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Graduation Year</Label>
+                                <Select value={gradYear} onValueChange={setGradYear}>
+                                    <SelectTrigger className="rounded-xl h-10">
+                                        <SelectValue placeholder="Select year" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl max-h-60">
+                                        {GRADUATION_YEARS.map((year) => (
+                                            <SelectItem key={year} value={String(year)} className="rounded-lg cursor-pointer">
+                                                {year}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="space-y-2 md:col-span-2">
                                 <Label>Certifications (one per line)</Label>

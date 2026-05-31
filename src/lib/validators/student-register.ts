@@ -13,10 +13,16 @@ export const personalInfoSchema = z.object({
 export const academicInfoSchema = z.object({
   university: z.string().min(1, "Please select your university"),
   degree: z.string().min(1, "Please select your degree program"),
-  gradYear: z.string().min(4, "Please enter graduation year"),
+  currentYear: z.number().min(1, "Please select your current year").max(4, "Invalid year"),
+  gradYear: z.string()
+    .min(4, "Please enter graduation year")
+    .refine((val) => {
+      const year = parseInt(val);
+      return year >= 2020 && year <= 2040;
+    }, "Graduation year must be between 2020 and 2040"),
   gpa: z.string().refine((val) => {
     const num = parseFloat(val);
-    return num >= 0 && num <= 4.0;
+    return !isNaN(num) && num >= 0 && num <= 4.0;
   }, "GPA must be between 0.0 and 4.0"),
 });
 

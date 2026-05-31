@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Upload, X, Plus } from "lucide-react";
+import { ArrowLeft, Upload, X, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,12 +20,106 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ProjectItem } from "@/lib/types/project";
 
+const AVAILABLE_ROLES = [
+    // Leadership Roles
+    "Lead Developer", "Team Lead", "Technical Lead", "Project Lead", "Engineering Manager",
+    "Product Manager", "Program Manager", "Scrum Master", "Agile Coach",
+    
+    // Development Roles
+    "Full Stack Developer", "Frontend Developer", "Backend Developer", "Software Engineer",
+    "Senior Developer", "Junior Developer", "Software Architect", "Solutions Architect",
+    "DevOps Engineer", "Site Reliability Engineer", "Platform Engineer",
+    
+    // Specialized Development
+    "Mobile Developer", "iOS Developer", "Android Developer", "React Native Developer",
+    "Flutter Developer", "Game Developer", "Blockchain Developer", "Smart Contract Developer",
+    "Embedded Systems Engineer", "Systems Engineer", "Database Developer",
+    
+    // Data & AI/ML
+    "Data Scientist", "Data Engineer", "Data Analyst", "Machine Learning Engineer",
+    "AI Engineer", "Research Scientist", "Business Intelligence Analyst",
+    "Analytics Engineer", "MLOps Engineer",
+    
+    // Design & UX
+    "UI/UX Designer", "Product Designer", "UX Researcher", "UI Designer",
+    "Visual Designer", "Interaction Designer", "Design Lead", "Creative Director",
+    
+    // QA & Testing
+    "QA Engineer", "Test Engineer", "Quality Assurance Lead", "Automation Engineer",
+    "Performance Engineer", "Security Engineer", "Penetration Tester",
+    
+    // Other Technical Roles
+    "Cloud Engineer", "Infrastructure Engineer", "Network Engineer",
+    "Security Analyst", "Cybersecurity Specialist", "Technical Writer",
+    "Developer Advocate", "Solutions Engineer", "Integration Engineer",
+    "Release Manager", "Build Engineer", "Technical Consultant"
+].sort();
+
 const AVAILABLE_TECHS = [
-    "React", "Node.js", "Python", "Java", "TypeScript",
-    "Machine Learning", "UI/UX Design", "Flutter", "DevOps",
-    "Spring Boot", "PostgreSQL", "MongoDB", "AWS", "Docker",
-    "Tailwind CSS", "Next.js", "Figma", "Vue.js", "Angular"
-];
+    // Frontend Frameworks & Libraries
+    "React", "Vue.js", "Angular", "Svelte", "Next.js", "Nuxt.js", "Gatsby", "Remix",
+    "Solid.js", "Preact", "Alpine.js", "Lit", "Ember.js", "Backbone.js", "jQuery",
+    
+    // Backend Frameworks
+    "Node.js", "Express.js", "NestJS", "Fastify", "Koa", "Hapi", "Adonis.js",
+    "Django", "Flask", "FastAPI", "Pyramid", "Tornado",
+    "Spring Boot", "Spring MVC", "Micronaut", "Quarkus",
+    "Ruby on Rails", "Sinatra", "Laravel", "Symfony", "CodeIgniter",
+    "ASP.NET Core", "ASP.NET MVC", ".NET",
+    "Gin", "Echo", "Fiber",
+    "Actix", "Rocket",
+    
+    // Mobile Development
+    "Flutter", "React Native", "Ionic", "Xamarin", "SwiftUI",
+    "Android", "iOS", "Cordova", "Capacitor", "NativeScript",
+    
+    // Databases
+    "PostgreSQL", "MySQL", "MongoDB", "SQLite", "Redis", "Cassandra",
+    "MariaDB", "Oracle", "SQL Server", "CouchDB", "Neo4j", "DynamoDB",
+    "Firebase", "Supabase", "Firestore", "Realm", "IndexedDB",
+    
+    // Cloud & DevOps
+    "AWS", "Azure", "Google Cloud", "Digital Ocean", "Heroku", "Vercel", "Netlify",
+    "Docker", "Kubernetes", "Jenkins", "GitLab CI", "GitHub Actions", "CircleCI",
+    "Terraform", "Ansible", "Puppet", "Chef", "Vagrant",
+    
+    // Programming Languages
+    "JavaScript", "TypeScript", "Python", "Java", "C++", "C", "C#", "Go",
+    "Rust", "PHP", "Ruby", "Scala", "Kotlin", "Swift", "Dart", "R",
+    "Perl", "Haskell", "Elixir", "Clojure", "Erlang", "Lua", "Julia",
+    
+    // CSS Frameworks & Tools
+    "Tailwind CSS", "Bootstrap", "Material-UI", "Chakra UI", "Ant Design",
+    "Bulma", "Foundation", "Semantic UI", "Styled Components", "Emotion",
+    "SASS", "SCSS", "LESS", "PostCSS", "CSS Modules",
+    
+    // Testing
+    "Jest", "Mocha", "Chai", "Jasmine", "Karma", "Cypress", "Playwright",
+    "Selenium", "Puppeteer", "Testing Library", "Vitest", "PyTest", "JUnit",
+    
+    // State Management
+    "Redux", "MobX", "Zustand", "Recoil", "Jotai", "XState", "Context API",
+    "Vuex", "Pinia", "NgRx",
+    
+    // Build Tools
+    "Webpack", "Vite", "Rollup", "Parcel", "esbuild", "Turbopack", "Gulp", "Grunt",
+    
+    // Version Control
+    "Git", "GitHub", "GitLab", "Bitbucket", "SVN",
+    
+    // AI/ML & Data Science
+    "Machine Learning", "TensorFlow", "PyTorch", "Keras", "Scikit-learn",
+    "Pandas", "NumPy", "OpenCV", "NLTK", "Hugging Face",
+    
+    // Design Tools
+    "Figma", "Adobe XD", "Sketch", "InVision", "UI/UX Design", "Photoshop", "Illustrator",
+    
+    // Other Tools & Technologies
+    "GraphQL", "REST API", "WebSockets", "gRPC", "RabbitMQ", "Kafka",
+    "Elasticsearch", "Solr", "Nginx", "Apache", "JWT", "OAuth",
+    "Stripe", "PayPal", "Twilio", "SendGrid", "Socket.io",
+    "Three.js", "D3.js", "Chart.js", "Recharts", "Plotly"
+].sort();
 
 export default function EditProjectPage() {
     const params = useParams();
@@ -46,6 +140,11 @@ export default function EditProjectPage() {
     const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [techSearch, setTechSearch] = useState("");
+    const [roleSearch, setRoleSearch] = useState("");
+    const [role, setRole] = useState("");
+    const [isTechDropdownOpen, setIsTechDropdownOpen] = useState(false);
+    const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
 
     useEffect(() => {
         const loadProject = async () => {
@@ -307,22 +406,52 @@ export default function EditProjectPage() {
                 <div className="space-y-3">
                     <div className="flex items-center justify-between">
                         <Label>Tech Stack</Label>
-                        <DropdownMenu>
+                        <DropdownMenu open={isTechDropdownOpen} onOpenChange={setIsTechDropdownOpen}>
                             <DropdownMenuTrigger asChild>
-                                <Button size="sm" variant="outline" className="gap-1">
-                                    <Plus className="w-4 h-4" /> Add Tech
+                                <Button type="button" size="sm" variant="outline" className="h-8 border-[#6C5DD3] text-[#6C5DD3] hover:bg-[#6C5DD3] hover:text-white rounded-lg">
+                                    <Plus className="w-3.5 h-3.5 mr-1" /> Add Tech
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48 max-h-64 overflow-y-auto">
-                                {AVAILABLE_TECHS.map(tech => (
-                                    <DropdownMenuItem
-                                        key={tech}
-                                        onClick={() => handleAddTech(tech)}
-                                        disabled={selectedTechs.includes(tech)}
-                                    >
-                                        {tech}
-                                    </DropdownMenuItem>
-                                ))}
+                            <DropdownMenuContent align="end" className="bg-white min-w-[280px] rounded-xl shadow-xl border-slate-100 p-0">
+                                <div className="sticky top-0 bg-white border-b border-slate-100 p-2">
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                        <Input
+                                            type="text"
+                                            placeholder="Search technologies..."
+                                            value={techSearch}
+                                            onChange={(e) => setTechSearch(e.target.value)}
+                                            onKeyDown={(e) => e.stopPropagation()}
+                                            onMouseDown={(e) => e.stopPropagation()}
+                                            className="pl-9 h-9 rounded-lg border-slate-200 focus:border-[#6C5DD3] focus:ring-[#6C5DD3]"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="max-h-60 overflow-y-auto">
+                                    {AVAILABLE_TECHS
+                                        .filter(t => !selectedTechs.includes(t))
+                                        .filter(t => t.toLowerCase().includes(techSearch.toLowerCase()))
+                                        .map((tech) => (
+                                            <DropdownMenuItem 
+                                                key={tech} 
+                                                onClick={() => {
+                                                    handleAddTech(tech);
+                                                    setTechSearch("");
+                                                }} 
+                                                className="font-medium text-slate-600 focus:bg-indigo-50 focus:text-[#6C5DD3] cursor-pointer py-2.5 px-3"
+                                            >
+                                                {tech}
+                                            </DropdownMenuItem>
+                                        ))}
+                                    {AVAILABLE_TECHS
+                                        .filter(t => !selectedTechs.includes(t))
+                                        .filter(t => t.toLowerCase().includes(techSearch.toLowerCase()))
+                                        .length === 0 && (
+                                        <div className="p-4 text-sm text-slate-400 text-center">
+                                            {techSearch ? "No technologies found" : "All techs added"}
+                                        </div>
+                                    )}
+                                </div>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>

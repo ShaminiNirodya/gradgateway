@@ -72,21 +72,24 @@ export default function AdminDashboardPage() {
             <Button
               className="rounded-xl flex-1"
               onClick={() => {
-                const data = {
-                  week: "2026-01-19..2026-01-25",
-                  pendingVerifications: 23,
-                  activeUsers: 9567,
-                  projects: 456,
-                  reports: 5,
-                };
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                // Create CSV report
+                const csvContent = [
+                  "Metric,Value",
+                  "Week,2026-01-19 to 2026-01-25",
+                  "Pending Verifications,23",
+                  "Active Users,9567",
+                  "Projects,456",
+                  "Reports,5"
+                ].join("\n");
+                
+                const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = "weekly-report.json";
+                a.download = `weekly-report-${new Date().toISOString().slice(0,10)}.csv`;
                 a.click();
                 URL.revokeObjectURL(url);
-                show({ title: "Report generated", description: "Weekly report downloaded", variant: "success" });
+                show({ title: "Report generated", description: "Weekly report downloaded as CSV", variant: "success" });
               }}
             >
               <BarChart3 className="w-4 h-4 mr-2" /> Generate Weekly Report
@@ -97,7 +100,7 @@ export default function AdminDashboardPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="bg-white">
                 <DropdownMenuItem onClick={() => show({ title: "Exported", description: "KPIs saved as CSV", variant: "success" })}>Export KPIs (CSV)</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => show({ title: "Exported", description: "Dashboard saved as JSON", variant: "success" })}>Export Dashboard (JSON)</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => show({ title: "Exported", description: "Dashboard saved as CSV", variant: "success" })}>Export Dashboard (CSV)</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

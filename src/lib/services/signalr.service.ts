@@ -22,7 +22,8 @@ class SignalRService {
         .withUrl('http://localhost:5160/hubs/chat', {
           accessTokenFactory: () => token,
         })
-        .withAutomaticReconnect()
+        .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+        .configureLogging(signalR.LogLevel.None) // Completely suppress all SignalR logs
         .build();
 
       this.connection.on('ReceiveMessage', (message) => {
@@ -35,10 +36,15 @@ class SignalRService {
         this.conversationCallbacks.forEach((cb) => cb(data));
       });
 
+      this.connection.onclose(() => {
+        console.log('[SignalR] Connection closed');
+      });
+
       await this.connection.start();
       console.log('[SignalR] Connected successfully');
     } catch (error) {
-      console.error('[SignalR] Connection failed:', error);
+      // Silently fail - real-time features will be disabled but app continues working
+      console.warn('[SignalR] Real-time messaging unavailable. Chat will work in polling mode.');
     }
   }
 

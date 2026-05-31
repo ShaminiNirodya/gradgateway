@@ -51,7 +51,7 @@ export default function SuperAdminDashboardPage() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-white">
               <DropdownMenuItem onClick={() => show({ title: "Exported", description: "Overview saved as CSV", variant: "success" })}>Export CSV</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => show({ title: "Exported", description: "Overview saved as JSON", variant: "success" })}>Export JSON</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => show({ title: "Exported", description: "Overview saved as CSV", variant: "success" })}>Export CSV</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

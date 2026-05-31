@@ -12,6 +12,7 @@ import { ArrowLeft, Compass, CheckCircle2, X } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { AuthService } from "@/lib/services/auth.service";
 import { StudentService } from "@/lib/services/student.service";
+import { StorageService } from "@/lib/services/storage.service";
 import { auth } from "@/lib/firebase";
 
 export default function StudentRegistrationPage() {
@@ -47,18 +48,35 @@ export default function StudentRegistrationPage() {
         throw new Error("Failed to authenticate. Please try again.");
       }
 
-      // Step 3: Register student profile in backend
+      // Step 3: Upload profile picture to Firebase Storage (if provided)
+      let photoUrl = "";
+      if (payload.photoFile) {
+        console.log("Uploading profile picture to Firebase Storage...");
+        try {
+          photoUrl = await StorageService.uploadProfilePicture(payload.photoFile, firebaseUid);
+          console.log("Profile picture uploaded:", photoUrl);
+        } catch (uploadError) {
+          console.error("Photo upload failed:", uploadError);
+          // Continue with registration even if photo upload fails
+          photoUrl = payload.photoDataUrl || ""; // Fallback to base64 if available
+        }
+      } else {
+        photoUrl = payload.photoDataUrl || "";
+      }
+
+      // Step 4: Register student profile in backend
       console.log("Registering student profile in backend...");
       await StudentService.registerStudent(token, {
         email,
         firebaseUid,
         fullName: payload.fullName,
         phone: payload.phone,
-        photoDataUrl: payload.photoDataUrl,
+        photoDataUrl: photoUrl,
         university: payload.university,
         studentId: payload.studentId,
         degree: payload.degree,
         gradYear: payload.gradYear,
+        currentYear: payload.currentYear,
         gpa: payload.gpa,
       });
       console.log("Student profile registered successfully");

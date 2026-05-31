@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import { useRef, useState } from "react";
 
 interface Step1Props {
-  onNext: (data: PersonalInfoData) => void;
+  onNext: (data: PersonalInfoData & { photoFile?: File }) => void;
   defaultValues?: Partial<PersonalInfoData>;
 }
 
@@ -20,6 +20,7 @@ export default function Step1Personal({ onNext, defaultValues }: Step1Props) {
   const [preview, setPreview] = useState<string | null>(
     (defaultValues as any)?.photoDataUrl ?? null
   );
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<PersonalInfoData>({
     resolver: zodResolver(personalInfoSchema),
@@ -37,16 +38,23 @@ export default function Step1Personal({ onNext, defaultValues }: Step1Props) {
       e.target.value = "";
       return;
     }
+    
+    // Store the file for later upload
+    setPhotoFile(file);
+    
+    // Create preview URL
     const reader = new FileReader();
     reader.onload = () => {
       const url = String(reader.result || "");
       setPreview(url);
       setValue("photoDataUrl", url, { shouldValidate: false, shouldDirty: true });
-      try {
-        sessionStorage.setItem("register.student.photo", url);
-      } catch {}
     };
     reader.readAsDataURL(file);
+  };
+
+  const onSubmit = (data: PersonalInfoData) => {
+    // Pass both form data and the file object
+    onNext({ ...data, photoFile: photoFile || undefined });
   };
 
   return (
@@ -54,7 +62,7 @@ export default function Step1Personal({ onNext, defaultValues }: Step1Props) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      onSubmit={handleSubmit(onNext)} 
+      onSubmit={handleSubmit(onSubmit)} 
       className="space-y-6"
     >
       {/* Profile Photo Uploader */}

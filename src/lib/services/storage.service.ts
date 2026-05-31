@@ -8,7 +8,60 @@ import {
 
 export class StorageService {
   /**
-   * Upload an image file to Firebase Storage
+   * Upload a student profile picture to Firebase Storage
+   * Folder: profile-pictures/
+   * @param file The image file to upload
+   * @param studentId The student ID for organizing storage
+   * @returns Promise resolving to the download URL
+   */
+  static async uploadProfilePicture(
+    file: File,
+    studentId: string
+  ): Promise<string> {
+    try {
+      const timestamp = Date.now();
+      const filename = `${studentId}/${timestamp}-${file.name}`;
+      const storageRef = ref(storage, `profile-pictures/${filename}`);
+
+      await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(storageRef);
+
+      return downloadUrl;
+    } catch (error) {
+      console.error("Error uploading profile picture:", error);
+      throw new Error("Failed to upload profile picture to Firebase Storage");
+    }
+  }
+
+  /**
+   * Upload a company logo to Firebase Storage
+   * Folder: company-logos/
+   * @param file The image file to upload
+   * @param companyId The company ID for organizing storage
+   * @returns Promise resolving to the download URL
+   */
+  static async uploadCompanyLogo(
+    file: File,
+    companyId: string
+  ): Promise<string> {
+    try {
+      const timestamp = Date.now();
+      const filename = `${companyId}/${timestamp}-${file.name}`;
+      const storageRef = ref(storage, `company-logos/${filename}`);
+
+      await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(storageRef);
+
+      return downloadUrl;
+    } catch (error) {
+      console.error("Error uploading company logo:", error);
+      throw new Error("Failed to upload company logo to Firebase Storage");
+    }
+  }
+
+  /**
+   * Upload a project image to Firebase Storage
+   * Folder: project-images/
    * @param file The image file to upload
    * @param projectId The project ID for organizing storage
    * @returns Promise resolving to the download URL
@@ -18,31 +71,26 @@ export class StorageService {
     projectId: string
   ): Promise<string> {
     try {
-      // Create a unique filename: projectId/timestamp-filename
       const timestamp = Date.now();
       const filename = `${projectId}/${timestamp}-${file.name}`;
-
-      // Create a storage reference
       const storageRef = ref(storage, `project-images/${filename}`);
 
-      // Upload the file
       await uploadBytes(storageRef, file);
-
-      // Get the download URL
       const downloadUrl = await getDownloadURL(storageRef);
 
       return downloadUrl;
     } catch (error) {
-      console.error("Error uploading image:", error);
-      throw new Error("Failed to upload image to Firebase Storage");
+      console.error("Error uploading project image:", error);
+      throw new Error("Failed to upload project image to Firebase Storage");
     }
   }
 
   /**
    * Delete an image from Firebase Storage by URL
+   * Works for all image types (profile pictures, company logos, project images)
    * @param imageUrl The download URL of the image to delete
    */
-  static async deleteProjectImage(imageUrl: string): Promise<void> {
+  static async deleteImage(imageUrl: string): Promise<void> {
     try {
       // Extract the path from the download URL
       // Firebase download URLs have the format:
@@ -65,6 +113,14 @@ export class StorageService {
   }
 
   /**
+   * Legacy method - kept for backward compatibility
+   * @deprecated Use deleteImage instead
+   */
+  static async deleteProjectImage(imageUrl: string): Promise<void> {
+    return this.deleteImage(imageUrl);
+  }
+
+  /**
    * Upload multiple project images
    * @param files Array of image files
    * @param projectId The project ID
@@ -83,5 +139,20 @@ export class StorageService {
       console.error("Error uploading multiple images:", error);
       throw new Error("Failed to upload one or more images");
     }
+  }
+
+  /**
+   * Convert a File object to a data URL (base64)
+   * Useful for preview before upload
+   * @param file The file to convert
+   * @returns Promise resolving to data URL string
+   */
+  static async fileToDataURL(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   }
 }

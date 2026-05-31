@@ -45,6 +45,7 @@ export const API_ENDPOINTS = {
   PROJECTS: {
     ME: `${API_URL}/api/projects/me`,
     ME_BY_ID: (id: string) => `${API_URL}/api/projects/me/${id}`,
+    DELETE: (id: string) => `${API_URL}/api/projects/${id}`,
   },
   NOTIFICATIONS: {
     ME: `${API_URL}/api/notifications/me`,

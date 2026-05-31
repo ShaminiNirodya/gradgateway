@@ -101,7 +101,33 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
           {errors.degree && <p className="text-xs text-red-500 font-bold ml-2">{errors.degree.message}</p>}
         </div>
 
-        {/* GPA & Year */}
+        {/* Current Academic Year */}
+        <div className="space-y-2">
+          <Label className="text-slate-600 font-bold ml-1">Current Academic Year</Label>
+          <Controller
+            name="currentYear"
+            control={control}
+            render={({ field }) => (
+              <Select onValueChange={(val) => field.onChange(parseInt(val))} defaultValue={field.value?.toString()}>
+                <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3]">
+                  <div className="flex items-center gap-3 text-slate-700">
+                    <GraduationCap className="w-5 h-5 text-[#6C5DD3]" />
+                    <SelectValue placeholder="Select Academic Year" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-none shadow-xl">
+                  <SelectItem value="1" className="rounded-lg my-1 cursor-pointer">1st Year</SelectItem>
+                  <SelectItem value="2" className="rounded-lg my-1 cursor-pointer">2nd Year</SelectItem>
+                  <SelectItem value="3" className="rounded-lg my-1 cursor-pointer">3rd Year</SelectItem>
+                  <SelectItem value="4" className="rounded-lg my-1 cursor-pointer">4th Year</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.currentYear && <p className="text-xs text-red-500 font-bold ml-2">{errors.currentYear.message}</p>}
+        </div>
+
+        {/* GPA & Grad Year */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label className="text-slate-600 font-bold ml-1">GPA</Label>

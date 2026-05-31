@@ -13,12 +13,10 @@ import {
   Compass,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useStudentProfile } from "@/lib/hooks/useStudentProfile";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard/student", icon: LayoutGrid },
@@ -34,7 +32,6 @@ export default function StudentSidebar() {
   const { signOut } = useAuth();
   const router = useRouter();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const { profile, displayName, initials } = useStudentProfile();
 
   const handleLogout = async () => {
     try {
@@ -76,19 +73,6 @@ export default function StudentSidebar() {
                 </Link>
               );
             })}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-6 p-3 rounded-2xl bg-slate-50 border border-slate-100">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10 border border-slate-200">
-            <AvatarImage src={profile?.photoDataUrl} />
-            <AvatarFallback className="bg-slate-100 text-slate-700 font-bold">{initials}</AvatarFallback>
-          </Avatar>
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-slate-800 truncate">{displayName}</p>
-            <p className="text-xs text-slate-500 truncate">{profile?.university || "Student"}</p>
           </div>
         </div>
       </div>

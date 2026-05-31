@@ -139,15 +139,40 @@ export default function TalentSearchPage() {
     setPage(1);
   };
 
-  const exportJSON = () => {
-    const blob = new Blob([JSON.stringify(filtered, null, 2)], { type: "application/json" });
+  const exportCSV = () => {
+    if (filtered.length === 0) {
+      show({ title: "No data", description: "No candidates to export", variant: "error" });
+      return;
+    }
+
+    // CSV headers
+    const headers = ["Name", "University", "Class Of", "GPA", "Skills", "Project", "Status"];
+    
+    // CSV rows
+    const rows = filtered.map(candidate => [
+      candidate.name,
+      candidate.university,
+      candidate.classOf.toString(),
+      candidate.gpa.toString(),
+      candidate.skills.join("; "),
+      candidate.project,
+      candidate.status
+    ]);
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "talent-results.json";
+    a.download = `talent-results-${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    show({ title: "Exported", description: "Results saved as JSON", variant: "success" });
+    show({ title: "Exported", description: "Results saved as CSV", variant: "success" });
   };
 
   return (
@@ -222,7 +247,7 @@ export default function TalentSearchPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-white">
-              <DropdownMenuItem onClick={exportJSON}>Export JSON</DropdownMenuItem>
+              <DropdownMenuItem onClick={exportCSV}>Export CSV</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

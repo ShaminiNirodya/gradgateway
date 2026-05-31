@@ -127,16 +127,43 @@ export default function CompanyAnalyticsPage() {
     return quarters.map((quarter) => ({ label: quarter, value: byQuarter.get(quarter) || 0 }));
   }, [applications]);
 
-  const exportJSON = () => {
-    const dashboard = { kpis, funnel, engagement, topSkills, sourcing, roi };
-    const blob = new Blob([JSON.stringify(dashboard, null, 2)], { type: "application/json" });
+  const exportCSV = () => {
+    // Create comprehensive CSV with all metrics
+    const sections = [
+      "KPIs",
+      "Metric,Value",
+      ...kpis.map(k => `"${k.label}","${k.value}"`),
+      "",
+      "Funnel Stages",
+      "Stage,Count",
+      ...funnel.map(f => `"${f.label}","${f.value}"`),
+      "",
+      "Engagement Timeline",
+      "Month,Applications",
+      ...engagement.map(e => `"${e.label}","${e.value}"`),
+      "",
+      "Top Skills",
+      "Skill,Frequency",
+      ...topSkills.map(s => `"${s.label}","${s.value}"`),
+      "",
+      "Sourcing Channels",
+      "Source,Count",
+      ...sourcing.map(s => `"${s.label}","${s.value}"`),
+      "",
+      "ROI by Quarter",
+      "Quarter,Hires",
+      ...roi.map(r => `"${r.label}","${r.value}"`)
+    ];
+
+    const csvContent = sections.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `analytics_${new Date().toISOString().slice(0,10)}.json`;
+    a.download = `analytics_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    show({ title: "Exported", description: "Dashboard saved as JSON", variant: "success" });
+    show({ title: "Exported", description: "Dashboard saved as CSV", variant: "success" });
   };
 
   const exportKPIsCSV = () => {
@@ -171,7 +198,7 @@ export default function CompanyAnalyticsPage() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="bg-white">
             <DropdownMenuItem onClick={exportKPIsCSV}>Export KPIs (CSV)</DropdownMenuItem>
-            <DropdownMenuItem onClick={exportJSON}>Export Dashboard (JSON)</DropdownMenuItem>
+            <DropdownMenuItem onClick={exportCSV}>Export Dashboard (CSV)</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

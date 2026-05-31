@@ -12,6 +12,7 @@ import { ArrowLeft, Briefcase, CheckCircle2, X } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { AuthService } from "@/lib/services/auth.service";
 import { CompanyService } from "@/lib/services/company.service";
+import { StorageService } from "@/lib/services/storage.service";
 import { auth } from "@/lib/firebase";
 
 export default function CompanyRegistrationPage() {
@@ -40,6 +41,22 @@ export default function CompanyRegistrationPage() {
         throw new Error("Failed to authenticate. Please try again.");
       }
 
+      // Upload company logo to Firebase Storage (if provided)
+      let logoUrl = "";
+      if (payload.logoFile) {
+        console.log("Uploading company logo to Firebase Storage...");
+        try {
+          logoUrl = await StorageService.uploadCompanyLogo(payload.logoFile, firebaseUid);
+          console.log("Company logo uploaded:", logoUrl);
+        } catch (uploadError) {
+          console.error("Logo upload failed:", uploadError);
+          // Continue with registration even if logo upload fails
+          logoUrl = payload.logoDataUrl || ""; // Fallback to base64 if available
+        }
+      } else {
+        logoUrl = payload.logoDataUrl || "";
+      }
+
       await CompanyService.registerCompany(token, {
         email,
         firebaseUid,
@@ -48,7 +65,7 @@ export default function CompanyRegistrationPage() {
         phone: payload.phone,
         website: payload.website,
         industry: payload.industry,
-        logoDataUrl: payload.logoDataUrl,
+        logoDataUrl: logoUrl,
         recruiterName: payload.recruiterName,
         recruiterEmail: payload.recruiterEmail,
         recruiterPhone: payload.recruiterPhone,

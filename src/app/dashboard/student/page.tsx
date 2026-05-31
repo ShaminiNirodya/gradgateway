@@ -1,6 +1,6 @@
 "use client";
 import { Search, FolderOpen, FileText, MessageSquare, ChevronRight, PlayCircle, Award, BadgeCheck, Info, Plus, Zap, X, CheckCircle2, UserCircle, Target } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +35,7 @@ export default function StudentDashboard() {
   const [applications, setApplications] = useState<ApplicationItem[]>([]);
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [projects, setProjects] = useState<ProjectItem[]>([]);
-  const [availability, setAvailability] = useState("Available Immediately");
+  const [availability, setAvailability] = useState("Available Now");
   const [skills, setSkills] = useState<string[]>([]);
   const AVAILABLE_SKILLS = [
     "React", "Node.js", "Python", "Java", "TypeScript",
@@ -130,6 +130,7 @@ export default function StudentDashboard() {
           <p className="text-sm text-slate-500">{todayLabel}</p>
         </div>
         <Avatar className="h-10 w-10">
+          <AvatarImage src={profile?.photoDataUrl} alt={displayName} />
           <AvatarFallback className="bg-orange-100 text-orange-600 text-xs font-bold">{initials}</AvatarFallback>
         </Avatar>
       </div>
@@ -156,47 +157,60 @@ export default function StudentDashboard() {
         <StatCard icon={<FileText className="w-4 h-4" />} label="Applications" value={`${activeApplications} active`} href="/dashboard/student/applications" />
         <StatCard icon={<MessageSquare className="w-4 h-4" />} label="Messages" value={`${unreadMessages} recent`} href="/dashboard/student/messages" />
 
-        {/* Availability Stat Card - Matches StatCard styling exactly */}
-        <div className="bg-white p-4 rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center">
-          <div className="flex items-center gap-3 w-full">
-            <div className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center transition-colors ${availability === "Available Immediately" ? "bg-emerald-50 text-emerald-600" :
-              availability === "Available for Internship" ? "bg-blue-50 text-blue-600" :
-                availability === "Open to Opportunities" ? "bg-amber-50 text-amber-600" :
-                  "bg-slate-100 text-slate-600"
-              }`}>
+        {/* Availability Card */}
+        <div className="bg-white p-4 rounded-2xl shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center transition-colors ${
+              availability === "Available Now" ? "bg-emerald-50 text-emerald-600" :
+              availability === "Actively Looking" ? "bg-blue-50 text-blue-600" :
+              availability === "Open to Offers" ? "bg-amber-50 text-amber-600" :
+              "bg-slate-100 text-slate-600"
+            }`}>
               <CheckCircle2 className="w-4 h-4" />
             </div>
-            <div className="flex-1 min-w-0 flex flex-col justify-center">
-              <div className="text-xs text-slate-500 font-medium leading-none mb-1">Availability</div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs text-slate-500 font-medium mb-1">Availability</div>
               <Select value={availability} onValueChange={setAvailability}>
-                <SelectTrigger className="w-full h-auto p-0 border-none bg-transparent shadow-none hover:bg-transparent focus:ring-0 text-left min-h-0">
-                  <span className="text-base font-bold text-slate-800 truncate block leading-none">
+                <SelectTrigger className="w-full h-auto px-2 py-1 border border-transparent hover:border-slate-200 hover:bg-slate-50 rounded-lg transition-colors focus:ring-2 focus:ring-[#6C5DD3] focus:ring-offset-0">
+                  <SelectValue className="text-base font-bold text-slate-800">
                     {availability}
-                  </span>
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent className="bg-white rounded-2xl border-slate-100 shadow-xl overflow-hidden min-w-[200px]">
-                  <SelectItem value="Available Immediately" className="font-bold text-slate-600 focus:bg-indigo-50 focus:text-[#6C5DD3] cursor-pointer py-3">
-                    <div className="flex items-center gap-2">
+                <SelectContent className="bg-white rounded-xl border-slate-200 shadow-xl min-w-[240px]">
+                  <SelectItem value="Available Now" className="font-semibold text-slate-700 focus:bg-emerald-50 focus:text-emerald-700 cursor-pointer py-3 rounded-lg">
+                    <div className="flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                      Available Immediately
+                      <div>
+                        <div className="font-bold">Available Now</div>
+                        <div className="text-xs text-slate-500">Ready to start immediately</div>
+                      </div>
                     </div>
                   </SelectItem>
-                  <SelectItem value="Available for Internship" className="font-bold text-slate-600 focus:bg-indigo-50 focus:text-[#6C5DD3] cursor-pointer py-3">
-                    <div className="flex items-center gap-2">
+                  <SelectItem value="Actively Looking" className="font-semibold text-slate-700 focus:bg-blue-50 focus:text-blue-700 cursor-pointer py-3 rounded-lg">
+                    <div className="flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full bg-blue-500" />
-                      Available for Internship
+                      <div>
+                        <div className="font-bold">Actively Looking</div>
+                        <div className="text-xs text-slate-500">Currently searching</div>
+                      </div>
                     </div>
                   </SelectItem>
-                  <SelectItem value="Open to Opportunities" className="font-bold text-slate-600 focus:bg-indigo-50 focus:text-[#6C5DD3] cursor-pointer py-3">
-                    <div className="flex items-center gap-2">
+                  <SelectItem value="Open to Offers" className="font-semibold text-slate-700 focus:bg-amber-50 focus:text-amber-700 cursor-pointer py-3 rounded-lg">
+                    <div className="flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full bg-amber-500" />
-                      Open to Opportunities
+                      <div>
+                        <div className="font-bold">Open to Offers</div>
+                        <div className="text-xs text-slate-500">Considering opportunities</div>
+                      </div>
                     </div>
                   </SelectItem>
-                  <SelectItem value="Not Available" className="font-bold text-slate-600 focus:bg-indigo-50 focus:text-[#6C5DD3] cursor-pointer py-3">
-                    <div className="flex items-center gap-2">
+                  <SelectItem value="Not Looking" className="font-semibold text-slate-700 focus:bg-slate-50 focus:text-slate-700 cursor-pointer py-3 rounded-lg">
+                    <div className="flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full bg-slate-400" />
-                      Not Available
+                      <div>
+                        <div className="font-bold">Not Looking</div>
+                        <div className="text-xs text-slate-500">Not available at this time</div>
+                      </div>
                     </div>
                   </SelectItem>
                 </SelectContent>
@@ -323,7 +337,7 @@ export default function StudentDashboard() {
           <p className="text-sm text-slate-600 leading-relaxed">
             {profile
               ? `${profile.fullName} from ${profile.university}, reading ${profile.degree} (Class of ${profile.gradYear}) with GPA ${profile.gpa}.`
-              : "Complete your profile in settings to load your database-backed about section."}
+              : "Complete your profile in settings to load your about section."}
           </p>
         </div>
 

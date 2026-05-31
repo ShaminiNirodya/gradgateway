@@ -192,7 +192,7 @@ export default function CompanyDashboard() {
               <p className="text-slate-600 text-sm leading-relaxed">
                 {company
                   ? `${company.companyName} recruits top undergraduate talent for ${company.industry.toLowerCase()} roles. Contact: ${company.recruiterName} (${company.position}).`
-                  : "Your company profile will appear here once loaded from the backend."}
+                  : "Your company profile will appear here once loaded."}
               </p>
             </div>
 

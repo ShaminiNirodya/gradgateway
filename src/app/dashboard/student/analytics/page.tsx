@@ -113,22 +113,36 @@ export default function StudentAnalyticsPage() {
           size="sm"
           className="rounded-xl"
           onClick={() => {
-            const payload = {
-              opportunities,
-              applications,
-              conversations,
-              projects,
-            };
-            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+            // Create comprehensive CSV with all data
+            const sections = [
+              "Applications Summary",
+              "Job Title,Company,Status,Applied Date",
+              ...applications.map(app => `"${app.jobTitle}","${app.companyName}","${app.status}","${new Date(app.appliedAt).toLocaleDateString()}"`),
+              "",
+              "Projects Summary",
+              "Title,Tech Stack,Created Date",
+              ...projects.map(proj => `"${proj.title}","${proj.techStack}","${new Date(proj.createdAt).toLocaleDateString()}"`),
+              "",
+              "Opportunities Viewed",
+              "Title,Company,Type,Location",
+              ...opportunities.slice(0, 20).map(opp => `"${opp.title}","${opp.companyName}","${opp.opportunityType}","${opp.location}"`),
+              "",
+              "Conversation Activity",
+              "Company,Last Message",
+              ...conversations.slice(0, 20).map(conv => `"${conv.companyName}","${conv.lastMessage || 'No messages'}"`),
+            ];
+
+            const csvContent = sections.join("\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = "student-analytics.json";
+            a.download = `student-analytics-${new Date().toISOString().slice(0,10)}.csv`;
             a.click();
             URL.revokeObjectURL(url);
           }}
         >
-          <Download className="w-4 h-4 mr-2" /> Export Report
+          <Download className="w-4 h-4 mr-2" /> Export CSV
         </Button>
       </div>
 
