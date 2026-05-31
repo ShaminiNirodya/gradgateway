@@ -1,5 +1,11 @@
 import { API_ENDPOINTS } from '@/lib/config';
-import { ApplicationItem, ConversationItem, NotificationItem, OpportunityItem } from '@/lib/types/dashboard';
+import {
+  ApplicationItem,
+  ConversationItem,
+  NotificationItem,
+  OpportunityItem,
+  ScheduleInterviewsResult,
+} from '@/lib/types/dashboard';
 
 async function getJsonOrThrow<T>(response: Response, fallbackMessage: string): Promise<T> {
   if (!response.ok) {
@@ -260,6 +266,45 @@ export class DashboardService {
     });
 
     return getJsonOrThrow<NotificationItem[]>(response, 'Failed to load notifications');
+  }
+
+  static async markNotificationRead(token: string, notificationId: string): Promise<void> {
+    const response = await fetch(API_ENDPOINTS.NOTIFICATIONS.MARK_READ(notificationId), {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(message || 'Failed to mark notification as read');
+    }
+  }
+
+  static async scheduleInterviews(
+    token: string,
+    opportunityId: string,
+    payload: {
+      scheduledAt: string;
+      durationMinutes: number;
+      mode: string;
+      meetingLink?: string | null;
+      location?: string | null;
+      notes?: string | null;
+    }
+  ): Promise<ScheduleInterviewsResult> {
+    const response = await fetch(API_ENDPOINTS.OPPORTUNITIES.SCHEDULE_INTERVIEWS(opportunityId), {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    return getJsonOrThrow<ScheduleInterviewsResult>(response, 'Failed to schedule interviews');
   }
 
   static async applyToOpportunity(token: string, opportunityId: string, coverLetter?: string): Promise<ApplicationItem> {

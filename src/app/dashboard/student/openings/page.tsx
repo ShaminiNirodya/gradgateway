@@ -132,6 +132,9 @@ export default function OpeningsPage() {
         const matchesJobType =
             selectedJobType === "All Jobs" ||
             (selectedJobType === "Internships" && job.type === "Internship") ||
+            (selectedJobType === "Full-time" && job.type === "GraduateRole") ||
+            (selectedJobType === "Part-time" && job.type === "PartTime") ||
+            (selectedJobType === "Contract" && job.type === "Contract") ||
             job.type === selectedJobType;
 
         const matchesLocation =

@@ -42,7 +42,10 @@ export class AuthService {
     };
   }
 
-  private static getFirebaseErrorMessage(error: any, context: 'signIn' | 'register' | 'resetPassword' | 'sync' = 'signIn'): string {
+  private static getFirebaseErrorMessage(
+    error: any,
+    context: 'signIn' | 'register' | 'resetPassword' | 'confirmReset' | 'sync' = 'signIn'
+  ): string {
     const isNetworkError =
       error instanceof TypeError &&
       (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError'));
@@ -61,7 +64,12 @@ export class AuthService {
       case 'auth/weak-password':
         return 'Password is too weak. Please use at least 6 characters.';
       case 'auth/user-not-found':
+        if (context === 'resetPassword') {
+          return 'If an account exists for this email, a reset link will be sent shortly.';
+        }
         return 'No account was found for this email. Please register first.';
+      case 'auth/too-many-requests':
+        return 'Too many attempts. Please wait a few minutes and try again.';
       case 'auth/wrong-password':
       case 'auth/invalid-credential':
         if (context === 'register') {

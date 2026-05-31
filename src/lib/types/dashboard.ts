@@ -43,4 +43,13 @@ export interface NotificationItem {
   body: string;
   isRead: boolean;
   createdAt: string;
+  relatedOpportunityId?: string | null;
+}
+
+export interface ScheduleInterviewsResult {
+  opportunityId: string;
+  jobTitle: string;
+  shortlistedCount: number;
+  messagesSent: number;
+  interviewsScheduled: number;
 }

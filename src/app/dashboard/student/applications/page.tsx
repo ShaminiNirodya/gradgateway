@@ -7,10 +7,15 @@ import React, { useEffect, useMemo, useState } from "react";
 import { AuthService } from "@/lib/services/auth.service";
 import { DashboardService } from "@/lib/services/dashboard.service";
 import { ApplicationItem } from "@/lib/types/dashboard";
+import { downloadApplicationsCsv } from "@/lib/utils/export-applications-csv";
+import { useToast } from "@/components/ui/toast";
 
 export default function StudentApplicationsPage() {
+  const { show } = useToast();
   const [activeTab, setActiveTab] = useState<string>("All");
   const [calendarView, setCalendarView] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [myApplications, setMyApplications] = useState<ApplicationItem[]>([]);
 
   useEffect(() => {
@@ -52,15 +57,26 @@ export default function StudentApplicationsPage() {
           <Button variant="outline" onClick={() => setCalendarView((v) => !v)}>
             <CalendarDays className="w-4 h-4 mr-2" /> {calendarView ? "List View" : "Calendar View"}
           </Button>
-          <Button onClick={() => {
-            const blob = new Blob([JSON.stringify(filtered, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "applications.json";
-            a.click();
-            URL.revokeObjectURL(url);
-          }}><Download className="w-4 h-4 mr-2" /> Export History</Button>
+          <Button
+            onClick={() => {
+              if (myApplications.length === 0) {
+                show({
+                  title: "Nothing to export",
+                  description: "You have no applications yet.",
+                  variant: "warning",
+                });
+                return;
+              }
+              downloadApplicationsCsv(myApplications, normalizeStatus);
+              show({
+                title: "Export complete",
+                description: `Downloaded ${myApplications.length} application(s) as CSV.`,
+                variant: "success",
+              });
+            }}
+          >
+            <Download className="w-4 h-4 mr-2" /> Export History
+          </Button>
         </div>
       </div>
 
@@ -154,9 +170,13 @@ export default function StudentApplicationsPage() {
 
 
       {calendarView && (
-        <div className="bg-white rounded-[18px] p-6 shadow-sm">
-          <p className="text-sm text-slate-600">Calendar view is a placeholder. Integrate your calendar component here.</p>
-        </div>
+        <ApplicationsCalendarView
+          applications={filtered}
+          month={calendarMonth}
+          selectedDate={selectedDate}
+          onMonthChange={setCalendarMonth}
+          onSelectDate={setSelectedDate}
+        />
       )}
     </div>
   );
@@ -171,6 +191,128 @@ function normalizeStatus(status: string): string {
   if (lower.includes("hire") || lower.includes("accept")) return "Hired";
   if (lower.includes("reject")) return "Rejected";
   return "New";
+}
+
+function ApplicationsCalendarView({
+  applications,
+  month,
+  selectedDate,
+  onMonthChange,
+  onSelectDate,
+}: {
+  applications: ApplicationItem[];
+  month: Date;
+  selectedDate: string | null;
+  onMonthChange: (date: Date) => void;
+  onSelectDate: (isoDate: string | null) => void;
+}) {
+  const year = month.getFullYear();
+  const monthIndex = month.getMonth();
+  const firstDay = new Date(year, monthIndex, 1);
+  const startWeekday = firstDay.getDay();
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+
+  const appsByDate = useMemo(() => {
+    const map = new Map<string, ApplicationItem[]>();
+    for (const app of applications) {
+      const key = new Date(app.appliedAt).toISOString().slice(0, 10);
+      const list = map.get(key) ?? [];
+      list.push(app);
+      map.set(key, list);
+    }
+    return map;
+  }, [applications]);
+
+  const monthLabel = firstDay.toLocaleDateString("en-LK", { month: "long", year: "numeric" });
+  const selectedDayApps = selectedDate ? appsByDate.get(selectedDate) ?? [] : [];
+
+  const cells: Array<{ day: number | null; iso: string | null }> = [];
+  for (let i = 0; i < startWeekday; i++) cells.push({ day: null, iso: null });
+  for (let day = 1; day <= daysInMonth; day++) {
+    const iso = new Date(year, monthIndex, day).toISOString().slice(0, 10);
+    cells.push({ day, iso });
+  }
+
+  const shiftMonth = (delta: number) => {
+    onMonthChange(new Date(year, monthIndex + delta, 1));
+    onSelectDate(null);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-[18px] p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <Button type="button" variant="outline" size="sm" onClick={() => shiftMonth(-1)}>
+            Previous
+          </Button>
+          <p className="text-sm font-bold text-slate-800">{monthLabel}</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => shiftMonth(1)}>
+            Next
+          </Button>
+        </div>
+        <p className="text-xs text-slate-500 mb-4">
+          See when you applied to each role. Days with a purple dot have applications.
+        </p>
+        <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-bold uppercase text-slate-400">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+            <div key={d}>{d}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-2 mt-2">
+          {cells.map((cell, index) => {
+            if (cell.day == null || !cell.iso) {
+              return <div key={`empty-${index}`} className="h-12" />;
+            }
+            const count = appsByDate.get(cell.iso)?.length ?? 0;
+            const isSelected = selectedDate === cell.iso;
+            return (
+              <button
+                key={cell.iso}
+                type="button"
+                onClick={() => onSelectDate(isSelected ? null : cell.iso)}
+                className={`h-12 rounded-xl text-sm font-semibold transition-all ${
+                  isSelected
+                    ? "bg-[#6C5DD3] text-white shadow-md"
+                    : count > 0
+                      ? "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                      : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                {cell.day}
+                {count > 0 ? (
+                  <span className={`block mx-auto mt-1 w-1.5 h-1.5 rounded-full ${isSelected ? "bg-white" : "bg-[#6C5DD3]"}`} />
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-[18px] p-6 shadow-sm">
+        <h3 className="text-sm font-bold text-slate-800 mb-3">
+          {selectedDate
+            ? `Applications on ${new Date(selectedDate).toLocaleDateString("en-LK", { dateStyle: "medium" })}`
+            : "Select a day to see applications"}
+        </h3>
+        {selectedDate && selectedDayApps.length === 0 ? (
+          <p className="text-sm text-slate-500">No applications on this date.</p>
+        ) : null}
+        <div className="space-y-3">
+          {(selectedDate ? selectedDayApps : applications).map((app) => (
+            <div key={app.id} className="flex items-center justify-between rounded-xl border border-slate-100 p-3">
+              <div>
+                <p className="text-sm font-bold text-slate-800">{app.companyName}</p>
+                <p className="text-xs text-slate-500">{app.jobTitle}</p>
+              </div>
+              <span className={`text-[10px] px-2 py-1 rounded-lg font-black uppercase ${mapStatus(normalizeStatus(app.status))}`}>
+                {normalizeStatus(app.status)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function mapStatus(s: string) {

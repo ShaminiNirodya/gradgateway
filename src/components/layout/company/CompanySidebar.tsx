@@ -11,14 +11,10 @@ import {
   Settings,
   LogOut,
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { AuthService } from "@/lib/services/auth.service";
-import { DashboardService } from "@/lib/services/dashboard.service";
-import type { ApplicationItem } from "@/lib/types/dashboard";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard/company", icon: LayoutGrid },
@@ -34,32 +30,6 @@ export default function CompanySidebar() {
   const { signOut } = useAuth();
   const router = useRouter();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [recentCandidates, setRecentCandidates] = useState<ApplicationItem[]>([]);
-
-  useEffect(() => {
-    const loadRecentCandidates = async () => {
-      try {
-        const token = await AuthService.getIdToken();
-        if (!token) {
-          setRecentCandidates([]);
-          return;
-        }
-
-        const apps = await DashboardService.getCompanyApplications(token);
-        const latest = [...apps]
-          .sort((a, b) => new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime())
-          .slice(0, 3);
-
-        setRecentCandidates(latest);
-      } catch {
-        setRecentCandidates([]);
-      }
-    };
-
-    loadRecentCandidates();
-  }, []);
-
-  const candidateItems = useMemo(() => recentCandidates, [recentCandidates]);
 
   const handleLogout = async () => {
     try {
@@ -101,26 +71,6 @@ export default function CompanySidebar() {
                 </Link>
               );
             })}
-          </div>
-        </div>
-
-        <div>
-          <p className="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Recent Candidates</p>
-          <div className="space-y-4 px-4">
-            {candidateItems.map((person) => (
-              <div key={person.id} className="flex items-center gap-3 cursor-pointer group">
-                <Avatar className="h-9 w-9 border-2 border-white shadow-sm">
-                  <AvatarFallback>{person.studentName?.[0] || "C"}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm font-bold text-slate-700 group-hover:text-[#6C5DD3] transition-colors">{person.studentName}</p>
-                  <p className="text-xs text-slate-400">{person.jobTitle}</p>
-                </div>
-              </div>
-            ))}
-            {candidateItems.length === 0 && (
-              <p className="text-xs text-slate-400">No candidates yet.</p>
-            )}
           </div>
         </div>
       </div>

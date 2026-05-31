@@ -5,6 +5,9 @@ export const API_ENDPOINTS = {
     SYNC: `${API_URL}/api/auth/sync`,
     ME: `${API_URL}/api/auth/me`,
     HEALTH: `${API_URL}/api/auth/health`,
+    FORGOT_PASSWORD: `${API_URL}/api/auth/forgot-password`,
+    VERIFY_RESET_CODE: `${API_URL}/api/auth/verify-reset-code`,
+    RESET_PASSWORD: `${API_URL}/api/auth/reset-password`,
   },
   STUDENTS: {
     REGISTER: `${API_URL}/api/students/register`,
@@ -26,6 +29,7 @@ export const API_ENDPOINTS = {
     BY_ID: (id: string) => `${API_URL}/api/opportunities/${id}`,
     COMPANY_ME: `${API_URL}/api/opportunities/company/me`,
     CREATE: `${API_URL}/api/opportunities`,
+    SCHEDULE_INTERVIEWS: (id: string) => `${API_URL}/api/opportunities/${id}/schedule-interviews`,
   },
   APPLICATIONS: {
     APPLY: `${API_URL}/api/applications/apply`,

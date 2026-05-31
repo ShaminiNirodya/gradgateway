@@ -52,14 +52,7 @@ export default function Home() {
 
             {/* Left Content */}
             <div className="flex-1 text-center lg:text-left space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-lg shadow-indigo-100 border border-indigo-50/50 mb-4 hover:scale-105 transition-transform cursor-default">
-                <div className="flex -space-x-2">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="w-6 h-6 rounded-full bg-slate-200 border-2 border-white" />
-                  ))}
-                </div>
-                <span className="text-sm font-bold text-slate-600 pl-2">Join 10,000+ Students</span>
-              </div>
+
 
               <h1 className="text-5xl lg:text-7xl font-extrabold text-slate-900 tracking-tight leading-[1.1] drop-shadow-sm">
                 Unlock Your <br />
@@ -76,10 +69,7 @@ export default function Home() {
                 </Button>
               </div>
 
-              <div className="pt-8 flex items-center justify-center lg:justify-start gap-6 text-sm font-bold text-slate-400">
-                <span className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-[#6C5DD3]" /> Free for Students</span>
-                <span className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-[#6C5DD3]" /> Verified Jobs</span>
-              </div>
+
             </div>
 
             {/* Right Visuals - Image Slider */}
@@ -104,12 +94,7 @@ export default function Home() {
               </div>
 
               {/* Decorative floating elements */}
-              <div className="absolute -top-12 -right-12 w-24 h-24 bg-white rounded-3xl shadow-xl flex items-center justify-center animate-bounce" style={{ animationDuration: "3000ms" }}>
-                <Compass className="w-10 h-10 text-[#6C5DD3]" />
-              </div>
-              <div className="absolute -bottom-8 -left-8 w-20 h-20 bg-[#6C5DD3] rounded-3xl shadow-xl flex items-center justify-center transform -rotate-12">
-                <Shield className="w-8 h-8 text-white" />
-              </div>
+              {/* Floating icons removed as requested */}
             </div>
 
           </div>

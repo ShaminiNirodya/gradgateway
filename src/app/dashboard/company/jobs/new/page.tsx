@@ -72,6 +72,14 @@ export default function NewCompanyJobPage() {
       return;
     }
 
+    const deadlineDate = new Date(`${deadlineAt}T23:59:59`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (deadlineDate < today) {
+      show({ title: "Invalid deadline", description: "Deadline must be today or a future date.", variant: "warning" });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const token = await AuthService.getIdToken();
@@ -87,7 +95,7 @@ export default function NewCompanyJobPage() {
         location: location.trim(),
         requiredSkills: selectedSkillsText,
         monthlyStipendLkr: monthlyStipendLkr.trim() ? Number(monthlyStipendLkr) : null,
-        deadlineAt: new Date(deadlineAt).toISOString(),
+        deadlineAt: deadlineDate.toISOString(),
       });
 
       show({ title: "Job posted", description: "Your new job post is now live.", variant: "success" });
