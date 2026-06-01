@@ -10,6 +10,7 @@ export interface StudentRegistration {
   gradYear: string;
   currentYear: number;
   gpa: string;
+  availability?: string;
   certifications?: string[];
   awards?: string[];
 }
@@ -26,6 +27,7 @@ export interface StudentProfile {
   gradYear: number;
   currentYear: number;
   gpa: number;
+  availability: string;
   certifications: string[];
   awards: string[];
 }

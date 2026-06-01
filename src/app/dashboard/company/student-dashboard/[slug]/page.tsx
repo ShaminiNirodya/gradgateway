@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,9 +20,12 @@ type DirectoryCandidate = {
 	university: string;
 	degree: string;
 	gradYear: number;
+	currentYear: number;
 	gpa: number;
 	email: string;
 	skills: string;
+	photoDataUrl?: string;
+	availability: string;
 };
 
 function getInitials(name: string): string {
@@ -126,15 +129,16 @@ export default function CompanyStudentDashboardPreviewPage() {
 		<div className="space-y-6">
 			<Card className="rounded-3xl border-slate-100 shadow-sm">
 				<CardContent className="p-6 md:p-8">
-					<div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-						<div className="flex items-start gap-4 md:gap-5">
-							<Avatar className="h-20 w-20 border-4 border-white shadow-md">
+					<div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+						<div className="flex items-start gap-4 md:gap-5 flex-1 min-w-0">
+							<Avatar className="h-20 w-20 flex-shrink-0 border-4 border-white shadow-md">
+								{candidate.photoDataUrl && <AvatarImage src={candidate.photoDataUrl} alt={candidate.fullName} />}
 								<AvatarFallback className="bg-indigo-50 text-indigo-600 text-xl font-extrabold">
 									{getInitials(candidate.fullName)}
 								</AvatarFallback>
 							</Avatar>
 
-							<div className="space-y-2">
+							<div className="space-y-2 flex-1 min-w-0">
 								<h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">{candidate.fullName}</h1>
 								<div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
 									<span className="inline-flex items-center gap-1.5"><GraduationCap className="w-4 h-4" />{candidate.university}</span>
@@ -144,12 +148,18 @@ export default function CompanyStudentDashboardPreviewPage() {
 								<div className="flex flex-wrap items-center gap-2">
 									<Badge className="bg-indigo-50 text-indigo-700 border-none">{candidate.degree}</Badge>
 									<Badge className="bg-emerald-50 text-emerald-700 border-none">GPA {candidate.gpa.toFixed(2)}</Badge>
+									<Badge className={
+										candidate.availability === "Available Now" ? "bg-emerald-50 text-emerald-700 border-none" :
+										candidate.availability === "Actively Looking" ? "bg-blue-50 text-blue-700 border-none" :
+										candidate.availability === "Open to Offers" ? "bg-amber-50 text-amber-700 border-none" :
+										"bg-slate-50 text-slate-700 border-none"
+									}>{candidate.availability}</Badge>
 								</div>
 							</div>
 						</div>
 
-						<div className="flex flex-wrap gap-2">
-							<Button asChild variant="outline">
+						<div className="flex flex-shrink-0 gap-2 lg:self-start">
+							<Button asChild variant="outline" className="whitespace-nowrap">
 								<Link href={openChatHref}>
 									<MessageSquare className="w-4 h-4 mr-2" />
 									{hasConversation ? "Open Chat" : "Start Chat"}

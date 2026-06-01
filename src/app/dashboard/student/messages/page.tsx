@@ -437,7 +437,7 @@ export default function StudentMessagesPage() {
             >
               <div className="flex items-center gap-3 min-w-0">
                 <Avatar className="h-10 w-10 border border-slate-100 shadow-sm">
-                  <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${conversation.otherPartyName}`} />
+                  {conversation.otherPartyPhotoUrl && <AvatarImage src={conversation.otherPartyPhotoUrl} alt={conversation.otherPartyName} />}
                   <AvatarFallback>{conversation.otherPartyName[0]}</AvatarFallback></Avatar>
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-slate-800 truncate">{conversation.otherPartyName}</p>
@@ -460,7 +460,7 @@ export default function StudentMessagesPage() {
             <div className="flex items-center justify-between p-6 border-b bg-white/50 backdrop-blur-sm rounded-t-[24px] z-10">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10 border border-slate-100 shadow-sm">
-                  <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedConversation.otherPartyName}`} />
+                  {selectedConversation.otherPartyPhotoUrl && <AvatarImage src={selectedConversation.otherPartyPhotoUrl} alt={selectedConversation.otherPartyName} />}
                   <AvatarFallback>{selectedConversation.otherPartyName[0]}</AvatarFallback>
                 </Avatar>
                 <div>

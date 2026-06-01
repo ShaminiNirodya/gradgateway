@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -19,9 +19,12 @@ type DirectoryCandidate = {
   university: string;
   degree: string;
   gradYear: number;
+  currentYear: number;
   gpa: number;
   email: string;
   skills: string;
+  photoDataUrl?: string;
+  availability: string;
 };
 
 export default function CandidateProfile() {
@@ -87,29 +90,36 @@ export default function CandidateProfile() {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-500">
       <section className="lg:col-span-2 space-y-8">
         <div className="bg-white rounded-[32px] p-8 shadow-sm border border-slate-50 space-y-8">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="flex flex-col gap-6">
             <div className="flex items-center gap-6">
-              <Avatar className="h-24 w-24 border-4 border-white shadow-xl">
+              <Avatar className="h-24 w-24 flex-shrink-0 border-4 border-white shadow-xl">
+                {candidate.photoDataUrl && <AvatarImage src={candidate.photoDataUrl} alt={candidate.fullName} />}
                 <AvatarFallback>{candidate.fullName.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
-              <div>
+              <div className="flex-1 min-w-0">
                 <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">{candidate.fullName}</h1>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-sm font-medium text-slate-500">
                   <span className="flex items-center gap-1.5"><GraduationCap className="w-4 h-4 text-slate-400" /> {candidate.university}</span>
                   <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-slate-400" /> Class of {candidate.gradYear}</span>
                   <span className="flex items-center gap-1.5"><Mail className="w-4 h-4 text-slate-400" /> {candidate.email}</span>
                 </div>
-                <div className="flex items-center gap-2 mt-3">
+                <div className="flex flex-wrap items-center gap-2 mt-3">
                   <Badge className="bg-indigo-50 text-indigo-600 border-none rounded-lg px-3 py-1 font-bold text-xs uppercase tracking-wider">{candidate.degree}</Badge>
                   <Badge className="bg-emerald-50 text-emerald-600 border-none rounded-lg px-3 py-1 font-bold text-xs uppercase tracking-wider">GPA {candidate.gpa.toFixed(2)}</Badge>
+                  <Badge className={
+                    candidate.availability === "Available Now" ? "bg-emerald-50 text-emerald-600 border-none rounded-lg px-3 py-1 font-bold text-xs uppercase tracking-wider" :
+                    candidate.availability === "Actively Looking" ? "bg-blue-50 text-blue-600 border-none rounded-lg px-3 py-1 font-bold text-xs uppercase tracking-wider" :
+                    candidate.availability === "Open to Offers" ? "bg-amber-50 text-amber-600 border-none rounded-lg px-3 py-1 font-bold text-xs uppercase tracking-wider" :
+                    "bg-slate-50 text-slate-600 border-none rounded-lg px-3 py-1 font-bold text-xs uppercase tracking-wider"
+                  }>{candidate.availability}</Badge>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3 w-full md:w-auto">
-              <Button variant="outline">
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="outline" className="whitespace-nowrap">
                 <Download className="w-4 h-4 mr-2" /> Download CV
               </Button>
-              <SendOfferButton candidateName={candidate.fullName} />
+              <SendOfferButton candidateName={candidate.fullName} studentProfileId={candidate.studentProfileId} />
             </div>
           </div>
 

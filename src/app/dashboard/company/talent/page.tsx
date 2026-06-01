@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, LayoutGrid, Download } from "lucide-react";
+import { Search, LayoutGrid, Download, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +17,58 @@ import Link from "next/link";
 import { AuthService } from "@/lib/services/auth.service";
 import { StudentService } from "@/lib/services/student.service";
 
+// State Universities only
+const ALL_UNIVERSITIES = [
+  "University of Colombo",
+  "University of Peradeniya",
+  "University of Moratuwa",
+  "University of Kelaniya",
+  "University of Sri Jayewardenepura",
+  "University of Ruhuna",
+  "Eastern University",
+  "University of Jaffna",
+  "Sabaragamuwa University",
+  "Wayamba University",
+  "Rajarata University",
+  "South Eastern University",
+  "Uva Wellassa University",
+  "University of the Visual & Performing Arts",
+  "Open University of Sri Lanka"
+].sort();
+
+// All available degrees
+const ALL_DEGREES = [
+  "BSc (Hons) Computer Science", "BSc Computer Science", "BSc Information Technology",
+  "BSc Software Engineering", "BSc Information Systems", "BSc Cyber Security",
+  "BSc Data Science", "BSc Artificial Intelligence", "BSc Computer Engineering",
+  "BEng (Hons) Electrical Engineering", "BEng (Hons) Mechanical Engineering",
+  "BEng (Hons) Civil Engineering", "BEng (Hons) Electronic Engineering",
+  "BEng (Hons) Chemical Engineering", "BEng (Hons) Biomedical Engineering",
+  "BBA Business Administration", "BSc Business Management", "BSc Accounting & Finance",
+  "BSc Marketing", "BSc Human Resource Management", "BSc Economics",
+  "BSc (Hons) Mathematics", "BSc (Hons) Physics", "BSc (Hons) Chemistry",
+  "BSc (Hons) Biology", "BSc (Hons) Biotechnology", "BSc (Hons) Environmental Science",
+  "BA (Hons) Psychology", "BA (Hons) Sociology", "BA (Hons) English",
+  "BA (Hons) Mass Communication", "BA (Hons) Political Science",
+  "BDes Graphic Design", "BDes UI/UX Design", "BDes Product Design",
+  "BA (Hons) Fine Arts", "BSc Multimedia Technology",
+  "LLB Law", "MBBS Medicine", "BArch Architecture"
+].sort();
+
+// All available skills/technologies (not just the ones students selected)
+const ALL_SKILLS = [
+  "React", "Vue.js", "Angular", "Svelte", "Next.js", "Node.js", "Express.js",
+  "Python", "Django", "Flask", "Java", "Spring Boot", "C++", "C#", ".NET",
+  "Go", "Rust", "PHP", "Laravel", "Ruby", "Rails", "TypeScript", "JavaScript",
+  "Flutter", "React Native", "Swift", "Kotlin", "Android", "iOS",
+  "PostgreSQL", "MySQL", "MongoDB", "Redis", "Firebase", "AWS", "Azure",
+  "Google Cloud", "Docker", "Kubernetes", "DevOps", "CI/CD", "Git",
+  "Machine Learning", "Data Science", "AI", "TensorFlow", "PyTorch",
+  "UI/UX Design", "Figma", "Adobe XD", "Photoshop", "Tailwind CSS",
+  "Bootstrap", "Material-UI", "GraphQL", "REST API", "Microservices",
+  "Agile", "Scrum", "Leadership", "Communication", "Problem Solving"
+].sort();
+
 type Candidate = {
   id: string;
   name: string;
@@ -25,7 +77,8 @@ type Candidate = {
   gpa: number;
   skills: string[];
   project: string;
-  status: "Available for Internship" | "Open to Opportunities" | "Available Immediately";
+  status: string;
+  photoDataUrl?: string;
 };
 
 export default function TalentSearchPage() {
@@ -33,6 +86,7 @@ export default function TalentSearchPage() {
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selectedUniversities, setSelectedUniversities] = useState<Set<string>>(new Set());
+  const [selectedDegrees, setSelectedDegrees] = useState<Set<string>>(new Set());
   const [yearFrom, setYearFrom] = useState<string>("");
   const [yearTo, setYearTo] = useState<string>("");
   const [gpaFrom, setGpaFrom] = useState<string>("");
@@ -43,6 +97,12 @@ export default function TalentSearchPage() {
   const [gridView, setGridView] = useState(true);
   const [page, setPage] = useState(1);
   const pageSize = 6;
+  const [universitySearch, setUniversitySearch] = useState("");
+  const [degreeSearch, setDegreeSearch] = useState("");
+  const [skillSearch, setSkillSearch] = useState("");
+  const [isUniversityDropdownOpen, setIsUniversityDropdownOpen] = useState(false);
+  const [isDegreeDropdownOpen, setIsDegreeDropdownOpen] = useState(false);
+  const [isSkillDropdownOpen, setIsSkillDropdownOpen] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -62,13 +122,6 @@ export default function TalentSearchPage() {
             ? row.skills.split(",").map((item) => item.trim()).filter(Boolean)
             : [];
 
-          const status: Candidate["status"] =
-            gradYear <= currentYear
-              ? "Open to Opportunities"
-              : gradYear === currentYear + 1
-                ? "Available for Internship"
-                : "Available Immediately";
-
           return {
             id: row.studentProfileId,
             name: row.fullName,
@@ -77,7 +130,8 @@ export default function TalentSearchPage() {
             gpa: Number(row.gpa),
             skills: skillList,
             project: row.degree || "Student Portfolio",
-            status,
+            status: row.availability || "Available Now",
+            photoDataUrl: row.photoDataUrl,
           };
         }));
       } catch {
@@ -88,15 +142,9 @@ export default function TalentSearchPage() {
     load();
   }, []);
 
-  const allUniversities = useMemo(
-    () => Array.from(new Set(candidates.map((candidate) => candidate.university))).sort(),
-    [candidates]
-  );
-
-  const allSkills = useMemo(
-    () => Array.from(new Set(candidates.flatMap((candidate) => candidate.skills))).sort(),
-    [candidates]
-  );
+  // Use predefined lists instead of dynamic ones from student data
+  const allUniversities = ALL_UNIVERSITIES;
+  const allSkills = ALL_SKILLS;
 
   const filtered = useMemo(() => {
     let list = candidates.filter((candidate) => {
@@ -107,12 +155,13 @@ export default function TalentSearchPage() {
         candidate.project.toLowerCase().includes(query.toLowerCase());
 
       const matchesUniversity = selectedUniversities.size === 0 || selectedUniversities.has(candidate.university);
+      const matchesDegree = selectedDegrees.size === 0 || selectedDegrees.has(candidate.project);
       const matchesYear = (!yearFrom || candidate.classOf >= Number(yearFrom)) && (!yearTo || candidate.classOf <= Number(yearTo));
       const matchesGpa = (!gpaFrom || candidate.gpa >= Number(gpaFrom)) && (!gpaTo || candidate.gpa <= Number(gpaTo));
       const matchesSkill = skills.size === 0 || candidate.skills.some((skill) => skills.has(skill));
       const matchesAvailability = availability.size === 0 || availability.has(candidate.status);
 
-      return matchesQuery && matchesUniversity && matchesYear && matchesGpa && matchesSkill && matchesAvailability;
+      return matchesQuery && matchesUniversity && matchesDegree && matchesYear && matchesGpa && matchesSkill && matchesAvailability;
     });
 
     list = [...list].sort((a, b) => {
@@ -122,13 +171,14 @@ export default function TalentSearchPage() {
     });
 
     return list;
-  }, [availability, candidates, gpaFrom, gpaTo, query, selectedUniversities, skills, sortKey, yearFrom, yearTo]);
+  }, [availability, candidates, gpaFrom, gpaTo, query, selectedUniversities, selectedDegrees, skills, sortKey, yearFrom, yearTo]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const clearFilters = () => {
     setSelectedUniversities(new Set());
+    setSelectedDegrees(new Set());
     setYearFrom("");
     setYearTo("");
     setGpaFrom("");
@@ -181,14 +231,135 @@ export default function TalentSearchPage() {
         <h3 className="font-bold text-slate-800 mb-4">Filters</h3>
 
         <Section title="University">
-          {allUniversities.map((university) => (
-            <FilterRow
-              key={university}
-              label={university}
-              checked={selectedUniversities.has(university)}
-              onChange={(value: boolean) => toggleSet(setSelectedUniversities, selectedUniversities, university, !!value)}
-            />
-          ))}
+          <DropdownMenu open={isUniversityDropdownOpen} onOpenChange={setIsUniversityDropdownOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-start text-left font-normal h-10"
+              >
+                {selectedUniversities.size > 0 
+                  ? `${selectedUniversities.size} selected` 
+                  : "Select universities..."}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="bg-white w-[320px] rounded-xl shadow-xl border-slate-100 p-0">
+              <div className="sticky top-0 bg-white border-b border-slate-100 p-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    type="text"
+                    placeholder="Search universities..."
+                    value={universitySearch}
+                    onChange={(e) => setUniversitySearch(e.target.value)}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="pl-9 h-9 rounded-lg border-slate-200"
+                  />
+                </div>
+              </div>
+              <div className="max-h-60 overflow-y-auto p-2">
+                {allUniversities
+                  .filter(u => u.toLowerCase().includes(universitySearch.toLowerCase()))
+                  .map((university) => (
+                    <label
+                      key={university}
+                      className="flex items-center gap-2 p-2 hover:bg-indigo-50 rounded-lg cursor-pointer text-sm"
+                    >
+                      <Checkbox
+                        checked={selectedUniversities.has(university)}
+                        onCheckedChange={(checked) => 
+                          toggleSet(setSelectedUniversities, selectedUniversities, university, !!checked)
+                        }
+                      />
+                      <span className="text-slate-700">{university}</span>
+                    </label>
+                  ))}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {selectedUniversities.size > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {Array.from(selectedUniversities).map((uni) => (
+                <span
+                  key={uni}
+                  className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs"
+                >
+                  {uni.split(' ').slice(0, 3).join(' ')}
+                  <X
+                    className="w-3 h-3 cursor-pointer hover:text-indigo-900"
+                    onClick={() => toggleSet(setSelectedUniversities, selectedUniversities, uni, false)}
+                  />
+                </span>
+              ))}
+            </div>
+          )}
+        </Section>
+
+        <Section title="Degree / Major">
+          <DropdownMenu open={isDegreeDropdownOpen} onOpenChange={setIsDegreeDropdownOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-start text-left font-normal h-10"
+              >
+                {selectedDegrees.size > 0 
+                  ? `${selectedDegrees.size} selected` 
+                  : "Select degrees..."}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="bg-white w-[320px] rounded-xl shadow-xl border-slate-100 p-0">
+              <div className="sticky top-0 bg-white border-b border-slate-100 p-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    type="text"
+                    placeholder="Search degrees..."
+                    value={degreeSearch}
+                    onChange={(e) => setDegreeSearch(e.target.value)}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="pl-9 h-9 rounded-lg border-slate-200"
+                  />
+                </div>
+              </div>
+              <div className="max-h-60 overflow-y-auto p-2">
+                {ALL_DEGREES
+                  .filter(d => d.toLowerCase().includes(degreeSearch.toLowerCase()))
+                  .map((degree) => (
+                    <label
+                      key={degree}
+                      className="flex items-center gap-2 p-2 hover:bg-indigo-50 rounded-lg cursor-pointer text-sm"
+                    >
+                      <Checkbox
+                        checked={selectedDegrees.has(degree)}
+                        onCheckedChange={(checked) => 
+                          toggleSet(setSelectedDegrees, selectedDegrees, degree, !!checked)
+                        }
+                      />
+                      <span className="text-slate-700">{degree}</span>
+                    </label>
+                  ))}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {selectedDegrees.size > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {Array.from(selectedDegrees).map((degree) => (
+                <span
+                  key={degree}
+                  className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs"
+                >
+                  {degree.split(' ').slice(0, 3).join(' ')}
+                  <X
+                    className="w-3 h-3 cursor-pointer hover:text-indigo-900"
+                    onClick={() => toggleSet(setSelectedDegrees, selectedDegrees, degree, false)}
+                  />
+                </span>
+              ))}
+            </div>
+          )}
         </Section>
 
         <Section title="Graduation Year">
@@ -206,18 +377,73 @@ export default function TalentSearchPage() {
         </Section>
 
         <Section title="Skills">
-          {allSkills.map((skill) => (
-            <FilterRow
-              key={skill}
-              label={skill}
-              checked={skills.has(skill)}
-              onChange={(value: boolean) => toggleSet(setSkills, skills, skill, !!value)}
-            />
-          ))}
+          <DropdownMenu open={isSkillDropdownOpen} onOpenChange={setIsSkillDropdownOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-start text-left font-normal h-10"
+              >
+                {skills.size > 0 
+                  ? `${skills.size} selected` 
+                  : "Select skills..."}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="bg-white w-[320px] rounded-xl shadow-xl border-slate-100 p-0">
+              <div className="sticky top-0 bg-white border-b border-slate-100 p-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    type="text"
+                    placeholder="Search skills..."
+                    value={skillSearch}
+                    onChange={(e) => setSkillSearch(e.target.value)}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="pl-9 h-9 rounded-lg border-slate-200"
+                  />
+                </div>
+              </div>
+              <div className="max-h-60 overflow-y-auto p-2">
+                {allSkills
+                  .filter(s => s.toLowerCase().includes(skillSearch.toLowerCase()))
+                  .map((skill) => (
+                    <label
+                      key={skill}
+                      className="flex items-center gap-2 p-2 hover:bg-indigo-50 rounded-lg cursor-pointer text-sm"
+                    >
+                      <Checkbox
+                        checked={skills.has(skill)}
+                        onCheckedChange={(checked) => 
+                          toggleSet(setSkills, skills, skill, !!checked)
+                        }
+                      />
+                      <span className="text-slate-700">{skill}</span>
+                    </label>
+                  ))}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {skills.size > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {Array.from(skills).map((skill) => (
+                <span
+                  key={skill}
+                  className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs"
+                >
+                  {skill}
+                  <X
+                    className="w-3 h-3 cursor-pointer hover:text-indigo-900"
+                    onClick={() => toggleSet(setSkills, skills, skill, false)}
+                  />
+                </span>
+              ))}
+            </div>
+          )}
         </Section>
 
         <Section title="Availability">
-          {["Available Immediately", "Available for Internship", "Open to Opportunities"].map((label) => (
+          {["Available Now", "Actively Looking", "Open to Offers", "Not Looking"].map((label) => (
             <FilterRow
               key={label}
               label={label}
@@ -268,9 +494,17 @@ export default function TalentSearchPage() {
           <div className="space-y-2">
             {pageItems.map((candidate) => (
               <div key={candidate.id} className="bg-white rounded-[18px] p-4 shadow-sm flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-slate-800 text-sm">{candidate.name}</h3>
-                  <p className="text-xs text-slate-500">{candidate.university} • Class {candidate.classOf} • GPA {candidate.gpa.toFixed(2)}</p>
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-12 w-12 border-2 border-white shadow-sm">
+                    {candidate.photoDataUrl && <AvatarImage src={candidate.photoDataUrl} alt={candidate.name} />}
+                    <AvatarFallback className="bg-indigo-50 text-[#6C5DD3] text-sm font-bold">
+                      {candidate.name.split(" ").map((name) => name[0]).join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-sm">{candidate.name}</h3>
+                    <p className="text-xs text-slate-500">{candidate.university} • Class {candidate.classOf} • GPA {candidate.gpa.toFixed(2)}</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button asChild variant="outline" size="sm"><Link href={`/dashboard/company/student-dashboard/${encodeURIComponent(candidate.name.toLowerCase().replace(/\s+/g, "-"))}?id=${candidate.id}`}>View Profile</Link></Button>
@@ -319,11 +553,17 @@ function CandidateCard({ c }: { c: Candidate }) {
       <div className="px-6 pb-6 -mt-10 flex flex-col flex-1">
         <div className="flex justify-between items-start mb-4">
           <Avatar className="h-20 w-20 border-4 border-white shadow-md">
+            {c.photoDataUrl && <AvatarImage src={c.photoDataUrl} alt={c.name} />}
             <AvatarFallback className="bg-indigo-50 text-[#6C5DD3] text-xl font-bold">
               {c.name.split(" ").map((name) => name[0]).join("")}
             </AvatarFallback>
           </Avatar>
-          <span className="inline-block px-2 py-1 rounded-lg text-[10px] font-bold bg-indigo-50 text-indigo-600">{c.status}</span>
+          <span className={`inline-block px-2 py-1 rounded-lg text-[10px] font-bold ${
+            c.status === "Available Now" ? "bg-emerald-50 text-emerald-600" :
+            c.status === "Actively Looking" ? "bg-blue-50 text-blue-600" :
+            c.status === "Open to Offers" ? "bg-amber-50 text-amber-600" :
+            "bg-slate-50 text-slate-600"
+          }`}>{c.status}</span>
         </div>
 
         <div className="mb-4">

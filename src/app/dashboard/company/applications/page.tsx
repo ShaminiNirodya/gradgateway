@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { LayoutGrid, List as ListIcon, Search, Eye, Calendar, Briefcase } from "lucide-react";
+import { LayoutGrid, List as ListIcon, Search, Eye, Calendar, Briefcase, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -11,23 +11,29 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { AuthService } from "@/lib/services/auth.service";
 import { DashboardService } from "@/lib/services/dashboard.service";
 import { ApplicationItem } from "@/lib/types/dashboard";
+import ScheduleInterviewDialog from "@/components/features/company/ScheduleInterviewDialog";
+import { useToast } from "@/components/ui/toast";
 
-const STATUSES = ["New", "Shortlisted", "Interviewed", "Offer Sent", "Hired", "Rejected"] as const;
+const STATUSES = ["Pending", "Shortlisted", "Hired", "Rejected"] as const;
 
 export default function ApplicationManagement() {
   const searchParams = useSearchParams();
   const jobIdParam = searchParams.get("jobId");
+  const { show } = useToast();
 
   const [view, setView] = useState<"board" | "list">("board");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [applications, setApplications] = useState<ApplicationItem[]>([]);
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [selectedOpportunity, setSelectedOpportunity] = useState<{ id: string; title: string } | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -61,14 +67,50 @@ export default function ApplicationManagement() {
   }, [applications, search, statusFilter, jobIdParam]);
 
   const updateStatus = async (applicationId: string, status: string) => {
+    console.log("Updating status:", { applicationId, status });
     try {
       const token = await AuthService.getIdToken();
-      if (!token) return;
+      if (!token) {
+        show({
+          title: "Authentication required",
+          description: "Please sign in again to update status",
+          variant: "warning",
+        });
+        return;
+      }
+      
+      console.log("Calling API to update status...");
       const updated = await DashboardService.updateApplicationStatus(token, applicationId, status);
+      console.log("Status updated successfully:", updated);
+      
       setApplications((prev) => prev.map((application) => (application.id === applicationId ? updated : application)));
-    } catch {
-      // keep current state
+      
+      show({
+        title: "Status updated",
+        description: `Application moved to ${status}`,
+        variant: "success",
+      });
+    } catch (error) {
+      console.error("Failed to update status:", error);
+      show({
+        title: "Update failed",
+        description: error instanceof Error ? error.message : "Could not update application status. Check console for details.",
+        variant: "error",
+      });
     }
+  };
+
+  const handleScheduleInterview = (application: ApplicationItem) => {
+    setSelectedOpportunity({ id: application.opportunityId, title: application.jobTitle });
+    setScheduleDialogOpen(true);
+  };
+
+  const handleInterviewScheduled = (result: { messagesSent: number; shortlistedCount: number }) => {
+    show({
+      title: "Interviews scheduled successfully",
+      description: `Notification sent to ${result.messagesSent} shortlisted candidate(s)`,
+      variant: "success",
+    });
   };
 
   return (
@@ -158,9 +200,18 @@ export default function ApplicationManagement() {
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button size="sm">Update Status</Button>
+                    <Button size="sm">Actions</Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="bg-white">
+                    {application.status === "Shortlisted" && (
+                      <>
+                        <DropdownMenuItem onClick={() => handleScheduleInterview(application)}>
+                          <CalendarClock className="w-4 h-4 mr-2" />
+                          Schedule Interview
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
                     {STATUSES.map((status) => (
                       <DropdownMenuItem key={status} onClick={() => updateStatus(application.id, status)}>
                         Move to {status}
@@ -182,6 +233,7 @@ export default function ApplicationManagement() {
                 <th className="p-4">Job</th>
                 <th className="p-4">Status</th>
                 <th className="p-4">Applied</th>
+                <th className="p-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -194,11 +246,51 @@ export default function ApplicationManagement() {
                   <td className="p-4">{application.jobTitle}</td>
                   <td className="p-4"><StatusBadge status={application.status} /></td>
                   <td className="p-4">{new Date(application.appliedAt).toLocaleDateString("en-LK")}</td>
+                  <td className="p-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button asChild variant="ghost" size="sm">
+                        <Link href={`/dashboard/company/candidate/${encodeURIComponent(application.studentName.toLowerCase().replace(/\s+/g, '-'))}?id=${application.studentProfileId}&email=${encodeURIComponent(application.studentEmail)}`}>
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">Actions</Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-white">
+                          {application.status === "Shortlisted" && (
+                            <>
+                              <DropdownMenuItem onClick={() => handleScheduleInterview(application)}>
+                                <CalendarClock className="w-4 h-4 mr-2" />
+                                Schedule Interview
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                            </>
+                          )}
+                          {STATUSES.map((status) => (
+                            <DropdownMenuItem key={status} onClick={() => updateStatus(application.id, status)}>
+                              Move to {status}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {selectedOpportunity && (
+        <ScheduleInterviewDialog
+          open={scheduleDialogOpen}
+          onOpenChange={setScheduleDialogOpen}
+          opportunityId={selectedOpportunity.id}
+          jobTitle={selectedOpportunity.title}
+          onScheduled={handleInterviewScheduled}
+        />
       )}
     </div>
   );
@@ -206,11 +298,9 @@ export default function ApplicationManagement() {
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    New: "bg-blue-50 text-blue-600 ring-blue-100",
+    Pending: "bg-blue-50 text-blue-600 ring-blue-100",
     Shortlisted: "bg-purple-50 text-purple-600 ring-purple-100",
-    Interviewed: "bg-amber-50 text-amber-600 ring-amber-100",
-    "Offer Sent": "bg-emerald-50 text-emerald-600 ring-emerald-100",
-    Hired: "bg-violet-50 text-violet-600 ring-violet-100",
+    Hired: "bg-emerald-50 text-emerald-600 ring-emerald-100",
     Rejected: "bg-slate-50 text-slate-500 ring-slate-100",
   };
 

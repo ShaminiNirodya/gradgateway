@@ -2,7 +2,7 @@
 import { Search, Building2, Users2, Sparkles, MessageSquare, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -178,9 +178,12 @@ export default function CompanyDashboard() {
           </div>
           <div className="space-y-6">
             <div className="flex items-center gap-4">
-              <div className="w-20 h-20 bg-blue-500 rounded-2xl flex items-center justify-center text-white text-3xl font-bold shadow-md shadow-blue-200">
-                {companyInitial}
-              </div>
+              <Avatar className="w-20 h-20 rounded-2xl shadow-md shadow-blue-200">
+                {company?.logoDataUrl && <AvatarImage src={company.logoDataUrl} alt={company.companyName} className="object-cover" />}
+                <AvatarFallback className="bg-blue-500 text-white text-3xl font-bold rounded-2xl">
+                  {companyInitial}
+                </AvatarFallback>
+              </Avatar>
               <div>
                 <h3 className="font-bold text-slate-800 text-xl">{company?.companyName || "Company"}</h3>
                 <p className="text-slate-500 text-sm font-medium mt-1">{company?.industry || "Industry"} • Sri Lanka</p>

@@ -32,6 +32,7 @@ export interface ConversationItem {
   id: string;
   opportunityId?: string;
   otherPartyName: string;
+  otherPartyPhotoUrl?: string;
   lastMessage: string;
   lastMessageAt: string;
 }

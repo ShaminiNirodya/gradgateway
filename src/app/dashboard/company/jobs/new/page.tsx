@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,27 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
 import { AuthService } from "@/lib/services/auth.service";
 import { DashboardService } from "@/lib/services/dashboard.service";
-import { StudentService } from "@/lib/services/student.service";
+import { Search, X } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
+
+// Comprehensive skills list (same as talent search)
+const ALL_SKILLS = [
+  "React", "Vue.js", "Angular", "Svelte", "Next.js", "Node.js", "Express.js",
+  "Python", "Django", "Flask", "Java", "Spring Boot", "C++", "C#", ".NET",
+  "Go", "Rust", "PHP", "Laravel", "Ruby", "Rails", "TypeScript", "JavaScript",
+  "Flutter", "React Native", "Swift", "Kotlin", "Android", "iOS",
+  "PostgreSQL", "MySQL", "MongoDB", "Redis", "Firebase", "AWS", "Azure",
+  "Google Cloud", "Docker", "Kubernetes", "DevOps", "CI/CD", "Git",
+  "Machine Learning", "Data Science", "AI", "TensorFlow", "PyTorch",
+  "UI/UX Design", "Figma", "Adobe XD", "Photoshop", "Tailwind CSS",
+  "Bootstrap", "Material-UI", "GraphQL", "REST API", "Microservices",
+  "Agile", "Scrum", "Leadership", "Communication", "Problem Solving"
+].sort();
 
 export default function NewCompanyJobPage() {
   const router = useRouter();
@@ -20,38 +40,11 @@ export default function NewCompanyJobPage() {
   const [opportunityType, setOpportunityType] = useState("Internship");
   const [workMode, setWorkMode] = useState("Hybrid");
   const [location, setLocation] = useState("");
-  const [availableSkills, setAvailableSkills] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<Set<string>>(new Set());
+  const [skillSearch, setSkillSearch] = useState("");
+  const [isSkillDropdownOpen, setIsSkillDropdownOpen] = useState(false);
   const [monthlyStipendLkr, setMonthlyStipendLkr] = useState("");
   const [deadlineAt, setDeadlineAt] = useState("");
-
-  useEffect(() => {
-    const loadSkills = async () => {
-      try {
-        const token = await AuthService.getIdToken();
-        if (!token) {
-          setAvailableSkills([]);
-          return;
-        }
-
-        const rows = await StudentService.getStudentDirectory(token);
-        const uniqueSkills = Array.from(
-          new Set(
-            rows
-              .flatMap((row) => (row.skills || "").split(","))
-              .map((skill) => skill.trim())
-              .filter(Boolean)
-          )
-        ).sort();
-
-        setAvailableSkills(uniqueSkills);
-      } catch {
-        setAvailableSkills([]);
-      }
-    };
-
-    loadSkills();
-  }, []);
 
   const selectedSkillsText = useMemo(() => Array.from(selectedSkills).join(", "), [selectedSkills]);
 
@@ -158,27 +151,70 @@ export default function NewCompanyJobPage() {
 
         <div className="space-y-2">
           <Label>Required Skills *</Label>
-          <div className="rounded-xl border border-slate-200 p-3 bg-white space-y-3">
-            <div className="flex flex-wrap gap-2">
-              {availableSkills.map((skill) => {
-                const selected = selectedSkills.has(skill);
-                return (
+          <DropdownMenu open={isSkillDropdownOpen} onOpenChange={setIsSkillDropdownOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-start text-left font-normal h-auto min-h-[40px] py-2"
+              >
+                {selectedSkills.size > 0 
+                  ? `${selectedSkills.size} skill${selectedSkills.size > 1 ? 's' : ''} selected` 
+                  : "Select required skills..."}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="bg-white w-[400px] rounded-xl shadow-xl border-slate-100 p-0">
+              <div className="sticky top-0 bg-white border-b border-slate-100 p-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    type="text"
+                    placeholder="Search skills..."
+                    value={skillSearch}
+                    onChange={(e) => setSkillSearch(e.target.value)}
+                    onKeyDown={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="pl-9 h-9 rounded-lg border-slate-200"
+                  />
+                </div>
+              </div>
+              <div className="max-h-60 overflow-y-auto p-2">
+                {ALL_SKILLS
+                  .filter(s => s.toLowerCase().includes(skillSearch.toLowerCase()))
+                  .map((skill) => (
+                    <label
+                      key={skill}
+                      className="flex items-center gap-2 p-2 hover:bg-indigo-50 rounded-lg cursor-pointer text-sm"
+                    >
+                      <Checkbox
+                        checked={selectedSkills.has(skill)}
+                        onCheckedChange={(checked) => toggleSkill(skill)}
+                      />
+                      <span className="text-slate-700">{skill}</span>
+                    </label>
+                  ))}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {selectedSkills.size > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {Array.from(selectedSkills).map((skill) => (
+                <span
+                  key={skill}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-medium"
+                >
+                  {skill}
                   <button
-                    key={skill}
                     type="button"
                     onClick={() => toggleSkill(skill)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${selected ? "bg-[#6C5DD3] text-white border-[#6C5DD3]" : "bg-slate-50 text-slate-700 border-slate-200 hover:border-[#6C5DD3]/40"}`}
+                    className="hover:bg-indigo-100 rounded-full p-0.5"
                   >
-                    {skill}
+                    <X className="w-3 h-3" />
                   </button>
-                );
-              })}
-              {availableSkills.length === 0 && (
-                <p className="text-sm text-slate-500">No skills found from talent directory yet.</p>
-              )}
+                </span>
+              ))}
             </div>
-            <Input value={selectedSkillsText} readOnly placeholder="Select required skills from the list" />
-          </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

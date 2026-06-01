@@ -24,6 +24,7 @@ import { useStudentProfile } from "@/lib/hooks/useStudentProfile";
 import { AuthService } from "@/lib/services/auth.service";
 import { DashboardService } from "@/lib/services/dashboard.service";
 import { ProjectService } from "@/lib/services/project.service";
+import { StudentService } from "@/lib/services/student.service";
 import { ApplicationItem, ConversationItem, OpportunityItem } from "@/lib/types/dashboard";
 import { ProjectItem } from "@/lib/types/project";
 
@@ -51,6 +52,23 @@ export default function StudentDashboard() {
 
   const removeSkill = (skillToRemove: string) => {
     setSkills(skills.filter(s => s !== skillToRemove));
+  };
+
+  const handleAvailabilityChange = async (newAvailability: string) => {
+    setAvailability(newAvailability);
+    if (!profile) return;
+    try {
+      const token = await AuthService.getIdToken();
+      if (!token) return;
+      await StudentService.registerStudent(token, {
+        ...profile,
+        availability: newAvailability,
+        gradYear: String(profile.gradYear),
+        gpa: String(profile.gpa),
+      });
+    } catch (error) {
+      console.error("Failed to update availability:", error);
+    }
   };
 
   useEffect(() => {
@@ -96,6 +114,12 @@ export default function StudentDashboard() {
 
     loadDashboard();
   }, []);
+
+  useEffect(() => {
+    if (profile?.availability) {
+      setAvailability(profile.availability);
+    }
+  }, [profile?.availability]);
 
   const todayLabel = useMemo(
     () => new Date().toLocaleDateString("en-LK", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
@@ -170,7 +194,7 @@ export default function StudentDashboard() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-xs text-slate-500 font-medium mb-1">Availability</div>
-              <Select value={availability} onValueChange={setAvailability}>
+              <Select value={availability} onValueChange={handleAvailabilityChange}>
                 <SelectTrigger className="w-full h-auto px-2 py-1 border border-transparent hover:border-slate-200 hover:bg-slate-50 rounded-lg transition-colors focus:ring-2 focus:ring-[#6C5DD3] focus:ring-offset-0">
                   <SelectValue className="text-base font-bold text-slate-800">
                     {availability}
@@ -248,6 +272,7 @@ export default function StudentDashboard() {
               title={project.title}
               author={project.studentName || displayName}
               avatar={initials}
+              imageUrl={project.images?.[0]?.imageUrl}
             />
           ))}
           {!projects.length && (
@@ -392,11 +417,18 @@ function StatCard({ icon, label, value, href }: any) {
   return href ? <Link href={href}>{content}</Link> : content;
 }
 
-function ProjectCard({ tag, title, author, avatar, id }: any) {
+function ProjectCard({ tag, title, author, avatar, id, imageUrl }: any) {
   return (
     <Link href={`/dashboard/student/projects/${id || "1"}`}>
       <div className="bg-white p-4 rounded-[24px] shadow-sm hover:shadow-lg transition-all cursor-pointer group">
         <div className="h-40 rounded-[20px] overflow-hidden relative mb-4 bg-gradient-to-br from-indigo-200 via-violet-200 to-purple-300">
+          {imageUrl && (
+            <img 
+              src={imageUrl} 
+              alt={title}
+              className="w-full h-full object-cover"
+            />
+          )}
           <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-lg text-[10px] font-bold text-slate-700 uppercase">{tag}</div>
           <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
             <PlayCircle className="w-12 h-12 text-white fill-white/20" />
