@@ -35,8 +35,16 @@ import {
     getFieldOfMajorByLabel,
     inferFieldOfMajorFromDegree,
     degreeBelongsToField,
+    fieldOfMajorFromDegreeSelection,
 } from "@/lib/constants/field-of-major";
 import { FieldOfMajorSelect } from "@/components/shared/FieldOfMajorSelect";
+import { FieldOfMajorSubcategoriesNotice } from "@/components/shared/FieldOfMajorSubcategoriesNotice";
+import {
+    ClearableFilterField,
+    CLEARABLE_FIELD_PADDING,
+    CLEARABLE_SELECT_PADDING,
+} from "@/components/shared/ClearableFilterField";
+import { cn } from "@/lib/utils";
 
 // Dynamic filtering will be applied via useMemo hooks below
 
@@ -53,7 +61,7 @@ export default function StudentSettingsPage() {
     const [fieldOfMajorId, setFieldOfMajorId] = useState<FieldOfMajorId | "">("");
     const [university, setUniversity] = useState("");
     const [gradYear, setGradYear] = useState("");
-    const [currentYear, setCurrentYear] = useState<number>(1);
+    const [currentYear, setCurrentYear] = useState<number | "">(1);
     const [gpa, setGpa] = useState("");
     const [certificationsText, setCertificationsText] = useState("");
     const [awardsText, setAwardsText] = useState("");
@@ -87,6 +95,15 @@ export default function StudentSettingsPage() {
         }
         return !universityOffersDegree(university, degree);
     }, [university, degree]);
+
+    const canSelectDegree = !!university;
+
+    const applyDegreeChoice = (degreeOption: string) => {
+        setDegree(degreeOption);
+        setFieldOfMajorId((prev) => fieldOfMajorFromDegreeSelection(degreeOption, prev));
+        setDegreeSearch("");
+        setIsDegreeDropdownOpen(false);
+    };
 
     useEffect(() => {
         if (!profile) return;
@@ -154,10 +171,12 @@ export default function StudentSettingsPage() {
     const handleSave = async () => {
         if (!profile) return;
 
-        if (!fieldOfMajorId) {
+        const resolvedFieldId =
+            fieldOfMajorId || fieldOfMajorFromDegreeSelection(degree, "");
+        if (!resolvedFieldId) {
             show({
                 title: "Field of major required",
-                description: "Please select your field of major before saving.",
+                description: "Select your field of major, or choose a degree so we can set it automatically.",
                 variant: "error",
             });
             return;
@@ -172,7 +191,7 @@ export default function StudentSettingsPage() {
             return;
         }
 
-        if (degree && !degreeBelongsToField(degree, fieldOfMajorId)) {
+        if (degree && !degreeBelongsToField(degree, resolvedFieldId)) {
             show({
                 title: "Degree does not match field",
                 description: "Please select a degree that matches your field of major.",
@@ -200,9 +219,9 @@ export default function StudentSettingsPage() {
                 university,
                 studentId: profile.studentId,
                 degree: normalizeDegreeName(degree),
-                fieldOfMajor: getFieldOfMajorById(fieldOfMajorId)?.label ?? "",
+                fieldOfMajor: getFieldOfMajorById(resolvedFieldId)?.label ?? "",
                 gradYear,
-                currentYear,
+                currentYear: typeof currentYear === "number" ? currentYear : profile.currentYear || 1,
                 gpa,
                 certifications: certificationsText.split(/\r?\n/).map((v) => v.trim()).filter(Boolean),
                 awards: awardsText.split(/\r?\n/).map((v) => v.trim()).filter(Boolean),
@@ -354,38 +373,63 @@ export default function StudentSettingsPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label>Field of Major</Label>
-                                <FieldOfMajorSelect
-                                    value={fieldOfMajorId}
-                                    onValueChange={(next) => {
-                                        setFieldOfMajorId(next);
-                                        if (degree && !degreeBelongsToField(degree, next)) {
-                                            setDegree("");
-                                        }
+                                <ClearableFilterField
+                                    showClear={!!fieldOfMajorId}
+                                    onClear={() => {
+                                        setFieldOfMajorId("");
+                                        setDegree("");
                                     }}
-                                />
+                                    clearLabel="field of major"
+                                    variant="select"
+                                >
+                                    <FieldOfMajorSelect
+                                        value={fieldOfMajorId}
+                                        onValueChange={(next) => {
+                                            setFieldOfMajorId(next);
+                                            if (degree && !degreeBelongsToField(degree, next)) {
+                                                setDegree("");
+                                            }
+                                        }}
+                                        triggerClassName={cn(
+                                            "w-full rounded-xl h-10",
+                                            fieldOfMajorId && CLEARABLE_SELECT_PADDING
+                                        )}
+                                    />
+                                </ClearableFilterField>
+                                <FieldOfMajorSubcategoriesNotice fieldId={fieldOfMajorId} />
                             </div>
                             <div className="space-y-2">
                                 <Label>Major / Degree</Label>
-                                <DropdownMenu
-                                    open={isDegreeDropdownOpen}
-                                    onOpenChange={(open) => {
-                                        if (!fieldOfMajorId && open) return;
-                                        setIsDegreeDropdownOpen(open);
-                                    }}
+                                <ClearableFilterField
+                                    showClear={!!degree}
+                                    onClear={() => setDegree("")}
+                                    clearLabel="major or degree"
                                 >
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            disabled={!fieldOfMajorId}
-                                            className={`w-full h-10 min-w-0 overflow-hidden justify-start text-left font-normal rounded-xl hover:bg-slate-50 ${
-                                                degreeNotOfferedAtUniversity
-                                                    ? "border-amber-400 bg-amber-50/50"
-                                                    : "border-slate-200"
-                                            }`}
-                                        >
+                                    <DropdownMenu
+                                        open={isDegreeDropdownOpen}
+                                        onOpenChange={(open) => {
+                                            if (!canSelectDegree && open) return;
+                                            setIsDegreeDropdownOpen(open);
+                                        }}
+                                    >
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                disabled={!canSelectDegree}
+                                                className={cn(
+                                                    "w-full h-10 min-w-0 overflow-hidden justify-start text-left font-normal rounded-xl hover:bg-slate-50",
+                                                    degreeNotOfferedAtUniversity
+                                                        ? "border-amber-400 bg-amber-50/50"
+                                                        : "border-slate-200",
+                                                    degree && CLEARABLE_FIELD_PADDING
+                                                )}
+                                            >
                                             <span className="truncate block w-full" title={degree || undefined}>
-                                                {degree || "Select your degree..."}
+                                                {degree ||
+                                                    (canSelectDegree
+                                                        ? "Select your degree..."
+                                                        : "Select your university first")}
                                             </span>
                                         </Button>
                                     </DropdownMenuTrigger>
@@ -410,11 +454,7 @@ export default function StudentSettingsPage() {
                                                 .map((degreeOption) => (
                                                     <DropdownMenuItem
                                                         key={degreeOption}
-                                                        onClick={() => {
-                                                            setDegree(degreeOption);
-                                                            setDegreeSearch("");
-                                                            setIsDegreeDropdownOpen(false);
-                                                        }}
+                                                        onClick={() => applyDegreeChoice(degreeOption)}
                                                         className="font-medium text-slate-600 focus:bg-indigo-50 focus:text-[#6C5DD3] cursor-pointer py-2.5 px-3"
                                                     >
                                                         {degreeOption}
@@ -424,32 +464,48 @@ export default function StudentSettingsPage() {
                                                 .filter(d => d.toLowerCase().includes(degreeSearch.toLowerCase()))
                                                 .length === 0 && (
                                                 <div className="p-4 text-sm text-slate-400 text-center">
-                                                    {!fieldOfMajorId
-                                                        ? "Select a field of major first"
-                                                        : university
-                                                            ? availableDegrees.length === 0
+                                                    {!university
+                                                        ? "Select a university first"
+                                                        : availableDegrees.length === 0
+                                                            ? fieldOfMajorId
                                                                 ? `No degrees match your field and ${university}. Try a different university or field.`
-                                                                : `No matching degrees for this field at ${university}`
-                                                            : "Select a university first"}
+                                                                : `No degrees listed for ${university} yet.`
+                                                            : "No matching degrees"}
                                                 </div>
                                             )}
                                         </div>
                                     </DropdownMenuContent>
-                                </DropdownMenu>
+                                    </DropdownMenu>
+                                </ClearableFilterField>
                             </div>
                             <div className="space-y-2">
                                 <Label>Current Academic Year</Label>
-                                <Select value={String(currentYear)} onValueChange={(val) => setCurrentYear(parseInt(val))}>
-                                    <SelectTrigger className="rounded-xl h-10">
-                                        <SelectValue placeholder="Select Year" />
-                                    </SelectTrigger>
-                                    <SelectContent className="rounded-xl">
-                                        <SelectItem value="1" className="rounded-lg cursor-pointer">1st Year</SelectItem>
-                                        <SelectItem value="2" className="rounded-lg cursor-pointer">2nd Year</SelectItem>
-                                        <SelectItem value="3" className="rounded-lg cursor-pointer">3rd Year</SelectItem>
-                                        <SelectItem value="4" className="rounded-lg cursor-pointer">4th Year</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <ClearableFilterField
+                                    showClear={currentYear !== ""}
+                                    onClear={() => setCurrentYear("")}
+                                    clearLabel="academic year"
+                                    variant="select"
+                                >
+                                    <Select
+                                        value={currentYear === "" ? undefined : String(currentYear)}
+                                        onValueChange={(val) => setCurrentYear(parseInt(val))}
+                                    >
+                                        <SelectTrigger
+                                            className={cn(
+                                                "w-full rounded-xl h-10",
+                                                currentYear !== "" && CLEARABLE_SELECT_PADDING
+                                            )}
+                                        >
+                                            <SelectValue placeholder="Select Year" />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-xl">
+                                            <SelectItem value="1" className="rounded-lg cursor-pointer">1st Year</SelectItem>
+                                            <SelectItem value="2" className="rounded-lg cursor-pointer">2nd Year</SelectItem>
+                                            <SelectItem value="3" className="rounded-lg cursor-pointer">3rd Year</SelectItem>
+                                            <SelectItem value="4" className="rounded-lg cursor-pointer">4th Year</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </ClearableFilterField>
                             </div>
                             <div className="space-y-2">
                                 <Label>Current GPA</Label>
@@ -457,13 +513,21 @@ export default function StudentSettingsPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label>University</Label>
-                                <DropdownMenu open={isUniversityDropdownOpen} onOpenChange={setIsUniversityDropdownOpen}>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            className="w-full h-10 min-w-0 overflow-hidden justify-start text-left font-normal rounded-xl border-slate-200 hover:bg-slate-50"
-                                        >
+                                <ClearableFilterField
+                                    showClear={!!university}
+                                    onClear={() => setUniversity("")}
+                                    clearLabel="university"
+                                >
+                                    <DropdownMenu open={isUniversityDropdownOpen} onOpenChange={setIsUniversityDropdownOpen}>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className={cn(
+                                                    "w-full h-10 min-w-0 overflow-hidden justify-start text-left font-normal rounded-xl border-slate-200 hover:bg-slate-50",
+                                                    university && CLEARABLE_FIELD_PADDING
+                                                )}
+                                            >
                                             <span className="truncate block w-full">
                                                 {university || "Select your university..."}
                                             </span>
@@ -517,7 +581,8 @@ export default function StudentSettingsPage() {
                                             )}
                                         </div>
                                     </DropdownMenuContent>
-                                </DropdownMenu>
+                                    </DropdownMenu>
+                                </ClearableFilterField>
                                 {degreeNotOfferedAtUniversity && (
                                     <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                                         <span className="font-medium">{degree}</span> is not offered at{" "}
@@ -528,18 +593,30 @@ export default function StudentSettingsPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label>Graduation Year</Label>
-                                <Select value={gradYear} onValueChange={setGradYear}>
-                                    <SelectTrigger className="rounded-xl h-10">
-                                        <SelectValue placeholder="Select year" />
-                                    </SelectTrigger>
-                                    <SelectContent className="rounded-xl max-h-60">
-                                        {GRADUATION_YEARS.map((year) => (
-                                            <SelectItem key={year} value={String(year)} className="rounded-lg cursor-pointer">
-                                                {year}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <ClearableFilterField
+                                    showClear={!!gradYear}
+                                    onClear={() => setGradYear("")}
+                                    clearLabel="graduation year"
+                                    variant="select"
+                                >
+                                    <Select value={gradYear || undefined} onValueChange={setGradYear}>
+                                        <SelectTrigger
+                                            className={cn(
+                                                "w-full rounded-xl h-10",
+                                                gradYear && CLEARABLE_SELECT_PADDING
+                                            )}
+                                        >
+                                            <SelectValue placeholder="Select year" />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-xl max-h-60">
+                                            {GRADUATION_YEARS.map((year) => (
+                                                <SelectItem key={year} value={String(year)} className="rounded-lg cursor-pointer">
+                                                    {year}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </ClearableFilterField>
                             </div>
                             <div className="space-y-2 md:col-span-2">
                                 <Label>Certifications (one per line)</Label>

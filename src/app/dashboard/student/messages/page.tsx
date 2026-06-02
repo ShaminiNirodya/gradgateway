@@ -6,7 +6,8 @@ import { useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Paperclip, Phone, Video, MoreVertical, X, Copy, ExternalLink } from "lucide-react";
+import { Paperclip, Phone, Video, MoreVertical, X, Copy, ExternalLink, MessageSquare } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast";
 import {
   DropdownMenu,
@@ -19,6 +20,7 @@ import { DashboardService } from "@/lib/services/dashboard.service";
 import { ConversationItem } from "@/lib/types/dashboard";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { signalRService } from "@/lib/services/signalr.service";
+import { UnreadMessageIndicator } from "@/components/shared/UnreadMessageIndicator";
 
 type MessageItem = {
   id: string;
@@ -124,6 +126,38 @@ function conversationPreviewText(raw: string): string {
   return raw;
 }
 
+function sortConversationsForInbox(list: ConversationItem[]): ConversationItem[] {
+  return [...list].sort((a, b) => {
+    const aUnread = Boolean(a.hasUnread);
+    const bUnread = Boolean(b.hasUnread);
+    if (aUnread !== bUnread) return aUnread ? -1 : 1;
+    return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime();
+  });
+}
+
+function conversationShowsUnread(conversation: ConversationItem): boolean {
+  return Boolean(conversation.hasUnread);
+}
+
+function findScrollTargetMessageId(
+  messages: MessageItem[],
+  userEmail?: string | null
+): string | null {
+  if (messages.length === 0) return null;
+
+  const isIncoming = (message: MessageItem) =>
+    Boolean(userEmail) &&
+    message.senderName?.toLowerCase() !== userEmail.toLowerCase();
+
+  const firstUnreadIncoming = messages.find((m) => isIncoming(m) && !m.isRead);
+  if (firstUnreadIncoming) return firstUnreadIncoming.id;
+
+  const lastIncoming = [...messages].reverse().find(isIncoming);
+  if (lastIncoming) return lastIncoming.id;
+
+  return messages[messages.length - 1]?.id ?? null;
+}
+
 export default function StudentMessagesPage() {
   const { show } = useToast();
   const { user, userData } = useAuth();
@@ -139,6 +173,8 @@ export default function StudentMessagesPage() {
   const isCompany = userData?.role === "Company";
   const selectedConversationIdRef = useRef<string | null>(null);
   const lastActiveRefreshAtRef = useRef<number>(0);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const scrollToMessageConversationIdRef = useRef<string | null>(null);
   const conversationIdParam = searchParams.get("conversationId");
   const opportunityIdParam = searchParams.get("opportunityId");
   const studentProfileIdParam = searchParams.get("studentProfileId");
@@ -146,24 +182,6 @@ export default function StudentMessagesPage() {
   useEffect(() => {
     selectedConversationIdRef.current = selectedConversationId;
   }, [selectedConversationId]);
-
-  // SignalR real-time messaging
-  useEffect(() => {
-    signalRService.start();
-
-    const unsubscribe = signalRService.onMessage((newMessage: MessageItem) => {
-      // Only add message if it's for the currently selected conversation
-      if (selectedConversationIdRef.current === newMessage.conversationId) {
-        setMessages((prev) => [...prev, newMessage]);
-      }
-      // Refresh conversation list to update last message
-      loadConversations();
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, []);
 
   // Generate unique meeting ID based on conversation
   const generateMeetingId = useCallback((conversationId: string | null) => {
@@ -251,17 +269,21 @@ export default function StudentMessagesPage() {
         }
       }
 
-      // Priority 4: Use previously selected conversation only if no params provided
-      if (!selected && !conversationIdParam && !opportunityIdParam && !studentProfileIdParam && selectedConversationIdRef.current) {
+      // Keep the active chat only while still on this page (no auto-open of first chat).
+      if (
+        !selected &&
+        !conversationIdParam &&
+        !opportunityIdParam &&
+        !studentProfileIdParam &&
+        selectedConversationIdRef.current
+      ) {
         selected = rows.find((c) => c.id === selectedConversationIdRef.current) || null;
       }
 
-      // Priority 5: Default to first conversation
-      if (!selected && finalRows.length > 0) {
-        selected = finalRows[0];
-      }
-
       setConversations(finalRows);
+      if (selected?.hasUnread) {
+        scrollToMessageConversationIdRef.current = selected.id;
+      }
       setSelectedConversationId(selected?.id || null);
     } catch {
       setConversations([]);
@@ -288,6 +310,7 @@ export default function StudentMessagesPage() {
 
       const rows = await DashboardService.getConversationMessages(token, conversationId);
       setMessages(rows);
+      void loadConversations();
     } catch {
       if (!silent) {
         setMessages([]);
@@ -297,7 +320,53 @@ export default function StudentMessagesPage() {
         setLoadingMessages(false);
       }
     }
-  }, []);
+  }, [loadConversations]);
+
+  useEffect(() => {
+    signalRService.start();
+
+    const unsubscribe = signalRService.onMessage((newMessage: MessageItem) => {
+      const isActiveChat = selectedConversationIdRef.current === newMessage.conversationId;
+      const isFromMe =
+        Boolean(user?.email) &&
+        newMessage.senderName?.toLowerCase() === user.email?.toLowerCase();
+
+      if (isActiveChat) {
+        setMessages((prev) => [...prev, newMessage]);
+        if (!isFromMe) {
+          scrollToMessageConversationIdRef.current = newMessage.conversationId;
+        }
+        void loadMessages(newMessage.conversationId, true);
+      }
+
+      setConversations((prev) => {
+        const exists = prev.some((c) => c.id === newMessage.conversationId);
+        if (!exists) {
+          void loadConversations();
+          return prev;
+        }
+
+        const updated = prev.map((c) =>
+          c.id === newMessage.conversationId
+            ? {
+                ...c,
+                lastMessage: newMessage.content,
+                lastMessageAt: newMessage.sentAt,
+                hasUnread: !isFromMe && !isActiveChat,
+              }
+            : c
+        );
+        return sortConversationsForInbox(updated);
+      });
+
+      DashboardService.clearConversationsCache();
+      void loadConversations();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [loadConversations, loadMessages, user?.email]);
 
   useEffect(() => {
     loadConversations();
@@ -375,6 +444,46 @@ export default function StudentMessagesPage() {
     );
   }, [conversations, query]);
 
+  const sortedConversations = useMemo(
+    () => sortConversationsForInbox(filteredConversations),
+    [filteredConversations]
+  );
+
+  const handleSelectConversation = useCallback(
+    (conversationId: string) => {
+      const conversation = conversations.find((c) => c.id === conversationId);
+      if (conversation?.hasUnread) {
+        scrollToMessageConversationIdRef.current = conversationId;
+      }
+      setSelectedConversationId(conversationId);
+    },
+    [conversations]
+  );
+
+  const scrollToTargetMessage = useCallback(() => {
+    const targetConversationId = scrollToMessageConversationIdRef.current;
+    if (!targetConversationId || targetConversationId !== selectedConversationId) return;
+
+    const container = messagesScrollRef.current;
+    if (!container || loadingMessages || messages.length === 0) return;
+
+    const targetMessageId = findScrollTargetMessageId(messages, user?.email);
+    if (!targetMessageId) {
+      scrollToMessageConversationIdRef.current = null;
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      const element = container.querySelector(`[data-message-id="${targetMessageId}"]`);
+      element?.scrollIntoView({ behavior: "smooth", block: "center" });
+      scrollToMessageConversationIdRef.current = null;
+    });
+  }, [selectedConversationId, loadingMessages, messages, user?.email]);
+
+  useEffect(() => {
+    scrollToTargetMessage();
+  }, [scrollToTargetMessage]);
+
   const selectedConversation = useMemo(
     () => conversations.find((conversation) => conversation.id === selectedConversationId) || null,
     [conversations, selectedConversationId]
@@ -416,48 +525,78 @@ export default function StudentMessagesPage() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-[calc(100vh-140px)]">
-      <aside className="bg-white rounded-[24px] p-6 shadow-sm lg:col-span-1 flex flex-col">
+    <div className="-m-4 flex h-[calc(100dvh-2rem)] max-h-[calc(100dvh-2rem)] min-h-0 flex-col gap-4 overflow-hidden p-4 lg:-m-8 lg:h-[calc(100dvh-4rem)] lg:max-h-[calc(100dvh-4rem)] lg:grid lg:grid-cols-3 lg:gap-8 lg:p-8">
+      <aside className="flex min-h-0 flex-col overflow-hidden rounded-[24px] bg-white p-6 shadow-sm lg:col-span-1 lg:max-h-full">
         <Input
           placeholder="Search conversations..."
-          className="h-10 mb-4 rounded-xl"
+          className="mb-4 h-10 shrink-0 rounded-xl"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
 
-        <div className="flex-1 overflow-y-auto space-y-3">
-          {filteredConversations.map((conversation) => (
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain">
+          {sortedConversations.length === 0 && (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-8 text-center">
+              <MessageSquare className="mx-auto mb-2 h-8 w-8 text-slate-300" />
+              <p className="text-sm font-semibold text-slate-600">No conversations yet</p>
+              <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+                {isCompany
+                  ? "Message candidates from Talent Search or Applications."
+                  : "Apply to openings or message companies to start a chat."}
+              </p>
+            </div>
+          )}
+          {sortedConversations.map((conversation) => {
+            const isUnread = conversationShowsUnread(conversation);
+            return (
             <div
               key={conversation.id}
-              onClick={() => setSelectedConversationId(conversation.id)}
+              onClick={() => handleSelectConversation(conversation.id)}
               className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${selectedConversationId === conversation.id
                 ? "bg-indigo-50 border border-indigo-100"
-                : "bg-white border border-transparent hover:bg-slate-50"
+                : isUnread
+                  ? "bg-emerald-50/40 border border-emerald-100/80 hover:bg-emerald-50/60"
+                  : "bg-white border border-transparent hover:bg-slate-50"
                 }`}
             >
               <div className="flex items-center gap-3 min-w-0">
-                <Avatar className="h-10 w-10 border border-slate-100 shadow-sm">
-                  {conversation.otherPartyPhotoUrl && <AvatarImage src={conversation.otherPartyPhotoUrl} alt={conversation.otherPartyName} />}
-                  <AvatarFallback>{conversation.otherPartyName[0]}</AvatarFallback></Avatar>
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-slate-800 truncate">{conversation.otherPartyName}</p>
-                  <p className="text-xs text-slate-400 truncate">{conversationPreviewText(conversation.lastMessage) || "No messages yet"}</p>
+                <div className="relative shrink-0">
+                  <Avatar className="h-10 w-10 border border-slate-100 shadow-sm">
+                    {conversation.otherPartyPhotoUrl && <AvatarImage src={conversation.otherPartyPhotoUrl} alt={conversation.otherPartyName} />}
+                    <AvatarFallback>{conversation.otherPartyName[0]}</AvatarFallback>
+                  </Avatar>
+                  {isUnread && (
+                    <UnreadMessageIndicator className="absolute -top-0.5 -right-0.5" ringClassName="ring-white" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm truncate ${isUnread ? "font-extrabold text-slate-900" : "font-bold text-slate-800"}`}>
+                    {conversation.otherPartyName}
+                  </p>
+                  <p className={`text-xs truncate ${isUnread ? "font-medium text-slate-600" : "text-slate-400"}`}>
+                    {conversationPreviewText(conversation.lastMessage) || "No messages yet"}
+                  </p>
                 </div>
               </div>
-              <span className="text-[10px] text-slate-400 font-medium shrink-0">
+              <span className={`text-[10px] font-medium shrink-0 ${isUnread ? "text-emerald-600" : "text-slate-400"}`}>
                 {new Date(conversation.lastMessageAt).toLocaleDateString("en-LK", { month: "short", day: "numeric" })}
               </span>
             </div>
-          ))}
+            );
+          })}
         </div>
       </aside>
 
-      <main className="bg-white rounded-[24px] shadow-sm lg:col-span-2 flex flex-col border border-slate-50">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border border-slate-50 bg-white shadow-sm lg:col-span-2">
         {!selectedConversation ? (
-          <div className="flex-1 flex items-center justify-center text-slate-400">Select a conversation</div>
+          <MessagesEmptyPanel
+            isCompany={isCompany}
+            unreadCount={sortedConversations.filter((c) => Boolean(c.hasUnread)).length}
+            hasConversations={sortedConversations.length > 0}
+          />
         ) : (
           <>
-            <div className="flex items-center justify-between p-6 border-b bg-white/50 backdrop-blur-sm rounded-t-[24px] z-10">
+            <div className="z-10 flex shrink-0 items-center justify-between rounded-t-[24px] border-b bg-white/50 p-6 backdrop-blur-sm">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10 border border-slate-100 shadow-sm">
                   {selectedConversation.otherPartyPhotoUrl && <AvatarImage src={selectedConversation.otherPartyPhotoUrl} alt={selectedConversation.otherPartyName} />}
@@ -491,7 +630,10 @@ export default function StudentMessagesPage() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-4 p-6 bg-slate-50/30">
+            <div
+              ref={messagesScrollRef}
+              className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain bg-slate-50/30 p-6"
+            >
               {loadingMessages ? (
                 <div className="text-sm text-slate-400">Loading messages...</div>
               ) : messages.length === 0 ? (
@@ -504,7 +646,7 @@ export default function StudentMessagesPage() {
 
                   if (interview) {
                     return (
-                      <div key={message.id} className={`flex ${fromMe ? "justify-end" : "justify-start"} mb-6`}>
+                      <div key={message.id} data-message-id={message.id} className={`flex ${fromMe ? "justify-end" : "justify-start"} mb-6`}>
                         <div className={`max-w-[600px] w-full ${fromMe ? "bg-gradient-to-br from-[#6C5DD3] to-[#8a7cff] text-white" : "bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200"} rounded-2xl overflow-hidden shadow-md`}>
                           {/* Header */}
                           <div className={`${fromMe ? "bg-white/10" : "bg-white/80"} px-6 py-4 border-b ${fromMe ? "border-white/20" : "border-indigo-200"}`}>
@@ -611,22 +753,33 @@ export default function StudentMessagesPage() {
 
                   if (offer) {
                     return (
-                      <OfferMessage
-                        key={message.id}
-                        from={fromMe ? "me" : "them"}
-                        offer={offer}
-                        showActions={!isCompany && !fromMe}
-                        onRespond={sendConversationReply}
-                      />
+                      <div key={message.id} data-message-id={message.id}>
+                        <OfferMessage
+                          from={fromMe ? "me" : "them"}
+                          offer={offer}
+                          showActions={!isCompany && !fromMe}
+                          onRespond={sendConversationReply}
+                        />
+                      </div>
                     );
                   }
 
-                  return <Message key={message.id} from={fromMe ? "me" : "them"}>{message.content}</Message>;
+                  const isNewIncoming = !fromMe && !message.isRead;
+
+                  return (
+                    <div
+                      key={message.id}
+                      data-message-id={message.id}
+                      className={isNewIncoming ? "rounded-2xl ring-2 ring-emerald-300/80 ring-offset-2" : undefined}
+                    >
+                      <Message from={fromMe ? "me" : "them"}>{message.content}</Message>
+                    </div>
+                  );
                 })
               )}
             </div>
 
-            <div className="border-t p-4 flex items-center gap-2 bg-white rounded-b-[24px]">
+            <div className="flex shrink-0 items-center gap-2 rounded-b-[24px] border-t bg-white p-4">
               <Button variant="ghost" size="icon-sm"><Paperclip className="w-4 h-4 text-slate-400" /></Button>
               <Input
                 placeholder="Type your message..."
@@ -726,6 +879,72 @@ export default function StudentMessagesPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function MessagesEmptyPanel({
+  isCompany,
+  unreadCount,
+  hasConversations,
+}: {
+  isCompany: boolean;
+  unreadCount: number;
+  hasConversations: boolean;
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-gradient-to-br from-slate-50/90 via-white to-indigo-50/30">
+      <div className="flex flex-1 flex-col items-center justify-center p-6 sm:p-10">
+        <div className="w-full max-w-lg space-y-8 text-center">
+          <div className="relative mx-auto w-fit">
+            <div className="flex h-24 w-24 items-center justify-center rounded-[28px] bg-gradient-to-br from-[#6C5DD3] to-[#8a7cff] shadow-xl shadow-indigo-200/60">
+              <MessageSquare className="h-11 w-11 text-white" strokeWidth={1.75} />
+            </div>
+            {unreadCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-7 min-w-7 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-xs font-bold text-white shadow-md ring-4 ring-white">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+              {unreadCount > 0 ? "You have new messages" : "Choose a conversation"}
+            </h2>
+            <p className="mx-auto max-w-sm text-sm leading-relaxed text-slate-500">
+              {isCompany
+                ? "Pick a chat from the list to reply to candidates, share offers, or schedule interviews."
+                : "Pick a chat from the list to follow up with companies about roles and interviews."}
+            </p>
+          </div>
+
+          <div className="grid gap-3 text-left sm:grid-cols-3">
+            {[
+              isCompany ? "Review candidate replies" : "Track application updates",
+              isCompany ? "Send job offers in chat" : "Respond to interview invites",
+              "Keep everything in one thread",
+            ].map((tip) => (
+              <div
+                key={tip}
+                className="rounded-2xl border border-slate-100 bg-white/80 px-4 py-3 text-xs font-medium text-slate-600 shadow-sm"
+              >
+                {tip}
+              </div>
+            ))}
+          </div>
+
+          {!hasConversations && (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 px-6 py-8">
+              <p className="text-sm font-semibold text-slate-700">No chats yet</p>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                {isCompany
+                  ? "Start messaging from Talent Search or Applications — conversations will show up on the left."
+                  : "Message a company from Openings or Applications — your chats will appear on the left."}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

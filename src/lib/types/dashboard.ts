@@ -36,6 +36,7 @@ export interface ConversationItem {
   otherPartyPhotoUrl?: string;
   lastMessage: string;
   lastMessageAt: string;
+  hasUnread?: boolean;
 }
 
 export interface NotificationItem {

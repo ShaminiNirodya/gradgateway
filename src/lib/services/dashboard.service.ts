@@ -93,8 +93,9 @@ export class DashboardService {
       });
 
       const data = await getJsonOrThrow<ConversationItem[]>(response, 'Failed to load conversations');
-      this.conversationsCache = { data, cachedAt: Date.now() };
-      return data;
+      const normalized = data.map((row) => normalizeConversationItem(row));
+      this.conversationsCache = { data: normalized, cachedAt: Date.now() };
+      return normalized;
     })();
 
     try {
@@ -117,7 +118,11 @@ export class DashboardService {
       body: JSON.stringify(payload),
     });
 
-    return getJsonOrThrow<ConversationItem>(response, 'Failed to start conversation');
+    const created = await getJsonOrThrow<ConversationItem & { HasUnread?: boolean }>(
+      response,
+      'Failed to start conversation'
+    );
+    return normalizeConversationItem(created);
   }
 
   static async getConversationMessages(token: string, conversationId: string) {
@@ -151,6 +156,7 @@ export class DashboardService {
       }>>(response, 'Failed to load conversation messages');
 
       this.messagesCache.set(conversationId, { data, cachedAt: Date.now() });
+      this.conversationsCache = null;
       return data;
     })();
 
@@ -187,6 +193,10 @@ export class DashboardService {
     this.conversationsCache = null;
 
     return data;
+  }
+
+  static clearConversationsCache() {
+    this.conversationsCache = null;
   }
 
   static async getOpportunityById(opportunityId: string): Promise<OpportunityItem> {
@@ -322,4 +332,11 @@ export class DashboardService {
 
     return getJsonOrThrow<ApplicationItem>(response, 'Failed to submit application');
   }
+}
+
+function normalizeConversationItem(row: ConversationItem & { HasUnread?: boolean }): ConversationItem {
+  return {
+    ...row,
+    hasUnread: Boolean(row.hasUnread ?? row.HasUnread),
+  };
 }

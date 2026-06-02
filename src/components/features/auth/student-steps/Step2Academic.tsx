@@ -20,9 +20,11 @@ import { ALL_UNIVERSITIES, getDegreesForUniversity } from "@/lib/constants/unive
 import {
   getDegreesForFieldOfMajor,
   degreeBelongsToField,
+  fieldOfMajorFromDegreeSelection,
   type FieldOfMajorId,
 } from "@/lib/constants/field-of-major";
 import { FieldOfMajorSelect } from "@/components/shared/FieldOfMajorSelect";
+import { FieldOfMajorSubcategoriesNotice } from "@/components/shared/FieldOfMajorSubcategoriesNotice";
 
 interface Step2Props {
   onNext: (data: AcademicInfoData) => void;
@@ -39,11 +41,13 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
   const selectedDegree = watch("degree");
 
   const availableDegrees = useMemo(() => {
-    if (!selectedUniversity || !selectedFieldOfMajor) {
-      return [];
+    if (!selectedUniversity) return [];
+    let degrees = getDegreesForUniversity(selectedUniversity);
+    if (selectedFieldOfMajor) {
+      const fieldSet = new Set(getDegreesForFieldOfMajor(selectedFieldOfMajor));
+      degrees = degrees.filter((d) => fieldSet.has(d));
     }
-    const fieldSet = new Set(getDegreesForFieldOfMajor(selectedFieldOfMajor));
-    return getDegreesForUniversity(selectedUniversity).filter((d) => fieldSet.has(d));
+    return degrees;
   }, [selectedUniversity, selectedFieldOfMajor]);
 
   return (
@@ -100,6 +104,7 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
             )}
           />
           {errors.fieldOfMajor && <p className="text-xs text-red-500 font-bold ml-2">{errors.fieldOfMajor.message}</p>}
+          <FieldOfMajorSubcategoriesNotice fieldId={(selectedFieldOfMajor as FieldOfMajorId) || ""} />
         </div>
 
         <div className="space-y-2">
@@ -109,20 +114,25 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
             control={control}
             render={({ field }) => (
               <Select
-                onValueChange={field.onChange}
+                onValueChange={(val) => {
+                  field.onChange(val);
+                  const inferred = fieldOfMajorFromDegreeSelection(
+                    val,
+                    (selectedFieldOfMajor as FieldOfMajorId) || ""
+                  );
+                  if (inferred) setValue("fieldOfMajor", inferred);
+                }}
                 value={field.value}
-                disabled={!selectedUniversity || !selectedFieldOfMajor}
+                disabled={!selectedUniversity}
               >
                 <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3]">
                   <div className="flex items-center gap-3 text-slate-700">
                     <BookOpen className="w-5 h-5 text-[#6C5DD3]" />
-                    <SelectValue placeholder={
-                      !selectedFieldOfMajor
-                        ? "Select field of major first"
-                        : !selectedUniversity
-                          ? "Select university first"
-                          : "Select Degree"
-                    } />
+                    <SelectValue
+                      placeholder={
+                        !selectedUniversity ? "Select university first" : "Select Degree"
+                      }
+                    />
                   </div>
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-none shadow-xl max-h-72">

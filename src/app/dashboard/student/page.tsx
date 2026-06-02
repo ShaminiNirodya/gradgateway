@@ -1,5 +1,5 @@
 "use client";
-import { Search, FolderOpen, FileText, MessageSquare, ChevronRight, PlayCircle, Award, BadgeCheck, Info, Plus, Zap, X, CheckCircle2, UserCircle, Target } from "lucide-react";
+import { Search, FolderOpen, FileText, MessageSquare, PlayCircle, Award, BadgeCheck, Info, Plus, Zap, X, CheckCircle2, UserCircle, Target } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -153,10 +153,15 @@ export default function StudentDashboard() {
           <h1 className="text-xl font-bold text-slate-800">{greeting}, {displayName}</h1>
           <p className="text-sm text-slate-500">{todayLabel}</p>
         </div>
-        <Avatar className="h-10 w-10">
-          <AvatarImage src={profile?.photoDataUrl} alt={displayName} />
-          <AvatarFallback className="bg-orange-100 text-orange-600 text-xs font-bold">{initials}</AvatarFallback>
-        </Avatar>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <Button asChild className="bg-[#6C5DD3] hover:bg-[#5b4eb8] rounded-xl">
+            <Link href="/dashboard/student/openings">Find Jobs</Link>
+          </Button>
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={profile?.photoDataUrl} alt={displayName} />
+            <AvatarFallback className="bg-orange-100 text-orange-600 text-xs font-bold">{initials}</AvatarFallback>
+          </Avatar>
+        </div>
       </div>
 
       {/* Search */}
@@ -244,19 +249,6 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* Quick actions */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm flex flex-wrap gap-3">
-        <Button asChild>
-          <Link href="/dashboard/student/projects">View Projects <ChevronRight className="w-4 h-4 ml-1" /></Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/dashboard/student/openings">Find Jobs</Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/dashboard/student/messages">Open Messages</Link>
-        </Button>
-      </div>
-
       {/* Recent projects */}
       <section>
         <div className="flex items-center justify-between mb-4">
@@ -268,7 +260,7 @@ export default function StudentDashboard() {
             <ProjectCard
               key={project.id}
               id={project.id}
-              tag={project.techStack.split(",")[0]?.trim() || "Project"}
+              techStack={project.techStack}
               title={project.title}
               author={project.studentName || displayName}
               avatar={initials}
@@ -417,7 +409,13 @@ function StatCard({ icon, label, value, href }: any) {
   return href ? <Link href={href}>{content}</Link> : content;
 }
 
-function ProjectCard({ tag, title, author, avatar, id, imageUrl }: any) {
+function ProjectCard({ techStack, title, author, avatar, id, imageUrl }: any) {
+  const techTags = (techStack || "")
+    .split(",")
+    .map((skill: string) => skill.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+
   return (
     <Link href={`/dashboard/student/projects/${id || "1"}`}>
       <div className="bg-white p-4 rounded-[24px] shadow-sm hover:shadow-lg transition-all cursor-pointer group">
@@ -429,12 +427,23 @@ function ProjectCard({ tag, title, author, avatar, id, imageUrl }: any) {
               className="w-full h-full object-cover"
             />
           )}
-          <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-lg text-[10px] font-bold text-slate-700 uppercase">{tag}</div>
           <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
             <PlayCircle className="w-12 h-12 text-white fill-white/20" />
           </div>
         </div>
         <h3 className="font-bold text-slate-800 text-lg mb-2">{title}</h3>
+        {techTags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {techTags.map((tech: string) => (
+              <span
+                key={tech}
+                className="inline-block px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-wide"
+              >
+                {tech}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <Avatar className="h-6 w-6">
             <AvatarFallback className="bg-orange-100 text-orange-600 text-[10px] font-bold">{avatar}</AvatarFallback>

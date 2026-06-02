@@ -17,6 +17,8 @@ import { useAuth } from "@/lib/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useUnreadConversations } from "@/components/shared/UnreadConversationsProvider";
+import { UnreadMessageIndicator } from "@/components/shared/UnreadMessageIndicator";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard/student", icon: LayoutGrid },
@@ -32,6 +34,7 @@ export default function StudentSidebar() {
   const { signOut } = useAuth();
   const router = useRouter();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const { showMessagesBadge } = useUnreadConversations();
 
   const handleLogout = async () => {
     try {
@@ -57,18 +60,27 @@ export default function StudentSidebar() {
           <div className="space-y-2">
             {navItems.map((item) => {
               const isActive = pathname === item.href;
+              const showBadge = item.name === "Messages" && showMessagesBadge;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-4 px-4 py-3.5 rounded-[24px] text-sm font-bold transition-all duration-300",
+                    "relative flex items-center gap-4 px-4 py-3.5 rounded-[24px] text-sm font-bold transition-all duration-300",
                     isActive
                       ? "bg-[#6C5DD3] text-white shadow-lg shadow-indigo-200"
                       : "text-slate-500 hover:text-[#6C5DD3] hover:bg-slate-50"
                   )}
                 >
-                  <item.icon className="w-5 h-5" />
+                  <span className="relative inline-flex shrink-0">
+                    <item.icon className="w-5 h-5" />
+                    {showBadge && (
+                      <UnreadMessageIndicator
+                        className="absolute -top-1 -right-1"
+                        ringClassName={isActive ? "ring-[#6C5DD3]" : "ring-white"}
+                      />
+                    )}
+                  </span>
                   {item.name}
                 </Link>
               );

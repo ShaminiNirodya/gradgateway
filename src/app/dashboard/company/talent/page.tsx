@@ -261,11 +261,13 @@ export default function TalentSearchPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full justify-start text-left font-normal h-10"
+                className="w-full min-h-10 h-auto py-2 justify-start text-left font-normal"
               >
-                {selectedUniversities.size > 0 
-                  ? `${selectedUniversities.size} selected` 
-                  : "Select universities..."}
+                <FilterMultiSelectChips
+                  placeholder="Select universities..."
+                  items={Array.from(selectedUniversities).map((uni) => ({ key: uni, label: uni }))}
+                  onRemove={(key) => toggleSet(setSelectedUniversities, selectedUniversities, key, false)}
+                />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="bg-white w-[320px] rounded-xl shadow-xl border-slate-100 p-0">
@@ -303,22 +305,6 @@ export default function TalentSearchPage() {
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
-          {selectedUniversities.size > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {Array.from(selectedUniversities).map((uni) => (
-                <span
-                  key={uni}
-                  className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs"
-                >
-                  {uni.split(' ').slice(0, 3).join(' ')}
-                  <X
-                    className="w-3 h-3 cursor-pointer hover:text-indigo-900"
-                    onClick={() => toggleSet(setSelectedUniversities, selectedUniversities, uni, false)}
-                  />
-                </span>
-              ))}
-            </div>
-          )}
         </Section>
 
         <Section title="Field of Major">
@@ -327,11 +313,18 @@ export default function TalentSearchPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full justify-start text-left font-normal h-10"
+                className="w-full min-h-10 h-auto py-2 justify-start text-left font-normal"
               >
-                {selectedFieldsOfMajor.size > 0
-                  ? `${selectedFieldsOfMajor.size} selected`
-                  : "Select fields..."}
+                <FilterMultiSelectChips
+                  placeholder="Select fields..."
+                  items={Array.from(selectedFieldsOfMajor).map((fieldId) => ({
+                    key: fieldId,
+                    label: FIELDS_OF_MAJOR.find((f) => f.id === fieldId)?.label ?? fieldId,
+                  }))}
+                  onRemove={(key) =>
+                    toggleSet(setSelectedFieldsOfMajor, selectedFieldsOfMajor, key as FieldOfMajorId, false)
+                  }
+                />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="bg-white w-[320px] rounded-xl shadow-xl border-slate-100 p-0">
@@ -362,25 +355,6 @@ export default function TalentSearchPage() {
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
-          {selectedFieldsOfMajor.size > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {Array.from(selectedFieldsOfMajor).map((fieldId) => {
-                const label = FIELDS_OF_MAJOR.find((f) => f.id === fieldId)?.label ?? fieldId;
-                return (
-                  <span
-                    key={fieldId}
-                    className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs"
-                  >
-                    {label.split(" & ")[0]}
-                    <X
-                      className="w-3 h-3 cursor-pointer hover:text-indigo-900"
-                      onClick={() => toggleSet(setSelectedFieldsOfMajor, selectedFieldsOfMajor, fieldId, false)}
-                    />
-                  </span>
-                );
-              })}
-            </div>
-          )}
         </Section>
 
         <Section title="Degree">
@@ -389,11 +363,13 @@ export default function TalentSearchPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full justify-start text-left font-normal h-10"
+                className="w-full min-h-10 h-auto py-2 justify-start text-left font-normal"
               >
-                {selectedDegrees.size > 0 
-                  ? `${selectedDegrees.size} selected` 
-                  : "Select degrees..."}
+                <FilterMultiSelectChips
+                  placeholder="Select degrees..."
+                  items={Array.from(selectedDegrees).map((degree) => ({ key: degree, label: degree }))}
+                  onRemove={(key) => toggleSet(setSelectedDegrees, selectedDegrees, key, false)}
+                />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="bg-white w-[320px] rounded-xl shadow-xl border-slate-100 p-0">
@@ -431,22 +407,6 @@ export default function TalentSearchPage() {
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
-          {selectedDegrees.size > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {Array.from(selectedDegrees).map((degree) => (
-                <span
-                  key={degree}
-                  className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs"
-                >
-                  {degree.split(' ').slice(0, 3).join(' ')}
-                  <X
-                    className="w-3 h-3 cursor-pointer hover:text-indigo-900"
-                    onClick={() => toggleSet(setSelectedDegrees, selectedDegrees, degree, false)}
-                  />
-                </span>
-              ))}
-            </div>
-          )}
         </Section>
 
         <Section title="Graduation Year">
@@ -469,11 +429,13 @@ export default function TalentSearchPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full justify-start text-left font-normal h-10"
+                className="w-full min-h-10 h-auto py-2 justify-start text-left font-normal"
               >
-                {skills.size > 0 
-                  ? `${skills.size} selected` 
-                  : "Select skills..."}
+                <FilterMultiSelectChips
+                  placeholder="Select skills..."
+                  items={Array.from(skills).map((skill) => ({ key: skill, label: skill }))}
+                  onRemove={(key) => toggleSet(setSkills, skills, key, false)}
+                />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="bg-white w-[320px] rounded-xl shadow-xl border-slate-100 p-0">
@@ -511,22 +473,6 @@ export default function TalentSearchPage() {
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
-          {skills.size > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {Array.from(skills).map((skill) => (
-                <span
-                  key={skill}
-                  className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs"
-                >
-                  {skill}
-                  <X
-                    className="w-3 h-3 cursor-pointer hover:text-indigo-900"
-                    onClick={() => toggleSet(setSkills, skills, skill, false)}
-                  />
-                </span>
-              ))}
-            </div>
-          )}
         </Section>
 
         <Section title="Availability">
@@ -638,16 +584,15 @@ function FilterRow({ label, checked, onChange }: { label: string; checked?: bool
 function CandidateCard({ c }: { c: Candidate }) {
   return (
     <div className="bg-white rounded-[24px] shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group border border-slate-100 hover:border-indigo-100 flex flex-col h-full">
-      <div className="h-24 bg-gradient-to-r from-[#6C5DD3] via-indigo-500 to-[#6C5DD3] opacity-10 group-hover:opacity-20 transition-opacity" />
-      <div className="px-6 pb-6 -mt-10 flex flex-col flex-1">
-        <div className="flex justify-between items-start mb-4">
-          <Avatar className="h-20 w-20 border-4 border-white shadow-md">
+      <div className="px-5 pt-5 pb-6 flex flex-col flex-1">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <Avatar className="h-16 w-16 border-2 border-slate-100 shadow-sm flex-shrink-0">
             {c.photoDataUrl && <AvatarImage src={c.photoDataUrl} alt={c.name} />}
-            <AvatarFallback className="bg-indigo-50 text-[#6C5DD3] text-xl font-bold">
+            <AvatarFallback className="bg-indigo-50 text-[#6C5DD3] text-lg font-bold">
               {c.name.split(" ").map((name) => name[0]).join("")}
             </AvatarFallback>
           </Avatar>
-          <span className={`inline-block px-2 py-1 rounded-lg text-[10px] font-bold ${
+          <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${
             c.status === "Available Now" ? "bg-emerald-50 text-emerald-600" :
             c.status === "Actively Looking" ? "bg-blue-50 text-blue-600" :
             c.status === "Open to Offers" ? "bg-amber-50 text-amber-600" :
@@ -687,4 +632,44 @@ function toggleSet<T>(setFn: (s: Set<T>) => void, current: Set<T>, item: T, enab
   if (enabled) next.add(item);
   else next.delete(item);
   setFn(next);
+}
+
+function FilterMultiSelectChips({
+  placeholder,
+  items,
+  onRemove,
+}: {
+  placeholder: string;
+  items: { key: string; label: string }[];
+  onRemove: (key: string) => void;
+}) {
+  if (items.length === 0) {
+    return <span className="text-slate-500 font-normal">{placeholder}</span>;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1.5 w-full">
+      {items.map(({ key, label }) => (
+        <span
+          key={key}
+          className="inline-flex items-center gap-1 max-w-full px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md text-xs font-medium"
+        >
+          <span className="truncate">{label}</span>
+          <button
+            type="button"
+            className="flex-shrink-0 rounded-sm hover:text-indigo-900"
+            aria-label={`Remove ${label}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onRemove(key);
+            }}
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </span>
+      ))}
+    </div>
+  );
 }

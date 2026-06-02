@@ -12,6 +12,9 @@ export type FieldOfMajorId =
 export interface FieldOfMajorOption {
   id: FieldOfMajorId;
   label: string;
+  /** Degrees shown to students when they pick this field */
+  subCategories: string[];
+  /** Canonical names used to match university degree lists */
   degrees: string[];
 }
 
@@ -19,6 +22,13 @@ export const FIELDS_OF_MAJOR: FieldOfMajorOption[] = [
   {
     id: "software-development-computing",
     label: "Software Development & Computing",
+    subCategories: [
+      "Computer Science",
+      "Software Engineering",
+      "Computer Science & Technology",
+      "Information Technology",
+      "ICT",
+    ],
     degrees: [
       "Computer Science",
       "Software Engineering",
@@ -33,6 +43,11 @@ export const FIELDS_OF_MAJOR: FieldOfMajorOption[] = [
   {
     id: "artificial-intelligence-data",
     label: "Artificial Intelligence & Data",
+    subCategories: [
+      "Artificial Intelligence",
+      "Data Science",
+      "Electronic and Intelligent Systems Engineering",
+    ],
     degrees: [
       "Artificial Intelligence",
       "Data Science",
@@ -42,6 +57,13 @@ export const FIELDS_OF_MAJOR: FieldOfMajorOption[] = [
   {
     id: "business-information-systems",
     label: "Business & Information Systems",
+    subCategories: [
+      "Business Information Systems",
+      "Information Systems",
+      "Management and Information Technology",
+      "Accounting Information Systems",
+      "Information Technology & Management",
+    ],
     degrees: [
       "Business Information Systems (Honours) (BIS)",
       "Bachelor of Science Honours in Business Information Systems",
@@ -56,6 +78,10 @@ export const FIELDS_OF_MAJOR: FieldOfMajorOption[] = [
   {
     id: "electronics-embedded-systems",
     label: "Electronics & Embedded Systems",
+    subCategories: [
+      "Electronics and Computer Science",
+      "Electronic and Intelligent Systems Engineering",
+    ],
     degrees: [
       "Electronics and Computer Science",
       "Electronic and Intelligent Systems Engineering",
@@ -65,6 +91,12 @@ export const FIELDS_OF_MAJOR: FieldOfMajorOption[] = [
   {
     id: "engineering-industrial-technology",
     label: "Engineering & Industrial Technology",
+    subCategories: [
+      "Engineering",
+      "Engineering Technology",
+      "Industrial Information Technology",
+      "Transport Management & Logistics Engineering",
+    ],
     degrees: [
       "Engineering",
       "Engineering Technology (ET)",
@@ -76,10 +108,8 @@ export const FIELDS_OF_MAJOR: FieldOfMajorOption[] = [
   {
     id: "applied-technology-emerging",
     label: "Applied Technology & Emerging Technologies",
-    degrees: [
-      "Biosystems Technology (BST)",
-      "Science and Technology",
-    ],
+    subCategories: ["Biosystems Technology", "Science and Technology"],
+    degrees: ["Biosystems Technology (BST)", "Science and Technology"],
   },
 ];
 
@@ -93,16 +123,29 @@ export function getFieldOfMajorByLabel(label: string): FieldOfMajorOption | unde
   return FIELDS_OF_MAJOR.find((f) => f.label === label);
 }
 
+export function getSubCategoriesForFieldOfMajor(fieldId: FieldOfMajorId | string): string[] {
+  return getFieldOfMajorById(fieldId)?.subCategories ?? [];
+}
+
 export function getDegreesForFieldOfMajor(fieldId: FieldOfMajorId | string): string[] {
   return getFieldOfMajorById(fieldId)?.degrees ?? [];
 }
 
-/** Infer field from a saved degree (for profiles created before this field existed) */
 export function inferFieldOfMajorFromDegree(degree: string): FieldOfMajorId | "" {
   if (!degree) return "";
   const normalized = normalizeDegreeName(degree);
   const match = FIELDS_OF_MAJOR.find((field) => field.degrees.includes(normalized));
   return match?.id ?? "";
+}
+
+/** When a degree is chosen, set field of major from the degree if it can be inferred */
+export function fieldOfMajorFromDegreeSelection(
+  degree: string,
+  currentFieldId: FieldOfMajorId | "" = ""
+): FieldOfMajorId | "" {
+  const inferred = inferFieldOfMajorFromDegree(degree);
+  if (inferred) return inferred;
+  return currentFieldId;
 }
 
 export function degreeBelongsToField(degree: string, fieldId: FieldOfMajorId | string): boolean {
@@ -111,7 +154,6 @@ export function degreeBelongsToField(degree: string, fieldId: FieldOfMajorId | s
   return field ? field.degrees.includes(normalizeDegreeName(degree)) : true;
 }
 
-/** Display label from stored field name or inferred from degree */
 export function resolveFieldOfMajorLabel(
   fieldOfMajor: string | undefined | null,
   degree?: string
