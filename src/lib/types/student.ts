@@ -7,6 +7,7 @@ export interface StudentRegistration {
   university: string;
   studentId?: string;
   degree: string;
+  fieldOfMajor?: string;
   gradYear: string;
   currentYear: number;
   gpa: string;
@@ -24,6 +25,7 @@ export interface StudentProfile {
   university: string;
   studentId: string;
   degree: string;
+  fieldOfMajor?: string;
   gradYear: number;
   currentYear: number;
   gpa: number;

@@ -16,44 +16,22 @@ import { useToast } from "@/components/ui/toast";
 import Link from "next/link";
 import { AuthService } from "@/lib/services/auth.service";
 import { StudentService } from "@/lib/services/student.service";
+import {
+  ALL_UNIVERSITIES,
+  ALL_DEGREES,
+  getDegreesForUniversity,
+  getUniversitiesForDegree,
+  normalizeDegreeName,
+} from "@/lib/constants/university-degrees";
+import {
+  FIELDS_OF_MAJOR,
+  getDegreesForFieldOfMajor,
+  candidateMatchesFieldsOfMajor,
+  resolveFieldOfMajorLabel,
+  type FieldOfMajorId,
+} from "@/lib/constants/field-of-major";
 
-// State Universities only
-const ALL_UNIVERSITIES = [
-  "University of Colombo",
-  "University of Peradeniya",
-  "University of Moratuwa",
-  "University of Kelaniya",
-  "University of Sri Jayewardenepura",
-  "University of Ruhuna",
-  "Eastern University",
-  "University of Jaffna",
-  "Sabaragamuwa University",
-  "Wayamba University",
-  "Rajarata University",
-  "South Eastern University",
-  "Uva Wellassa University",
-  "University of the Visual & Performing Arts",
-  "Open University of Sri Lanka"
-].sort();
-
-// All available degrees
-const ALL_DEGREES = [
-  "BSc (Hons) Computer Science", "BSc Computer Science", "BSc Information Technology",
-  "BSc Software Engineering", "BSc Information Systems", "BSc Cyber Security",
-  "BSc Data Science", "BSc Artificial Intelligence", "BSc Computer Engineering",
-  "BEng (Hons) Electrical Engineering", "BEng (Hons) Mechanical Engineering",
-  "BEng (Hons) Civil Engineering", "BEng (Hons) Electronic Engineering",
-  "BEng (Hons) Chemical Engineering", "BEng (Hons) Biomedical Engineering",
-  "BBA Business Administration", "BSc Business Management", "BSc Accounting & Finance",
-  "BSc Marketing", "BSc Human Resource Management", "BSc Economics",
-  "BSc (Hons) Mathematics", "BSc (Hons) Physics", "BSc (Hons) Chemistry",
-  "BSc (Hons) Biology", "BSc (Hons) Biotechnology", "BSc (Hons) Environmental Science",
-  "BA (Hons) Psychology", "BA (Hons) Sociology", "BA (Hons) English",
-  "BA (Hons) Mass Communication", "BA (Hons) Political Science",
-  "BDes Graphic Design", "BDes UI/UX Design", "BDes Product Design",
-  "BA (Hons) Fine Arts", "BSc Multimedia Technology",
-  "LLB Law", "MBBS Medicine", "BArch Architecture"
-].sort();
+// Universities and degrees are now imported from university-degrees.ts
 
 // All available skills/technologies (not just the ones students selected)
 const ALL_SKILLS = [
@@ -73,10 +51,11 @@ type Candidate = {
   id: string;
   name: string;
   university: string;
+  degree: string;
+  fieldOfMajor: string;
   classOf: number;
   gpa: number;
   skills: string[];
-  project: string;
   status: string;
   photoDataUrl?: string;
 };
@@ -86,6 +65,7 @@ export default function TalentSearchPage() {
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selectedUniversities, setSelectedUniversities] = useState<Set<string>>(new Set());
+  const [selectedFieldsOfMajor, setSelectedFieldsOfMajor] = useState<Set<FieldOfMajorId>>(new Set());
   const [selectedDegrees, setSelectedDegrees] = useState<Set<string>>(new Set());
   const [yearFrom, setYearFrom] = useState<string>("");
   const [yearTo, setYearTo] = useState<string>("");
@@ -101,8 +81,51 @@ export default function TalentSearchPage() {
   const [degreeSearch, setDegreeSearch] = useState("");
   const [skillSearch, setSkillSearch] = useState("");
   const [isUniversityDropdownOpen, setIsUniversityDropdownOpen] = useState(false);
+  const [isFieldOfMajorDropdownOpen, setIsFieldOfMajorDropdownOpen] = useState(false);
   const [isDegreeDropdownOpen, setIsDegreeDropdownOpen] = useState(false);
   const [isSkillDropdownOpen, setIsSkillDropdownOpen] = useState(false);
+
+  // Dynamic filtering based on selections
+  const availableDegrees = useMemo(() => {
+    let degrees: string[];
+    if (selectedUniversities.size === 0) {
+      degrees = [...ALL_DEGREES];
+    } else {
+      const degreesSet = new Set<string>();
+      selectedUniversities.forEach((uni) => {
+        getDegreesForUniversity(uni).forEach((d) => degreesSet.add(d));
+      });
+      degrees = Array.from(degreesSet);
+    }
+    if (selectedFieldsOfMajor.size > 0) {
+      const fieldDegrees = new Set<string>();
+      selectedFieldsOfMajor.forEach((fieldId) => {
+        getDegreesForFieldOfMajor(fieldId).forEach((d) => fieldDegrees.add(d));
+      });
+      degrees = degrees.filter((d) => fieldDegrees.has(d));
+    }
+    return degrees.sort();
+  }, [selectedUniversities, selectedFieldsOfMajor]);
+
+  const availableUniversities = useMemo(() => {
+    if (selectedDegrees.size > 0) {
+      const universitiesSet = new Set<string>();
+      selectedDegrees.forEach((degree) => {
+        getUniversitiesForDegree(degree).forEach((u) => universitiesSet.add(u));
+      });
+      return Array.from(universitiesSet).sort();
+    }
+    if (selectedFieldsOfMajor.size > 0) {
+      const universitiesSet = new Set<string>();
+      selectedFieldsOfMajor.forEach((fieldId) => {
+        getDegreesForFieldOfMajor(fieldId).forEach((degree) => {
+          getUniversitiesForDegree(degree).forEach((u) => universitiesSet.add(u));
+        });
+      });
+      return Array.from(universitiesSet).sort();
+    }
+    return ALL_UNIVERSITIES;
+  }, [selectedDegrees, selectedFieldsOfMajor]);
 
   useEffect(() => {
     const load = async () => {
@@ -126,10 +149,11 @@ export default function TalentSearchPage() {
             id: row.studentProfileId,
             name: row.fullName,
             university: row.university,
+            degree: normalizeDegreeName(row.degree),
+            fieldOfMajor: row.fieldOfMajor || "",
             classOf: gradYear,
             gpa: Number(row.gpa),
             skills: skillList,
-            project: row.degree || "Student Portfolio",
             status: row.availability || "Available Now",
             photoDataUrl: row.photoDataUrl,
           };
@@ -142,8 +166,7 @@ export default function TalentSearchPage() {
     load();
   }, []);
 
-  // Use predefined lists instead of dynamic ones from student data
-  const allUniversities = ALL_UNIVERSITIES;
+  // Use predefined skills list
   const allSkills = ALL_SKILLS;
 
   const filtered = useMemo(() => {
@@ -152,16 +175,17 @@ export default function TalentSearchPage() {
         !query ||
         candidate.name.toLowerCase().includes(query.toLowerCase()) ||
         candidate.skills.join(" ").toLowerCase().includes(query.toLowerCase()) ||
-        candidate.project.toLowerCase().includes(query.toLowerCase());
+        candidate.degree.toLowerCase().includes(query.toLowerCase());
 
       const matchesUniversity = selectedUniversities.size === 0 || selectedUniversities.has(candidate.university);
-      const matchesDegree = selectedDegrees.size === 0 || selectedDegrees.has(candidate.project);
+      const matchesFieldOfMajor = candidateMatchesFieldsOfMajor(candidate.degree, selectedFieldsOfMajor);
+      const matchesDegree = selectedDegrees.size === 0 || selectedDegrees.has(candidate.degree);
       const matchesYear = (!yearFrom || candidate.classOf >= Number(yearFrom)) && (!yearTo || candidate.classOf <= Number(yearTo));
       const matchesGpa = (!gpaFrom || candidate.gpa >= Number(gpaFrom)) && (!gpaTo || candidate.gpa <= Number(gpaTo));
       const matchesSkill = skills.size === 0 || candidate.skills.some((skill) => skills.has(skill));
       const matchesAvailability = availability.size === 0 || availability.has(candidate.status);
 
-      return matchesQuery && matchesUniversity && matchesDegree && matchesYear && matchesGpa && matchesSkill && matchesAvailability;
+      return matchesQuery && matchesUniversity && matchesFieldOfMajor && matchesDegree && matchesYear && matchesGpa && matchesSkill && matchesAvailability;
     });
 
     list = [...list].sort((a, b) => {
@@ -171,13 +195,14 @@ export default function TalentSearchPage() {
     });
 
     return list;
-  }, [availability, candidates, gpaFrom, gpaTo, query, selectedUniversities, selectedDegrees, skills, sortKey, yearFrom, yearTo]);
+  }, [availability, candidates, gpaFrom, gpaTo, query, selectedUniversities, selectedFieldsOfMajor, selectedDegrees, skills, sortKey, yearFrom, yearTo]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const clearFilters = () => {
     setSelectedUniversities(new Set());
+    setSelectedFieldsOfMajor(new Set());
     setSelectedDegrees(new Set());
     setYearFrom("");
     setYearTo("");
@@ -196,16 +221,16 @@ export default function TalentSearchPage() {
     }
 
     // CSV headers
-    const headers = ["Name", "University", "Class Of", "GPA", "Skills", "Project", "Status"];
+    const headers = ["Name", "University", "Field of Major", "Degree", "Class Of", "GPA", "Skills", "Status"];
     
-    // CSV rows
     const rows = filtered.map(candidate => [
       candidate.name,
       candidate.university,
+      resolveFieldOfMajorLabel(candidate.fieldOfMajor, candidate.degree),
+      candidate.degree,
       candidate.classOf.toString(),
       candidate.gpa.toString(),
       candidate.skills.join("; "),
-      candidate.project,
       candidate.status
     ]);
 
@@ -259,7 +284,7 @@ export default function TalentSearchPage() {
                 </div>
               </div>
               <div className="max-h-60 overflow-y-auto p-2">
-                {allUniversities
+                {availableUniversities
                   .filter(u => u.toLowerCase().includes(universitySearch.toLowerCase()))
                   .map((university) => (
                     <label
@@ -296,7 +321,69 @@ export default function TalentSearchPage() {
           )}
         </Section>
 
-        <Section title="Degree / Major">
+        <Section title="Field of Major">
+          <DropdownMenu open={isFieldOfMajorDropdownOpen} onOpenChange={setIsFieldOfMajorDropdownOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-start text-left font-normal h-10"
+              >
+                {selectedFieldsOfMajor.size > 0
+                  ? `${selectedFieldsOfMajor.size} selected`
+                  : "Select fields..."}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="bg-white w-[320px] rounded-xl shadow-xl border-slate-100 p-0">
+              <div className="max-h-60 overflow-y-auto p-2">
+                {FIELDS_OF_MAJOR.map((field) => (
+                  <label
+                    key={field.id}
+                    className="flex items-center gap-2 p-2 hover:bg-indigo-50 rounded-lg cursor-pointer text-sm"
+                  >
+                    <Checkbox
+                      checked={selectedFieldsOfMajor.has(field.id)}
+                      onCheckedChange={(checked) => {
+                        toggleSet(setSelectedFieldsOfMajor, selectedFieldsOfMajor, field.id, !!checked);
+                        if (!checked) return;
+                        const allowed = new Set(getDegreesForFieldOfMajor(field.id));
+                        setSelectedDegrees((prev) => {
+                          const next = new Set<string>();
+                          prev.forEach((d) => {
+                            if (allowed.has(d)) next.add(d);
+                          });
+                          return next;
+                        });
+                      }}
+                    />
+                    <span className="text-slate-700">{field.label}</span>
+                  </label>
+                ))}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {selectedFieldsOfMajor.size > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {Array.from(selectedFieldsOfMajor).map((fieldId) => {
+                const label = FIELDS_OF_MAJOR.find((f) => f.id === fieldId)?.label ?? fieldId;
+                return (
+                  <span
+                    key={fieldId}
+                    className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs"
+                  >
+                    {label.split(" & ")[0]}
+                    <X
+                      className="w-3 h-3 cursor-pointer hover:text-indigo-900"
+                      onClick={() => toggleSet(setSelectedFieldsOfMajor, selectedFieldsOfMajor, fieldId, false)}
+                    />
+                  </span>
+                );
+              })}
+            </div>
+          )}
+        </Section>
+
+        <Section title="Degree">
           <DropdownMenu open={isDegreeDropdownOpen} onOpenChange={setIsDegreeDropdownOpen}>
             <DropdownMenuTrigger asChild>
               <Button
@@ -325,7 +412,7 @@ export default function TalentSearchPage() {
                 </div>
               </div>
               <div className="max-h-60 overflow-y-auto p-2">
-                {ALL_DEGREES
+                {availableDegrees
                   .filter(d => d.toLowerCase().includes(degreeSearch.toLowerCase()))
                   .map((degree) => (
                     <label
@@ -503,7 +590,9 @@ export default function TalentSearchPage() {
                   </Avatar>
                   <div>
                     <h3 className="font-bold text-slate-800 text-sm">{candidate.name}</h3>
-                    <p className="text-xs text-slate-500">{candidate.university} • Class {candidate.classOf} • GPA {candidate.gpa.toFixed(2)}</p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {candidate.university} • {resolveFieldOfMajorLabel(candidate.fieldOfMajor, candidate.degree) || candidate.degree} • Class {candidate.classOf} • GPA {candidate.gpa.toFixed(2)}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -568,7 +657,9 @@ function CandidateCard({ c }: { c: Candidate }) {
 
         <div className="mb-4">
           <h3 className="font-bold text-slate-800 text-lg group-hover:text-[#6C5DD3] transition-colors">{c.name}</h3>
-          <p className="text-sm text-slate-500 font-medium">{c.university}</p>
+          <p className="text-sm text-slate-500 font-medium truncate">{c.university}</p>
+          <p className="text-xs text-slate-500 truncate">{resolveFieldOfMajorLabel(c.fieldOfMajor, c.degree)}</p>
+          <p className="text-xs text-slate-400 truncate">{c.degree}</p>
           <p className="text-xs text-slate-400 mt-1">Class of {c.classOf} • GPA {c.gpa.toFixed(2)}</p>
         </div>
 

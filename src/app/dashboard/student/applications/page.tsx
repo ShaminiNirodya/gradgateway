@@ -93,7 +93,7 @@ export default function StudentApplicationsPage() {
       {/* Tabs row */}
       <div className="bg-white rounded-[18px] p-3 shadow-sm">
         <div className="flex gap-2 flex-wrap">
-          {["All", "New", "Shortlisted", "Interviewed", "Offer Sent", "Hired", "Rejected"].map((t) => (
+          {["All", "New", "Shortlisted", "Interviewed", "Offers", "Hired", "Rejected"].map((t) => (
             <button
               key={t}
               onClick={() => setActiveTab(t)}
@@ -187,7 +187,7 @@ function normalizeStatus(status: string): string {
   if (lower.includes("new") || lower.includes("applied") || lower.includes("submitted")) return "New";
   if (lower.includes("short")) return "Shortlisted";
   if (lower.includes("interview")) return "Interviewed";
-  if (lower.includes("offer")) return "Offer Sent";
+  if (lower.includes("offer")) return "Offers";
   if (lower.includes("hire") || lower.includes("accept")) return "Hired";
   if (lower.includes("reject")) return "Rejected";
   return "New";
@@ -320,7 +320,7 @@ function mapStatus(s: string) {
     "New": "bg-blue-100 text-blue-700",
     "Shortlisted": "bg-purple-100 text-purple-700",
     "Interviewed": "bg-amber-100 text-amber-700",
-    "Offer Sent": "bg-emerald-100 text-emerald-700",
+    "Offers": "bg-emerald-100 text-emerald-700",
     "Hired": "bg-indigo-100 text-indigo-700",
     "Rejected": "bg-red-100 text-red-700",
   };

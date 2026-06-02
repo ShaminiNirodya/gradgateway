@@ -91,15 +91,20 @@ export default function LoginPage() {
           </Tabs>
 
           <div className="mt-10 text-center">
-            <p className="text-sm font-bold text-slate-400">
+            <p className="text-sm font-bold text-slate-400 mb-4">
               Not a member yet?
             </p>
-            <div className="mt-2 flex items-center justify-center gap-4 text-sm font-bold">
-              <Link href="/register/student" className="text-[#6C5DD3] hover:text-[#5b4eb8] hover:underline transition-colors">
+            <div className="flex items-center justify-center gap-3">
+              <Link 
+                href="/register/student" 
+                className="px-4 py-1.5 rounded-full text-sm font-medium text-white bg-[#6C5DD3] hover:bg-[#5b4eb8] transition-colors"
+              >
                 Register as Student
               </Link>
-              <span className="text-slate-300">•</span>
-              <Link href="/register/company" className="text-blue-600 hover:text-blue-700 hover:underline transition-colors">
+              <Link 
+                href="/register/company" 
+                className="px-4 py-1.5 rounded-full text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+              >
                 Register as Company
               </Link>
             </div>

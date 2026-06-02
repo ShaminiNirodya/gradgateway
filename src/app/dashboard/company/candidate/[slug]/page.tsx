@@ -12,12 +12,15 @@ import { AuthService } from "@/lib/services/auth.service";
 import { StudentService } from "@/lib/services/student.service";
 import { DashboardService } from "@/lib/services/dashboard.service";
 import { ApplicationItem } from "@/lib/types/dashboard";
+import { resolveFieldOfMajorLabel } from "@/lib/constants/field-of-major";
+import { normalizeDegreeName } from "@/lib/constants/university-degrees";
 
 type DirectoryCandidate = {
   studentProfileId: string;
   fullName: string;
   university: string;
   degree: string;
+  fieldOfMajor: string;
   gradYear: number;
   currentYear: number;
   gpa: number;
@@ -104,7 +107,12 @@ export default function CandidateProfile() {
                   <span className="flex items-center gap-1.5"><Mail className="w-4 h-4 text-slate-400" /> {candidate.email}</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 mt-3">
-                  <Badge className="bg-indigo-50 text-indigo-600 border-none rounded-lg px-3 py-1 font-bold text-xs uppercase tracking-wider">{candidate.degree}</Badge>
+                  {resolveFieldOfMajorLabel(candidate.fieldOfMajor, candidate.degree) && (
+                    <Badge className="bg-violet-50 text-violet-700 border-none rounded-lg px-3 py-1 font-bold text-xs tracking-wide">
+                      {resolveFieldOfMajorLabel(candidate.fieldOfMajor, candidate.degree)}
+                    </Badge>
+                  )}
+                  <Badge className="bg-indigo-50 text-indigo-600 border-none rounded-lg px-3 py-1 font-bold text-xs tracking-wide">{normalizeDegreeName(candidate.degree)}</Badge>
                   <Badge className="bg-emerald-50 text-emerald-600 border-none rounded-lg px-3 py-1 font-bold text-xs uppercase tracking-wider">GPA {candidate.gpa.toFixed(2)}</Badge>
                   <Badge className={
                     candidate.availability === "Available Now" ? "bg-emerald-50 text-emerald-600 border-none rounded-lg px-3 py-1 font-bold text-xs uppercase tracking-wider" :
@@ -174,7 +182,10 @@ export default function CandidateProfile() {
               </div>
               <div>
                 <p className="text-sm font-bold text-slate-700">{candidate.university}</p>
-                <p className="text-xs text-slate-500">{candidate.degree}</p>
+                {resolveFieldOfMajorLabel(candidate.fieldOfMajor, candidate.degree) && (
+                  <p className="text-xs text-violet-600 font-medium">{resolveFieldOfMajorLabel(candidate.fieldOfMajor, candidate.degree)}</p>
+                )}
+                <p className="text-xs text-slate-500">{normalizeDegreeName(candidate.degree)}</p>
                 <p className="text-xs text-slate-400">Graduation Year: {candidate.gradYear}</p>
               </div>
             </div>

@@ -12,8 +12,6 @@ import {
   Calendar,
   Clock,
   CheckCircle2,
-  Bookmark,
-  Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -25,7 +23,6 @@ export default function JobDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = String(params?.id || "");
-  const [saved, setSaved] = useState(false);
   const [job, setJob] = useState<OpportunityItem | null>(null);
   const [hasApplied, setHasApplied] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
@@ -106,11 +103,17 @@ export default function JobDetailPage() {
 
       <div className="bg-white rounded-2xl p-8 shadow-sm">
         <div className="flex flex-col lg:flex-row gap-6">
-          <img
-            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(job.companyName)}&background=6C5DD3&color=fff&size=200`}
-            alt={job.companyName}
-            className="w-20 h-20 rounded-2xl shadow-md"
-          />
+          {job.companyLogoUrl ? (
+            <img
+              src={job.companyLogoUrl}
+              alt={job.companyName}
+              className="w-20 h-20 rounded-2xl shadow-md object-cover"
+            />
+          ) : (
+            <div className="w-20 h-20 rounded-2xl shadow-md bg-[#6C5DD3] flex items-center justify-center text-white text-2xl font-bold">
+              {job.companyName.substring(0, 2).toUpperCase()}
+            </div>
+          )}
 
           <div className="flex-1">
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
@@ -120,15 +123,6 @@ export default function JobDetailPage() {
                   <Building2 className="w-5 h-5" />
                   <span className="text-lg font-semibold">{job.companyName}</span>
                 </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button variant="outline" size="icon" className="rounded-xl" onClick={() => setSaved(!saved)}>
-                  <Bookmark className={`w-5 h-5 ${saved ? "fill-[#6C5DD3] text-[#6C5DD3]" : ""}`} />
-                </Button>
-                <Button variant="outline" size="icon" className="rounded-xl">
-                  <Share2 className="w-5 h-5" />
-                </Button>
               </div>
             </div>
 

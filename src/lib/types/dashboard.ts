@@ -2,6 +2,7 @@ export interface OpportunityItem {
   id: string;
   companyProfileId: string;
   companyName: string;
+  companyLogoUrl?: string;
   title: string;
   description: string;
   opportunityType: string;

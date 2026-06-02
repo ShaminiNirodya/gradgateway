@@ -12,6 +12,7 @@ export const personalInfoSchema = z.object({
 // Step 2: Academic Info
 export const academicInfoSchema = z.object({
   university: z.string().min(1, "Please select your university"),
+  fieldOfMajor: z.string().min(1, "Please select your field of major"),
   degree: z.string().min(1, "Please select your degree program"),
   currentYear: z.number().min(1, "Please select your current year").max(4, "Invalid year"),
   gradYear: z.string()

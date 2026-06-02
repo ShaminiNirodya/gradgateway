@@ -76,7 +76,7 @@ export default function OpeningsPage() {
                     id: job.id,
                     title: job.title,
                     company: job.companyName,
-                    logo: `https://ui-avatars.com/api/?name=${encodeURIComponent(job.companyName)}&background=6C5DD3&color=fff&size=200`,
+                    logo: job.companyLogoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(job.companyName)}&background=6C5DD3&color=fff&size=200`,
                     location: job.location,
                     type: job.opportunityType,
                     salary: job.monthlyStipendLkr ? `LKR ${job.monthlyStipendLkr.toLocaleString()}` : "Negotiable",

@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bell, Shield, User, Search } from "lucide-react";
+import { Bell, Shield, User, Search, Camera } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -18,75 +18,27 @@ import { useStudentProfile } from "@/lib/hooks/useStudentProfile";
 import { AuthService } from "@/lib/services/auth.service";
 import { StudentService } from "@/lib/services/student.service";
 import { auth } from "@/lib/firebase";
+import { StorageService } from "@/lib/services/storage.service";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/contexts/AuthContext";
+import {
+    ALL_UNIVERSITIES,
+    ALL_DEGREES,
+    getDegreesForUniversity,
+    universityOffersDegree,
+    normalizeDegreeName,
+} from "@/lib/constants/university-degrees";
+import {
+    type FieldOfMajorId,
+    getDegreesForFieldOfMajor,
+    getFieldOfMajorById,
+    getFieldOfMajorByLabel,
+    inferFieldOfMajorFromDegree,
+    degreeBelongsToField,
+} from "@/lib/constants/field-of-major";
+import { FieldOfMajorSelect } from "@/components/shared/FieldOfMajorSelect";
 
-const AVAILABLE_DEGREES = [
-    // Computer Science & IT
-    "BSc (Hons) Computer Science", "BSc Computer Science", "BSc Information Technology",
-    "BSc Software Engineering", "BSc Information Systems", "BSc Cyber Security",
-    "BSc Data Science", "BSc Artificial Intelligence", "BSc Computer Engineering",
-    
-    // Engineering
-    "BEng (Hons) Electrical Engineering", "BEng (Hons) Mechanical Engineering",
-    "BEng (Hons) Civil Engineering", "BEng (Hons) Electronic Engineering",
-    "BEng (Hons) Chemical Engineering", "BEng (Hons) Biomedical Engineering",
-    
-    // Business & Management
-    "BBA Business Administration", "BSc Business Management", "BSc Accounting & Finance",
-    "BSc Marketing", "BSc Human Resource Management", "BSc Economics",
-    
-    // Sciences
-    "BSc (Hons) Mathematics", "BSc (Hons) Physics", "BSc (Hons) Chemistry",
-    "BSc (Hons) Biology", "BSc (Hons) Biotechnology", "BSc (Hons) Environmental Science",
-    
-    // Arts & Social Sciences
-    "BA (Hons) Psychology", "BA (Hons) Sociology", "BA (Hons) English",
-    "BA (Hons) Mass Communication", "BA (Hons) Political Science",
-    
-    // Design & Creative
-    "BDes Graphic Design", "BDes UI/UX Design", "BDes Product Design",
-    "BA (Hons) Fine Arts", "BSc Multimedia Technology",
-    
-    // Other
-    "LLB Law", "MBBS Medicine", "BArch Architecture"
-].sort();
-
-const AVAILABLE_UNIVERSITIES = [
-    // State Universities
-    "University of Colombo",
-    "University of Peradeniya",
-    "University of Moratuwa",
-    "University of Kelaniya",
-    "University of Sri Jayewardenepura",
-    "University of Ruhuna",
-    "Eastern University",
-    "University of Jaffna",
-    "Sabaragamuwa University",
-    "Wayamba University",
-    "Rajarata University",
-    "South Eastern University",
-    "Uva Wellassa University",
-    "University of the Visual & Performing Arts",
-    "Open University of Sri Lanka",
-    
-    // Private & International
-    "SLIIT - Sri Lanka Institute of Information Technology",
-    "IIT - Informatics Institute of Technology",
-    "NSBM Green University",
-    "NIBM - National Institute of Business Management",
-    "Horizon Campus",
-    "Asia Pacific Institute of Information Technology (APIIT)",
-    "Aquinas College of Higher Studies",
-    "KIU - Kaatsu International University",
-    
-    // International Branch Campuses
-    "Monash University - Sri Lanka Campus",
-    "Curtin University - Sri Lanka Campus",
-    
-    // Other
-    "Other"
-].sort();
+// Dynamic filtering will be applied via useMemo hooks below
 
 const GRADUATION_YEARS = Array.from({ length: 16 }, (_, i) => 2020 + i);
 
@@ -98,6 +50,7 @@ export default function StudentSettingsPage() {
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [degree, setDegree] = useState("");
+    const [fieldOfMajorId, setFieldOfMajorId] = useState<FieldOfMajorId | "">("");
     const [university, setUniversity] = useState("");
     const [gradYear, setGradYear] = useState("");
     const [currentYear, setCurrentYear] = useState<number>(1);
@@ -114,6 +67,26 @@ export default function StudentSettingsPage() {
     const [isDegreeDropdownOpen, setIsDegreeDropdownOpen] = useState(false);
     const [universitySearch, setUniversitySearch] = useState("");
     const [isUniversityDropdownOpen, setIsUniversityDropdownOpen] = useState(false);
+    const [photoDataUrl, setPhotoDataUrl] = useState<string>("");
+    const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Dynamic filtering based on selections
+    const availableDegrees = useMemo(() => {
+        let degrees = university ? getDegreesForUniversity(university) : ALL_DEGREES;
+        if (fieldOfMajorId) {
+            const fieldSet = new Set(getDegreesForFieldOfMajor(fieldOfMajorId));
+            degrees = degrees.filter((d) => fieldSet.has(d));
+        }
+        return degrees;
+    }, [university, fieldOfMajorId]);
+
+    const degreeNotOfferedAtUniversity = useMemo(() => {
+        if (!university || !degree) {
+            return false;
+        }
+        return !universityOffersDegree(university, degree);
+    }, [university, degree]);
 
     useEffect(() => {
         if (!profile) return;
@@ -124,19 +97,89 @@ export default function StudentSettingsPage() {
 
         setFirstName(localFirst);
         setLastName(localLast);
-        setDegree(profile.degree || "");
-        setUniversity(profile.university || "");
+        setDegree(normalizeDegreeName(profile.degree || ""));
+        const savedUniversity = profile.university || "";
+        setUniversity(savedUniversity === "Other" ? "" : savedUniversity);
+        const savedField = profile.fieldOfMajor
+            ? getFieldOfMajorByLabel(profile.fieldOfMajor)?.id
+            : "";
+        setFieldOfMajorId(
+            (savedField as FieldOfMajorId) ||
+                inferFieldOfMajorFromDegree(profile.degree || "") ||
+                ""
+        );
         setGradYear(String(profile.gradYear || ""));
         setCurrentYear(profile.currentYear || 1);
         setGpa(String(profile.gpa ?? ""));
         setCertificationsText((profile.certifications || []).join("\n"));
         setAwardsText((profile.awards || []).join("\n"));
+        setPhotoDataUrl(profile.photoDataUrl || "");
     }, [profile]);
 
     const fullName = useMemo(() => `${firstName} ${lastName}`.trim(), [firstName, lastName]);
 
+    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith("image/")) {
+            show({ title: "Invalid file", description: "Please select an image file.", variant: "error" });
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            show({ title: "File too large", description: "Image must be under 5MB.", variant: "error" });
+            return;
+        }
+
+        try {
+            setIsUploadingPhoto(true);
+            const firebaseUid = auth.currentUser?.uid || profile?.firebaseUid;
+            if (!firebaseUid) throw new Error("User not authenticated");
+
+            const downloadUrl = await StorageService.uploadProfilePicture(file, firebaseUid);
+            
+            setPhotoDataUrl(downloadUrl);
+            show({ title: "Photo uploaded", description: "Click 'Save Profile' to keep the change.", variant: "success" });
+        } catch (error: any) {
+            show({ title: "Upload failed", description: error?.message || "Unable to upload image.", variant: "error" });
+        } finally {
+            setIsUploadingPhoto(false);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
+            }
+        }
+    };
+
     const handleSave = async () => {
         if (!profile) return;
+
+        if (!fieldOfMajorId) {
+            show({
+                title: "Field of major required",
+                description: "Please select your field of major before saving.",
+                variant: "error",
+            });
+            return;
+        }
+
+        if (degreeNotOfferedAtUniversity) {
+            show({
+                title: "Degree does not match university",
+                description: "Please select a degree offered by your chosen university before saving.",
+                variant: "error",
+            });
+            return;
+        }
+
+        if (degree && !degreeBelongsToField(degree, fieldOfMajorId)) {
+            show({
+                title: "Degree does not match field",
+                description: "Please select a degree that matches your field of major.",
+                variant: "error",
+            });
+            return;
+        }
 
         try {
             setIsSaving(true);
@@ -153,10 +196,11 @@ export default function StudentSettingsPage() {
                 firebaseUid,
                 fullName,
                 phone: profile.phone,
-                photoDataUrl: profile.photoDataUrl,
+                photoDataUrl: photoDataUrl || profile.photoDataUrl,
                 university,
                 studentId: profile.studentId,
-                degree,
+                degree: normalizeDegreeName(degree),
+                fieldOfMajor: getFieldOfMajorById(fieldOfMajorId)?.label ?? "",
                 gradYear,
                 currentYear,
                 gpa,
@@ -272,11 +316,30 @@ export default function StudentSettingsPage() {
                     <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
                         <h3 className="font-bold text-lg text-slate-900 mb-4">About You</h3>
                         <div className="flex items-center gap-6 mb-8">
-                            <div className="relative">
-                                <Avatar className="w-24 h-24 border-4 border-white shadow-lg">
-                                    <AvatarImage src={profile?.photoDataUrl} alt="Profile" />
+                            <div className="relative group">
+                                <Avatar className="w-24 h-24 border-4 border-white shadow-lg cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                                    <AvatarImage src={photoDataUrl || profile?.photoDataUrl} alt="Profile" />
                                     <AvatarFallback className="bg-slate-100 text-slate-400 text-2xl font-bold">{initials}</AvatarFallback>
                                 </Avatar>
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isUploadingPhoto}
+                                    className="absolute inset-0 flex items-center justify-center bg-slate-900/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer disabled:cursor-not-allowed"
+                                >
+                                    <Camera className="w-8 h-8 text-white" />
+                                </button>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handlePhotoUpload}
+                                    className="hidden"
+                                />
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-sm text-slate-500">Click on your photo to change it</p>
+                                <p className="text-xs text-slate-400 mt-1">Max size: 5MB • JPG, PNG, or GIF</p>
                             </div>
                         </div>
 
@@ -290,15 +353,40 @@ export default function StudentSettingsPage() {
                                 <Input value={lastName} onChange={(e) => setLastName(e.target.value)} className="rounded-xl" />
                             </div>
                             <div className="space-y-2">
+                                <Label>Field of Major</Label>
+                                <FieldOfMajorSelect
+                                    value={fieldOfMajorId}
+                                    onValueChange={(next) => {
+                                        setFieldOfMajorId(next);
+                                        if (degree && !degreeBelongsToField(degree, next)) {
+                                            setDegree("");
+                                        }
+                                    }}
+                                />
+                            </div>
+                            <div className="space-y-2">
                                 <Label>Major / Degree</Label>
-                                <DropdownMenu open={isDegreeDropdownOpen} onOpenChange={setIsDegreeDropdownOpen}>
+                                <DropdownMenu
+                                    open={isDegreeDropdownOpen}
+                                    onOpenChange={(open) => {
+                                        if (!fieldOfMajorId && open) return;
+                                        setIsDegreeDropdownOpen(open);
+                                    }}
+                                >
                                     <DropdownMenuTrigger asChild>
                                         <Button
                                             type="button"
                                             variant="outline"
-                                            className="w-full h-10 justify-start text-left font-normal rounded-xl border-slate-200 hover:bg-slate-50"
+                                            disabled={!fieldOfMajorId}
+                                            className={`w-full h-10 min-w-0 overflow-hidden justify-start text-left font-normal rounded-xl hover:bg-slate-50 ${
+                                                degreeNotOfferedAtUniversity
+                                                    ? "border-amber-400 bg-amber-50/50"
+                                                    : "border-slate-200"
+                                            }`}
                                         >
-                                            {degree || "Select your degree..."}
+                                            <span className="truncate block w-full" title={degree || undefined}>
+                                                {degree || "Select your degree..."}
+                                            </span>
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="start" className="bg-white w-[400px] rounded-xl shadow-xl border-slate-100 p-0">
@@ -317,7 +405,7 @@ export default function StudentSettingsPage() {
                                             </div>
                                         </div>
                                         <div className="max-h-60 overflow-y-auto">
-                                            {AVAILABLE_DEGREES
+                                            {availableDegrees
                                                 .filter(d => d.toLowerCase().includes(degreeSearch.toLowerCase()))
                                                 .map((degreeOption) => (
                                                     <DropdownMenuItem
@@ -332,11 +420,17 @@ export default function StudentSettingsPage() {
                                                         {degreeOption}
                                                     </DropdownMenuItem>
                                                 ))}
-                                            {AVAILABLE_DEGREES
+                                            {availableDegrees
                                                 .filter(d => d.toLowerCase().includes(degreeSearch.toLowerCase()))
                                                 .length === 0 && (
                                                 <div className="p-4 text-sm text-slate-400 text-center">
-                                                    No degrees found
+                                                    {!fieldOfMajorId
+                                                        ? "Select a field of major first"
+                                                        : university
+                                                            ? availableDegrees.length === 0
+                                                                ? `No degrees match your field and ${university}. Try a different university or field.`
+                                                                : `No matching degrees for this field at ${university}`
+                                                            : "Select a university first"}
                                                 </div>
                                             )}
                                         </div>
@@ -368,9 +462,11 @@ export default function StudentSettingsPage() {
                                         <Button
                                             type="button"
                                             variant="outline"
-                                            className="w-full h-10 justify-start text-left font-normal rounded-xl border-slate-200 hover:bg-slate-50"
+                                            className="w-full h-10 min-w-0 overflow-hidden justify-start text-left font-normal rounded-xl border-slate-200 hover:bg-slate-50"
                                         >
-                                            {university || "Select your university..."}
+                                            <span className="truncate block w-full">
+                                                {university || "Select your university..."}
+                                            </span>
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="start" className="bg-white w-[400px] rounded-xl shadow-xl border-slate-100 p-0">
@@ -389,7 +485,7 @@ export default function StudentSettingsPage() {
                                             </div>
                                         </div>
                                         <div className="max-h-60 overflow-y-auto">
-                                            {AVAILABLE_UNIVERSITIES
+                                            {ALL_UNIVERSITIES
                                                 .filter(u => u.toLowerCase().includes(universitySearch.toLowerCase()))
                                                 .map((uni) => (
                                                     <DropdownMenuItem
@@ -398,13 +494,21 @@ export default function StudentSettingsPage() {
                                                             setUniversity(uni);
                                                             setUniversitySearch("");
                                                             setIsUniversityDropdownOpen(false);
+                                                            const nextDegrees = fieldOfMajorId
+                                                                ? getDegreesForUniversity(uni).filter((d) =>
+                                                                      getDegreesForFieldOfMajor(fieldOfMajorId).includes(d)
+                                                                  )
+                                                                : getDegreesForUniversity(uni);
+                                                            if (degree && !nextDegrees.includes(degree)) {
+                                                                setDegree("");
+                                                            }
                                                         }}
                                                         className="font-medium text-slate-600 focus:bg-indigo-50 focus:text-[#6C5DD3] cursor-pointer py-2.5 px-3"
                                                     >
                                                         {uni}
                                                     </DropdownMenuItem>
                                                 ))}
-                                            {AVAILABLE_UNIVERSITIES
+                                            {ALL_UNIVERSITIES
                                                 .filter(u => u.toLowerCase().includes(universitySearch.toLowerCase()))
                                                 .length === 0 && (
                                                 <div className="p-4 text-sm text-slate-400 text-center">
@@ -414,6 +518,13 @@ export default function StudentSettingsPage() {
                                         </div>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
+                                {degreeNotOfferedAtUniversity && (
+                                    <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                        <span className="font-medium">{degree}</span> is not offered at{" "}
+                                        <span className="font-medium">{university}</span>. Please select a matching
+                                        degree from the Major / Degree field.
+                                    </p>
+                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label>Graduation Year</Label>

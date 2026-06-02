@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Users
 } from "lucide-react";
+import { API_ENDPOINTS } from "@/lib/config";
 
 const heroImages = [
   "https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=2070&auto=format&fit=crop", // Students collaborating
@@ -23,10 +24,43 @@ const heroImages = [
   "https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2070&auto=format&fit=crop"  // Teamwork
 ];
 
+// Format numbers: 1000 -> 1k+, 500 -> 500+, etc.
+function formatNumber(num: number): string {
+  if (num === 0) return "0";
+  if (num >= 1000) {
+    return `${Math.floor(num / 1000)}k+`;
+  }
+  return `${num}+`;
+}
+
 export default function Home() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    totalCompanies: 0,
+    totalProjects: 0,
+    hiringRate: 0
+  });
+  const [statsLoaded, setStatsLoaded] = useState(false);
 
   useEffect(() => {
+    // Load real platform statistics from backend
+    const loadStats = async () => {
+      try {
+        const response = await fetch(API_ENDPOINTS.PLATFORM_STATS);
+        if (response.ok) {
+          const data = await response.json();
+          setStats(data);
+          setStatsLoaded(true);
+        } else {
+          console.error('Platform stats API returned:', response.status);
+        }
+      } catch (error) {
+        console.error('Failed to load platform stats:', error);
+      }
+    };
+    loadStats();
+
     const interval = setInterval(() => {
       setCurrentImageIndex((prev) => (prev + 1) % heroImages.length);
     }, 4000);
@@ -169,10 +203,10 @@ export default function Home() {
 
         <div className="container mx-auto px-6 relative z-10">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center divide-x divide-slate-800">
-            <StatItem number="10k+" label="Active Students" />
-            <StatItem number="500+" label="Partner Companies" />
-            <StatItem number="15k+" label="Projects Hosted" />
-            <StatItem number="98%" label="Hiring Rate" />
+            <StatItem number={statsLoaded ? formatNumber(stats.totalStudents) : "..."} label="Active Students" />
+            <StatItem number={statsLoaded ? formatNumber(stats.totalCompanies) : "..."} label="Partner Companies" />
+            <StatItem number={statsLoaded ? formatNumber(stats.totalProjects) : "..."} label="Projects Hosted" />
+            <StatItem number={statsLoaded ? `${stats.hiringRate}%` : "...%"} label="Hiring Rate" />
           </div>
         </div>
       </section>

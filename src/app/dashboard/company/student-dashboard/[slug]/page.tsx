@@ -13,12 +13,17 @@ import { AuthService } from "@/lib/services/auth.service";
 import { StudentService } from "@/lib/services/student.service";
 import { DashboardService } from "@/lib/services/dashboard.service";
 import { ApplicationItem, ConversationItem } from "@/lib/types/dashboard";
+import { ProjectService } from "@/lib/services/project.service";
+import type { Project } from "@/lib/types/project";
+import { resolveFieldOfMajorLabel } from "@/lib/constants/field-of-major";
+import { normalizeDegreeName } from "@/lib/constants/university-degrees";
 
 type DirectoryCandidate = {
 	studentProfileId: string;
 	fullName: string;
 	university: string;
 	degree: string;
+	fieldOfMajor: string;
 	gradYear: number;
 	currentYear: number;
 	gpa: number;
@@ -45,6 +50,7 @@ export default function CompanyStudentDashboardPreviewPage() {
 	const [candidate, setCandidate] = useState<DirectoryCandidate | null>(null);
 	const [companyApplications, setCompanyApplications] = useState<ApplicationItem[]>([]);
 	const [conversations, setConversations] = useState<ConversationItem[]>([]);
+	const [projects, setProjects] = useState<Project[]>([]);
 
 	useEffect(() => {
 		const load = async () => {
@@ -72,10 +78,21 @@ export default function CompanyStudentDashboardPreviewPage() {
 				setCandidate(found || null);
 				setCompanyApplications(apps);
 				setConversations(convs);
+
+				// Fetch student projects if candidate found
+				if (found && found.studentProfileId) {
+					try {
+						const studentProjects = await ProjectService.getStudentProjects(token, found.studentProfileId);
+						setProjects(studentProjects);
+					} catch {
+						setProjects([]);
+					}
+				}
 			} catch {
 				setCandidate(null);
 				setCompanyApplications([]);
 				setConversations([]);
+				setProjects([]);
 			} finally {
 				setLoading(false);
 			}
@@ -146,7 +163,12 @@ export default function CompanyStudentDashboardPreviewPage() {
 									<span className="inline-flex items-center gap-1.5"><Mail className="w-4 h-4" />{candidate.email}</span>
 								</div>
 								<div className="flex flex-wrap items-center gap-2">
-									<Badge className="bg-indigo-50 text-indigo-700 border-none">{candidate.degree}</Badge>
+									{resolveFieldOfMajorLabel(candidate.fieldOfMajor, candidate.degree) && (
+										<Badge className="bg-violet-50 text-violet-700 border-none">
+											{resolveFieldOfMajorLabel(candidate.fieldOfMajor, candidate.degree)}
+										</Badge>
+									)}
+									<Badge className="bg-indigo-50 text-indigo-700 border-none">{normalizeDegreeName(candidate.degree)}</Badge>
 									<Badge className="bg-emerald-50 text-emerald-700 border-none">GPA {candidate.gpa.toFixed(2)}</Badge>
 									<Badge className={
 										candidate.availability === "Available Now" ? "bg-emerald-50 text-emerald-700 border-none" :
@@ -244,6 +266,50 @@ export default function CompanyStudentDashboardPreviewPage() {
 					</CardContent>
 				</Card>
 			</div>
+
+			<Card className="rounded-2xl border-slate-100">
+				<CardHeader>
+					<CardTitle className="text-base text-slate-800">Portfolio Projects</CardTitle>
+				</CardHeader>
+				<CardContent>
+					{projects.length > 0 ? (
+						<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+							{projects.map((project) => (
+								<div key={project.id} className="p-4 rounded-xl bg-slate-50 border border-slate-100 hover:shadow-md transition-shadow">
+									{project.images && project.images.length > 0 && project.images[0].imageUrl && (
+										<img
+											src={project.images[0].imageUrl}
+											alt={project.title}
+											className="w-full h-32 object-cover rounded-lg mb-3"
+										/>
+									)}
+									<h3 className="text-sm font-bold text-slate-800 mb-1">{project.title}</h3>
+									<p className="text-xs text-slate-600 mb-2 line-clamp-2">{project.description}</p>
+									<div className="flex flex-wrap gap-1 mb-2">
+										{project.techStack.split(',').slice(0, 3).map((tech) => (
+											<Badge key={tech.trim()} variant="secondary" className="text-xs px-2 py-0.5">
+												{tech.trim()}
+											</Badge>
+										))}
+									</div>
+									{project.liveUrl && (
+										<a
+											href={project.liveUrl}
+											target="_blank"
+											rel="noopener noreferrer"
+											className="text-xs text-indigo-600 hover:text-indigo-800 font-medium inline-flex items-center gap-1"
+										>
+											View Project →
+										</a>
+									)}
+								</div>
+							))}
+						</div>
+					) : (
+						<p className="text-sm text-slate-500">No projects added yet.</p>
+					)}
+				</CardContent>
+			</Card>
 		</div>
 	);
 }

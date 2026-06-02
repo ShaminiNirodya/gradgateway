@@ -14,6 +14,7 @@ import { AuthService } from "@/lib/services/auth.service";
 import { StudentService } from "@/lib/services/student.service";
 import { StorageService } from "@/lib/services/storage.service";
 import { auth } from "@/lib/firebase";
+import { getFieldOfMajorById } from "@/lib/constants/field-of-major";
 
 export default function StudentRegistrationPage() {
   const router = useRouter();
@@ -75,6 +76,7 @@ export default function StudentRegistrationPage() {
         university: payload.university,
         studentId: payload.studentId,
         degree: payload.degree,
+        fieldOfMajor: getFieldOfMajorById(payload.fieldOfMajor)?.label ?? payload.fieldOfMajor ?? "",
         gradYear: payload.gradYear,
         currentYear: payload.currentYear,
         gpa: payload.gpa,

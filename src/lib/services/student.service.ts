@@ -59,6 +59,7 @@ export class StudentService {
     fullName: string;
     university: string;
     degree: string;
+    fieldOfMajor: string;
     gradYear: number;
     gpa: number;
     email: string;

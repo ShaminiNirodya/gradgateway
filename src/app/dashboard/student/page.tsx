@@ -361,7 +361,7 @@ export default function StudentDashboard() {
           </div>
           <p className="text-sm text-slate-600 leading-relaxed">
             {profile
-              ? `${profile.fullName} from ${profile.university}, reading ${profile.degree} (Class of ${profile.gradYear}) with GPA ${profile.gpa}.`
+              ? `${profile.fullName} from ${profile.university}, ${profile.fieldOfMajor ? `${profile.fieldOfMajor}, ` : ""}studying ${profile.degree} (Class of ${profile.gradYear}) with GPA ${profile.gpa}.`
               : "Complete your profile in settings to load your about section."}
           </p>
         </div>

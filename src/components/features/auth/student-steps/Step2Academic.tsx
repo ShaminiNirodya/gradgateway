@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { academicInfoSchema, AcademicInfoData } from "@/lib/validators/student-register";
@@ -15,26 +16,13 @@ import {
 } from "@/components/ui/select";
 import { motion } from "framer-motion";
 import { GraduationCap, BookOpen, Calendar, Award } from "lucide-react";
-
-// Mock Data
-const UNIVERSITIES = [
-  "University of Moratuwa",
-  "University of Colombo",
-  "University of Peradeniya",
-  "University of Kelaniya",
-  "University of Jayewardenepura",
-  "SLIIT",
-  "IIT",
-  "NSBM"
-];
-
-const DEGREES = [
-  "BSc (Hons) Computer Science",
-  "BSc (Hons) Software Engineering",
-  "BSc (Hons) Information Systems",
-  "BSc (Hons) Data Science",
-  "BSc (Hons) Cyber Security"
-];
+import { ALL_UNIVERSITIES, getDegreesForUniversity } from "@/lib/constants/university-degrees";
+import {
+  getDegreesForFieldOfMajor,
+  degreeBelongsToField,
+  type FieldOfMajorId,
+} from "@/lib/constants/field-of-major";
+import { FieldOfMajorSelect } from "@/components/shared/FieldOfMajorSelect";
 
 interface Step2Props {
   onNext: (data: AcademicInfoData) => void;
@@ -42,9 +30,21 @@ interface Step2Props {
 }
 
 export default function Step2Academic({ onNext, onBack }: Step2Props) {
-  const { control, register, handleSubmit, formState: { errors } } = useForm<AcademicInfoData>({
+  const { control, register, handleSubmit, watch, setValue, formState: { errors } } = useForm<AcademicInfoData>({
     resolver: zodResolver(academicInfoSchema)
   });
+
+  const selectedUniversity = watch("university");
+  const selectedFieldOfMajor = watch("fieldOfMajor");
+  const selectedDegree = watch("degree");
+
+  const availableDegrees = useMemo(() => {
+    if (!selectedUniversity || !selectedFieldOfMajor) {
+      return [];
+    }
+    const fieldSet = new Set(getDegreesForFieldOfMajor(selectedFieldOfMajor));
+    return getDegreesForUniversity(selectedUniversity).filter((d) => fieldSet.has(d));
+  }, [selectedUniversity, selectedFieldOfMajor]);
 
   return (
     <motion.form
@@ -55,22 +55,23 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
       className="space-y-6"
     >
       <div className="space-y-5">
-        {/* University */}
         <div className="space-y-2">
           <Label className="text-slate-600 font-bold ml-1">University</Label>
           <Controller
             name="university"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value}>
                 <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3] data-[state=open]:border-[#6C5DD3]">
                   <div className="flex items-center gap-3 text-slate-700">
                     <GraduationCap className="w-5 h-5 text-[#6C5DD3]" />
                     <SelectValue placeholder="Select University" />
                   </div>
                 </SelectTrigger>
-                <SelectContent className="rounded-xl border-none shadow-xl">
-                  {UNIVERSITIES.map((u) => <SelectItem key={u} value={u} className="rounded-lg my-1 cursor-pointer">{u}</SelectItem>)}
+                <SelectContent className="rounded-xl border-none shadow-xl max-h-72">
+                  {ALL_UNIVERSITIES.map((u) => (
+                    <SelectItem key={u} value={u} className="rounded-lg my-1 cursor-pointer">{u}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
@@ -78,22 +79,56 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
           {errors.university && <p className="text-xs text-red-500 font-bold ml-2">{errors.university.message}</p>}
         </div>
 
-        {/* Degree */}
+        <div className="space-y-2">
+          <Label className="text-slate-600 font-bold ml-1">Field of Major</Label>
+          <Controller
+            name="fieldOfMajor"
+            control={control}
+            render={({ field }) => (
+              <FieldOfMajorSelect
+                value={(field.value as FieldOfMajorId) || ""}
+                onValueChange={(val) => {
+                  field.onChange(val);
+                  if (selectedDegree && !degreeBelongsToField(selectedDegree, val)) {
+                    setValue("degree", "");
+                  }
+                }}
+                placeholder="Select Field of Major"
+                triggerClassName="h-14 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3] data-[state=open]:border-[#6C5DD3]"
+                contentClassName="rounded-xl border-none shadow-xl max-h-72"
+              />
+            )}
+          />
+          {errors.fieldOfMajor && <p className="text-xs text-red-500 font-bold ml-2">{errors.fieldOfMajor.message}</p>}
+        </div>
+
         <div className="space-y-2">
           <Label className="text-slate-600 font-bold ml-1">Degree Program</Label>
           <Controller
             name="degree"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select
+                onValueChange={field.onChange}
+                value={field.value}
+                disabled={!selectedUniversity || !selectedFieldOfMajor}
+              >
                 <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3]">
                   <div className="flex items-center gap-3 text-slate-700">
                     <BookOpen className="w-5 h-5 text-[#6C5DD3]" />
-                    <SelectValue placeholder="Select Degree" />
+                    <SelectValue placeholder={
+                      !selectedFieldOfMajor
+                        ? "Select field of major first"
+                        : !selectedUniversity
+                          ? "Select university first"
+                          : "Select Degree"
+                    } />
                   </div>
                 </SelectTrigger>
-                <SelectContent className="rounded-xl border-none shadow-xl">
-                  {DEGREES.map((d) => <SelectItem key={d} value={d} className="rounded-lg my-1 cursor-pointer">{d}</SelectItem>)}
+                <SelectContent className="rounded-xl border-none shadow-xl max-h-72">
+                  {availableDegrees.map((d) => (
+                    <SelectItem key={d} value={d} className="rounded-lg my-1 cursor-pointer">{d}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
@@ -101,14 +136,13 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
           {errors.degree && <p className="text-xs text-red-500 font-bold ml-2">{errors.degree.message}</p>}
         </div>
 
-        {/* Current Academic Year */}
         <div className="space-y-2">
           <Label className="text-slate-600 font-bold ml-1">Current Academic Year</Label>
           <Controller
             name="currentYear"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={(val) => field.onChange(parseInt(val))} defaultValue={field.value?.toString()}>
+              <Select onValueChange={(val) => field.onChange(parseInt(val))} value={field.value?.toString()}>
                 <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3]">
                   <div className="flex items-center gap-3 text-slate-700">
                     <GraduationCap className="w-5 h-5 text-[#6C5DD3]" />
@@ -127,7 +161,6 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
           {errors.currentYear && <p className="text-xs text-red-500 font-bold ml-2">{errors.currentYear.message}</p>}
         </div>
 
-        {/* GPA & Grad Year */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label className="text-slate-600 font-bold ml-1">GPA</Label>

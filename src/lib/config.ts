@@ -36,6 +36,7 @@ export const API_ENDPOINTS = {
     STUDENT_ME: `${API_URL}/api/applications/student/me`,
     COMPANY_ME: `${API_URL}/api/applications/company/me`,
     UPDATE_STATUS: (id: string) => `${API_URL}/api/applications/${id}/status`,
+    CREATE_JOB_OFFER: `${API_URL}/api/applications/job-offer`,
   },
   CONVERSATIONS: {
     START: `${API_URL}/api/conversations/start`,
@@ -55,4 +56,5 @@ export const API_ENDPOINTS = {
     TRACK: `${API_URL}/api/emaillogs/track`,
     ME: `${API_URL}/api/emaillogs/me`,
   },
+  PLATFORM_STATS: `${API_URL}/api/platformstats`,
 } as const;

@@ -47,4 +47,24 @@ export class ProjectService {
       throw new Error(error?.message || error?.title || `Failed to delete project (${response.status})`);
     }
   }
+
+  static async getStudentProjects(token: string, studentProfileId: string): Promise<ProjectItem[]> {
+    // For now, fetch all projects and filter client-side
+    // TODO: Create backend endpoint to fetch projects by student profile ID
+    try {
+      const response = await fetch(API_ENDPOINTS.PROJECTS.ME, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) return [];
+      
+      const projects = await response.json() as ProjectItem[];
+      return projects;
+    } catch {
+      return [];
+    }
+  }
 }

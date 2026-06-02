@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthService } from "@/lib/services/auth.service";
 import { DashboardService } from "@/lib/services/dashboard.service";
+import { API_ENDPOINTS } from "@/lib/config";
 
 type SendOfferButtonProps = {
     candidateName: string;
@@ -45,12 +46,33 @@ export default function SendOfferButton({ candidateName, studentProfileId, exist
                 throw new Error("Please sign in again to send the offer.");
             }
 
+            if (!studentProfileId) {
+                throw new Error("Student reference missing. Open from candidate profile and try again.");
+            }
+
+            // Create job offer application
+            const offerResponse = await fetch(API_ENDPOINTS.APPLICATIONS.CREATE_JOB_OFFER, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    studentProfileId,
+                    jobTitle: jobPosition.trim(),
+                    jobType,
+                    compensation: salary.trim() || null,
+                    proposalMessage: proposalMessage.trim()
+                })
+            });
+
+            if (!offerResponse.ok) {
+                throw new Error("Failed to create job offer application");
+            }
+
+            // Also send as chat message
             let conversationId = existingConversationId || null;
             if (!conversationId) {
-                if (!studentProfileId) {
-                    throw new Error("Student reference missing. Open from candidate profile and try again.");
-                }
-
                 const created = await DashboardService.startConversation(token, { studentProfileId });
                 conversationId = created.id;
             }
@@ -69,7 +91,7 @@ export default function SendOfferButton({ candidateName, studentProfileId, exist
             setIsSent(true);
             show({
                 title: "Proposal Sent!",
-                description: `Your job offer has been sent to ${candidateName} and posted in chat.`,
+                description: `Your job offer has been sent to ${candidateName} and appears in their applications.`,
                 variant: "success",
             });
 
