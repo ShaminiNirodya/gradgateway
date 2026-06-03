@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Paperclip, Phone, Video, MoreVertical, X, Copy, ExternalLink, MessageSquare } from "lucide-react";
+import { Paperclip, Phone, Video, MoreVertical, X, Copy, ExternalLink, MessageSquare, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -21,6 +21,22 @@ import { ConversationItem } from "@/lib/types/dashboard";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { signalRService } from "@/lib/services/signalr.service";
 import { UnreadMessageIndicator } from "@/components/shared/UnreadMessageIndicator";
+import { StudentPageContainer } from "@/components/layout/student/StudentPageContainer";
+import { StudentPageHero } from "@/components/layout/student/StudentPageHero";
+import { useUnreadConversations } from "@/components/shared/UnreadConversationsProvider";
+import {
+  formatChatMessageTime,
+  formatConversationListDate,
+  formatMessageDateTime,
+  parseApiUtcDate,
+} from "@/lib/utils/datetime";
+import {
+  matchesJobOfferAcceptReply,
+  matchesJobOfferReply,
+  notifyApplicationsRefresh,
+  OFFER_REPLY_INTERVIEW,
+  OFFER_REPLY_REJECTED,
+} from "@/lib/constants/offer-reply";
 
 type MessageItem = {
   id: string;
@@ -33,6 +49,7 @@ type MessageItem = {
 };
 
 type OfferMessagePayload = {
+  applicationId?: string;
   position: string;
   jobType: string;
   compensation?: string | null;
@@ -44,6 +61,8 @@ type InterviewInvitation = {
   role: string;
   company: string;
   date: string;
+  dates?: string[];
+  multipleDates?: boolean;
   duration: string;
   format: string;
   meetingLink?: string | null;
@@ -131,7 +150,7 @@ function sortConversationsForInbox(list: ConversationItem[]): ConversationItem[]
     const aUnread = Boolean(a.hasUnread);
     const bUnread = Boolean(b.hasUnread);
     if (aUnread !== bUnread) return aUnread ? -1 : 1;
-    return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime();
+    return parseApiUtcDate(b.lastMessageAt).getTime() - parseApiUtcDate(a.lastMessageAt).getTime();
   });
 }
 
@@ -160,6 +179,7 @@ function findScrollTargetMessageId(
 
 export default function StudentMessagesPage() {
   const { show } = useToast();
+  const { refreshUnreadCount } = useUnreadConversations();
   const { user, userData } = useAuth();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
@@ -308,9 +328,16 @@ export default function StudentMessagesPage() {
         return;
       }
 
-      const rows = await DashboardService.getConversationMessages(token, conversationId);
+      const rows = await DashboardService.getConversationMessages(token, conversationId, {
+        skipCache: true,
+      });
       setMessages(rows);
+      setConversations((prev) =>
+        prev.map((c) => (c.id === conversationId ? { ...c, hasUnread: false } : c))
+      );
+      DashboardService.clearConversationsCache();
       void loadConversations();
+      void refreshUnreadCount();
     } catch {
       if (!silent) {
         setMessages([]);
@@ -320,11 +347,9 @@ export default function StudentMessagesPage() {
         setLoadingMessages(false);
       }
     }
-  }, [loadConversations]);
+  }, [loadConversations, refreshUnreadCount]);
 
   useEffect(() => {
-    signalRService.start();
-
     const unsubscribe = signalRService.onMessage((newMessage: MessageItem) => {
       const isActiveChat = selectedConversationIdRef.current === newMessage.conversationId;
       const isFromMe =
@@ -455,6 +480,11 @@ export default function StudentMessagesPage() {
       if (conversation?.hasUnread) {
         scrollToMessageConversationIdRef.current = conversationId;
       }
+      setConversations((prev) =>
+        prev.map((c) => (c.id === conversationId ? { ...c, hasUnread: false } : c))
+      );
+      DashboardService.clearMessagesCache(conversationId);
+      DashboardService.clearConversationsCache();
       setSelectedConversationId(conversationId);
     },
     [conversations]
@@ -506,12 +536,81 @@ export default function StudentMessagesPage() {
     [selectedConversationId, loadConversations, show]
   );
 
+  const syncOfferStatusAfterReply = useCallback(
+    async (trimmed: string, applicationId?: string) => {
+      if (!selectedConversationId) return;
+      if (!matchesJobOfferReply(trimmed)) return;
+
+      const token = await AuthService.getIdToken();
+      if (!token) return;
+
+      const accepted = matchesJobOfferAcceptReply(trimmed);
+      try {
+        await DashboardService.syncOfferRepliesFromMessages(token);
+      } catch {
+        // Sync endpoint may be unavailable until API restart.
+      }
+      try {
+        await DashboardService.respondToJobOffer(
+          token,
+          selectedConversationId,
+          accepted,
+          applicationId
+        );
+      } catch {
+        // Message send may have already updated status on the server.
+      }
+      notifyApplicationsRefresh();
+    },
+    [selectedConversationId]
+  );
+
+  const offerSyncAttemptedRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!selectedConversationId || loadingMessages || messages.length === 0) return;
+
+    const myEmail = user?.email?.toLowerCase();
+    if (!myEmail) return;
+
+    const syncKey = selectedConversationId;
+    if (offerSyncAttemptedRef.current.has(syncKey)) return;
+
+    const studentReplies = messages.filter(
+      (m) =>
+        m.senderName?.toLowerCase() === myEmail && matchesJobOfferReply(m.content)
+    );
+    const latest = studentReplies[studentReplies.length - 1];
+    if (!latest) return;
+
+    offerSyncAttemptedRef.current.add(syncKey);
+    void syncOfferStatusAfterReply(latest.content.trim());
+  }, [
+    selectedConversationId,
+    loadingMessages,
+    messages,
+    user?.email,
+    syncOfferStatusAfterReply,
+  ]);
+
+  const sendOfferResponse = useCallback(
+    async (content: string, applicationId?: string) => {
+      const trimmed = content.trim();
+      if (!trimmed || !selectedConversationId) return;
+
+      await sendConversationReply(trimmed);
+      await syncOfferStatusAfterReply(trimmed, applicationId);
+    },
+    [selectedConversationId, sendConversationReply, syncOfferStatusAfterReply]
+  );
+
   const sendMessage = async () => {
     const content = input.trim();
     if (!content || !selectedConversationId) return;
 
     try {
       await sendConversationReply(content);
+      await syncOfferStatusAfterReply(content);
       setInput("");
     } catch (error: any) {
       show({ title: "Send failed", description: error?.message || "Unable to send message.", variant: "error" });
@@ -524,15 +623,34 @@ export default function StudentMessagesPage() {
     window.open(meetingUrl, "_blank");
   };
 
+  const inboxUnread = sortedConversations.filter((c) => conversationShowsUnread(c)).length;
+
   return (
-    <div className="-m-4 flex h-[calc(100dvh-2rem)] max-h-[calc(100dvh-2rem)] min-h-0 flex-col gap-4 overflow-hidden p-4 lg:-m-8 lg:h-[calc(100dvh-4rem)] lg:max-h-[calc(100dvh-4rem)] lg:grid lg:grid-cols-3 lg:gap-8 lg:p-8">
-      <aside className="flex min-h-0 flex-col overflow-hidden rounded-[24px] bg-white p-6 shadow-sm lg:col-span-1 lg:max-h-full">
-        <Input
-          placeholder="Search conversations..."
-          className="mb-4 h-10 shrink-0 rounded-xl"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
+    <StudentPageContainer fillViewport className="min-h-0 overflow-hidden">
+      <StudentPageHero
+        eyebrow="Inbox"
+        title="Messages"
+        description="Chat with companies about roles, offers, and interviews."
+        badge={
+          inboxUnread > 0 ? (
+            <span className="rounded-full bg-[#6C5DD3] px-2.5 py-0.5 text-xs font-bold text-white">
+              {inboxUnread} new
+            </span>
+          ) : undefined
+        }
+      />
+
+      <div className="grid min-h-0 flex-1 gap-4 overflow-hidden md:gap-4 lg:grid-cols-3">
+      <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5 lg:col-span-1 lg:max-h-full">
+        <div className="relative mb-4 shrink-0">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            placeholder="Search conversations..."
+            className="h-10 rounded-xl border-slate-200/80 pl-9"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain">
           {sortedConversations.length === 0 && (
@@ -552,12 +670,14 @@ export default function StudentMessagesPage() {
             <div
               key={conversation.id}
               onClick={() => handleSelectConversation(conversation.id)}
-              className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${selectedConversationId === conversation.id
-                ? "bg-indigo-50 border border-indigo-100"
-                : isUnread
-                  ? "bg-emerald-50/40 border border-emerald-100/80 hover:bg-emerald-50/60"
-                  : "bg-white border border-transparent hover:bg-slate-50"
-                }`}
+              className={cn(
+                "flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-all",
+                selectedConversationId === conversation.id
+                  ? "border-[#6C5DD3]/30 bg-violet-50 shadow-sm"
+                  : isUnread
+                    ? "border-emerald-100/80 bg-emerald-50/40 hover:bg-emerald-50/60"
+                    : "border-transparent hover:border-slate-100 hover:bg-slate-50"
+              )}
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="relative shrink-0">
@@ -579,7 +699,7 @@ export default function StudentMessagesPage() {
                 </div>
               </div>
               <span className={`text-[10px] font-medium shrink-0 ${isUnread ? "text-emerald-600" : "text-slate-400"}`}>
-                {new Date(conversation.lastMessageAt).toLocaleDateString("en-LK", { month: "short", day: "numeric" })}
+                {formatConversationListDate(conversation.lastMessageAt)}
               </span>
             </div>
             );
@@ -587,7 +707,7 @@ export default function StudentMessagesPage() {
         </div>
       </aside>
 
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border border-slate-50 bg-white shadow-sm lg:col-span-2">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm lg:col-span-2">
         {!selectedConversation ? (
           <MessagesEmptyPanel
             isCompany={isCompany}
@@ -596,7 +716,7 @@ export default function StudentMessagesPage() {
           />
         ) : (
           <>
-            <div className="z-10 flex shrink-0 items-center justify-between rounded-t-[24px] border-b bg-white/50 p-6 backdrop-blur-sm">
+            <div className="z-10 flex shrink-0 items-center justify-between border-b border-slate-100 bg-white/80 p-5 backdrop-blur-sm sm:p-6">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10 border border-slate-100 shadow-sm">
                   {selectedConversation.otherPartyPhotoUrl && <AvatarImage src={selectedConversation.otherPartyPhotoUrl} alt={selectedConversation.otherPartyName} />}
@@ -677,8 +797,19 @@ export default function StudentMessagesPage() {
                               </div>
                               
                               <div className={`border-t ${fromMe ? "border-white/10" : "border-indigo-100"} pt-3 grid grid-cols-[120px_1fr] gap-3 items-start`}>
-                                <span className={`text-sm font-semibold ${fromMe ? "text-indigo-200" : "text-slate-600"}`}>Proposed Date:</span>
-                                <span className={`text-sm ${fromMe ? "text-white" : "text-slate-800"}`}>{interview.date}</span>
+                                <span className={`text-sm font-semibold ${fromMe ? "text-indigo-200" : "text-slate-600"}`}>
+                                  {interview.multipleDates || (interview.dates && interview.dates.length > 1)
+                                    ? "Tentative dates:"
+                                    : "Proposed date:"}
+                                </span>
+                                <div className={`text-sm space-y-1 ${fromMe ? "text-white" : "text-slate-800"}`}>
+                                  {(interview.dates && interview.dates.length > 0
+                                    ? interview.dates
+                                    : [interview.date]
+                                  ).map((d) => (
+                                    <p key={d}>{d}</p>
+                                  ))}
+                                </div>
                               </div>
                               
                               <div className={`border-t ${fromMe ? "border-white/10" : "border-indigo-100"} pt-3 grid grid-cols-[120px_1fr] gap-3 items-start`}>
@@ -737,14 +868,7 @@ export default function StudentMessagesPage() {
                           
                           {/* Timestamp */}
                           <div className={`px-6 pb-4 text-xs ${fromMe ? "text-indigo-200" : "text-slate-500"}`}>
-                            {new Date(message.sentAt).toLocaleString("en-LK", { 
-                              weekday: 'short',
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                              hour: "2-digit", 
-                              minute: "2-digit"
-                            })}
+                            {formatMessageDateTime(message.sentAt)}
                           </div>
                         </div>
                       </div>
@@ -753,13 +877,19 @@ export default function StudentMessagesPage() {
 
                   if (offer) {
                     return (
-                      <div key={message.id} data-message-id={message.id}>
-                        <OfferMessage
-                          from={fromMe ? "me" : "them"}
-                          offer={offer}
-                          showActions={!isCompany && !fromMe}
-                          onRespond={sendConversationReply}
-                        />
+                      <div
+                        key={message.id}
+                        data-message-id={message.id}
+                        className={cn("flex", fromMe ? "justify-end" : "justify-start")}
+                      >
+                        <ChatMessageRow from={fromMe ? "me" : "them"} sentAt={message.sentAt}>
+                          <OfferMessage
+                            from={fromMe ? "me" : "them"}
+                            offer={offer}
+                            showActions={!isCompany && !fromMe}
+                            onRespond={sendOfferResponse}
+                          />
+                        </ChatMessageRow>
                       </div>
                     );
                   }
@@ -770,9 +900,15 @@ export default function StudentMessagesPage() {
                     <div
                       key={message.id}
                       data-message-id={message.id}
-                      className={isNewIncoming ? "rounded-2xl ring-2 ring-emerald-300/80 ring-offset-2" : undefined}
+                      className={cn(
+                        "flex",
+                        fromMe ? "justify-end" : "justify-start",
+                        isNewIncoming && "rounded-2xl ring-2 ring-emerald-300/80 ring-offset-2"
+                      )}
                     >
-                      <Message from={fromMe ? "me" : "them"}>{message.content}</Message>
+                      <ChatMessageRow from={fromMe ? "me" : "them"} sentAt={message.sentAt}>
+                        <Message from={fromMe ? "me" : "them"}>{message.content}</Message>
+                      </ChatMessageRow>
                     </div>
                   );
                 })
@@ -798,6 +934,7 @@ export default function StudentMessagesPage() {
           </>
         )}
       </main>
+      </div>
 
       {/* Video Call Modal */}
       {showVideoModal && selectedConversationId && (
@@ -879,7 +1016,7 @@ export default function StudentMessagesPage() {
           </div>
         </div>
       )}
-    </div>
+    </StudentPageContainer>
   );
 }
 
@@ -949,19 +1086,47 @@ function MessagesEmptyPanel({
   );
 }
 
-function Message({ children, from }: { children: ReactNode; from: "me" | "them" }) {
+function ChatMessageRow({
+  from,
+  sentAt,
+  children,
+}: {
+  from: "me" | "them";
+  sentAt: string;
+  children: ReactNode;
+}) {
   const isMe = from === "me";
   return (
-    <div className={`max-w-xl rounded-2xl px-5 py-4 text-sm font-medium ${isMe ? "bg-[#6C5DD3] text-white ml-auto shadow-lg shadow-indigo-100 rounded-br-none" : "bg-white text-slate-700 border border-slate-100 shadow-sm rounded-bl-none"}`}>
+    <div className={cn("flex max-w-xl flex-col gap-1", isMe ? "items-end" : "items-start")}>
       {children}
+      <time
+        dateTime={sentAt}
+        className={cn(
+          "px-1 text-[10px] font-medium text-slate-400",
+          isMe ? "text-right" : "text-left"
+        )}
+      >
+        {formatChatMessageTime(sentAt)}
+      </time>
     </div>
   );
 }
 
-const OFFER_REPLY_INTERVIEW =
-  "I am open for an interview. Please share the available dates and times.";
-const OFFER_REPLY_REJECTED =
-  "Thank you for the offer. I am not moving forward with this opportunity at this time.";
+function Message({ children, from }: { children: ReactNode; from: "me" | "them" }) {
+  const isMe = from === "me";
+  return (
+    <div
+      className={cn(
+        "w-full rounded-2xl px-5 py-4 text-sm font-medium",
+        isMe
+          ? "bg-[#6C5DD3] text-white shadow-lg shadow-indigo-100 rounded-br-none"
+          : "bg-white text-slate-700 border border-slate-100 shadow-sm rounded-bl-none"
+      )}
+    >
+      {children}
+    </div>
+  );
+}
 
 function OfferMessage({
   from,
@@ -972,7 +1137,7 @@ function OfferMessage({
   from: "me" | "them";
   offer: OfferMessagePayload;
   showActions: boolean;
-  onRespond: (text: string) => Promise<unknown>;
+  onRespond: (text: string, applicationId?: string) => Promise<unknown>;
 }) {
   const isMe = from === "me";
   const [replyMode, setReplyMode] = useState(false);
@@ -982,7 +1147,7 @@ function OfferMessage({
   const handleQuickReply = async (text: string) => {
     setSubmitting(true);
     try {
-      await onRespond(text);
+      await onRespond(text, offer.applicationId);
       setReplyMode(false);
       setReplyText("");
     } catch {
@@ -999,7 +1164,12 @@ function OfferMessage({
 
   return (
     <div
-      className={`max-w-xl rounded-2xl px-5 py-4 ${isMe ? "bg-indigo-600 text-white ml-auto shadow-lg shadow-indigo-100 rounded-br-none" : "bg-amber-50 text-slate-800 border border-amber-200 shadow-sm rounded-bl-none"}`}
+      className={cn(
+        "w-full rounded-2xl px-5 py-4",
+        isMe
+          ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100 rounded-br-none"
+          : "bg-amber-50 text-slate-800 border border-amber-200 shadow-sm rounded-bl-none"
+      )}
     >
       <div className="text-[11px] font-extrabold uppercase tracking-wide opacity-90 mb-2">Job Offer</div>
       <div className="space-y-1 text-sm">

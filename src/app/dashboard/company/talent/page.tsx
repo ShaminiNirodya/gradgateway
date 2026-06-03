@@ -1,7 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Search, LayoutGrid, Download, X } from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  Search,
+  LayoutGrid,
+  List as ListIcon,
+  Download,
+  X,
+  SlidersHorizontal,
+  Sparkles,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,6 +23,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/toast";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { CompanyPageHeader } from "@/components/layout/company/CompanyPageHeader";
 import { AuthService } from "@/lib/services/auth.service";
 import { StudentService } from "@/lib/services/student.service";
 import {
@@ -62,6 +73,7 @@ type Candidate = {
 
 export default function TalentSearchPage() {
   const { show } = useToast();
+  const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selectedUniversities, setSelectedUniversities] = useState<Set<string>>(new Set());
@@ -74,7 +86,7 @@ export default function TalentSearchPage() {
   const [skills, setSkills] = useState<Set<string>>(new Set());
   const [availability, setAvailability] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<"Relevance" | "GPA" | "Class">("Relevance");
-  const [gridView, setGridView] = useState(true);
+  const [view, setView] = useState<"grid" | "list">("grid");
   const [page, setPage] = useState(1);
   const pageSize = 6;
   const [universitySearch, setUniversitySearch] = useState("");
@@ -84,6 +96,11 @@ export default function TalentSearchPage() {
   const [isFieldOfMajorDropdownOpen, setIsFieldOfMajorDropdownOpen] = useState(false);
   const [isDegreeDropdownOpen, setIsDegreeDropdownOpen] = useState(false);
   const [isSkillDropdownOpen, setIsSkillDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const qParam = searchParams.get("q");
+    if (qParam) setQuery(qParam);
+  }, [searchParams]);
 
   // Dynamic filtering based on selections
   const availableDegrees = useMemo(() => {
@@ -200,6 +217,28 @@ export default function TalentSearchPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
 
+  const activeFilterCount = useMemo(() => {
+    let count =
+      selectedUniversities.size +
+      selectedFieldsOfMajor.size +
+      selectedDegrees.size +
+      skills.size +
+      availability.size;
+    if (yearFrom || yearTo) count += 1;
+    if (gpaFrom || gpaTo) count += 1;
+    return count;
+  }, [
+    selectedUniversities,
+    selectedFieldsOfMajor,
+    selectedDegrees,
+    skills,
+    availability,
+    yearFrom,
+    yearTo,
+    gpaFrom,
+    gpaTo,
+  ]);
+
   const clearFilters = () => {
     setSelectedUniversities(new Set());
     setSelectedFieldsOfMajor(new Set());
@@ -250,19 +289,36 @@ export default function TalentSearchPage() {
     show({ title: "Exported", description: "Results saved as CSV", variant: "success" });
   };
 
+  const filterTriggerClass =
+    "w-full min-h-9 h-auto py-1.5 justify-start text-left font-normal rounded-lg border-slate-200 text-sm shadow-none";
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-      <aside className="lg:col-span-1 bg-white rounded-[24px] p-6 shadow-sm lg:sticky lg:top-24">
-        <h3 className="font-bold text-slate-800 mb-4">Filters</h3>
+    <div className="space-y-6">
+      <CompanyPageHeader
+        eyebrow="Find talent"
+        title="Talent Search"
+        subtitle="Discover graduates and filter by university, skills, and availability"
+        showSearch={false}
+      />
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(260px,300px)_1fr]">
+      <aside className="rounded-2xl border border-slate-200/80 bg-white p-5 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+        <div className="mb-5 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className="h-4 w-4 text-slate-500" />
+            <h3 className="text-sm font-bold text-slate-800">Filters</h3>
+          </div>
+          {activeFilterCount > 0 && (
+            <span className="rounded-full bg-[#6C5DD3]/10 px-2 py-0.5 text-xs font-semibold text-[#6C5DD3]">
+              {activeFilterCount} active
+            </span>
+          )}
+        </div>
 
         <Section title="University">
           <DropdownMenu open={isUniversityDropdownOpen} onOpenChange={setIsUniversityDropdownOpen}>
             <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full min-h-10 h-auto py-2 justify-start text-left font-normal"
-              >
+              <Button type="button" variant="outline" className={filterTriggerClass}>
                 <FilterMultiSelectChips
                   placeholder="Select universities..."
                   items={Array.from(selectedUniversities).map((uni) => ({ key: uni, label: uni }))}
@@ -270,7 +326,7 @@ export default function TalentSearchPage() {
                 />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="bg-white w-[320px] rounded-xl shadow-xl border-slate-100 p-0">
+            <DropdownMenuContent align="start" className="w-[min(320px,100vw)] rounded-xl border border-slate-200 bg-white p-0 shadow-lg">
               <div className="sticky top-0 bg-white border-b border-slate-100 p-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -291,7 +347,7 @@ export default function TalentSearchPage() {
                   .map((university) => (
                     <label
                       key={university}
-                      className="flex items-center gap-2 p-2 hover:bg-indigo-50 rounded-lg cursor-pointer text-sm"
+                      className="flex cursor-pointer items-center gap-2 rounded-md p-2 text-sm hover:bg-slate-50"
                     >
                       <Checkbox
                         checked={selectedUniversities.has(university)}
@@ -313,7 +369,7 @@ export default function TalentSearchPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full min-h-10 h-auto py-2 justify-start text-left font-normal"
+                className={filterTriggerClass}
               >
                 <FilterMultiSelectChips
                   placeholder="Select fields..."
@@ -327,12 +383,12 @@ export default function TalentSearchPage() {
                 />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="bg-white w-[320px] rounded-xl shadow-xl border-slate-100 p-0">
+            <DropdownMenuContent align="start" className="w-[min(320px,100vw)] rounded-xl border border-slate-200 bg-white p-0 shadow-lg">
               <div className="max-h-60 overflow-y-auto p-2">
                 {FIELDS_OF_MAJOR.map((field) => (
                   <label
                     key={field.id}
-                    className="flex items-center gap-2 p-2 hover:bg-indigo-50 rounded-lg cursor-pointer text-sm"
+                    className="flex cursor-pointer items-center gap-2 rounded-md p-2 text-sm hover:bg-slate-50"
                   >
                     <Checkbox
                       checked={selectedFieldsOfMajor.has(field.id)}
@@ -363,7 +419,7 @@ export default function TalentSearchPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full min-h-10 h-auto py-2 justify-start text-left font-normal"
+                className={filterTriggerClass}
               >
                 <FilterMultiSelectChips
                   placeholder="Select degrees..."
@@ -372,7 +428,7 @@ export default function TalentSearchPage() {
                 />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="bg-white w-[320px] rounded-xl shadow-xl border-slate-100 p-0">
+            <DropdownMenuContent align="start" className="w-[min(320px,100vw)] rounded-xl border border-slate-200 bg-white p-0 shadow-lg">
               <div className="sticky top-0 bg-white border-b border-slate-100 p-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -393,7 +449,7 @@ export default function TalentSearchPage() {
                   .map((degree) => (
                     <label
                       key={degree}
-                      className="flex items-center gap-2 p-2 hover:bg-indigo-50 rounded-lg cursor-pointer text-sm"
+                      className="flex cursor-pointer items-center gap-2 rounded-md p-2 text-sm hover:bg-slate-50"
                     >
                       <Checkbox
                         checked={selectedDegrees.has(degree)}
@@ -411,15 +467,15 @@ export default function TalentSearchPage() {
 
         <Section title="Graduation Year">
           <div className="grid grid-cols-2 gap-2">
-            <Input value={yearFrom} onChange={(event) => setYearFrom(event.target.value)} placeholder="From" className="h-9" />
-            <Input value={yearTo} onChange={(event) => setYearTo(event.target.value)} placeholder="To" className="h-9" />
+            <Input value={yearFrom} onChange={(event) => setYearFrom(event.target.value)} placeholder="From" className="h-9 rounded-lg border-slate-200" />
+            <Input value={yearTo} onChange={(event) => setYearTo(event.target.value)} placeholder="To" className="h-9 rounded-lg border-slate-200" />
           </div>
         </Section>
 
         <Section title="GPA Range">
           <div className="grid grid-cols-2 gap-2">
-            <Input value={gpaFrom} onChange={(event) => setGpaFrom(event.target.value)} placeholder="2.0" className="h-9" />
-            <Input value={gpaTo} onChange={(event) => setGpaTo(event.target.value)} placeholder="4.0" className="h-9" />
+            <Input value={gpaFrom} onChange={(event) => setGpaFrom(event.target.value)} placeholder="Min" className="h-9 rounded-lg border-slate-200" />
+            <Input value={gpaTo} onChange={(event) => setGpaTo(event.target.value)} placeholder="Max" className="h-9 rounded-lg border-slate-200" />
           </div>
         </Section>
 
@@ -429,7 +485,7 @@ export default function TalentSearchPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full min-h-10 h-auto py-2 justify-start text-left font-normal"
+                className={filterTriggerClass}
               >
                 <FilterMultiSelectChips
                   placeholder="Select skills..."
@@ -438,7 +494,7 @@ export default function TalentSearchPage() {
                 />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="bg-white w-[320px] rounded-xl shadow-xl border-slate-100 p-0">
+            <DropdownMenuContent align="start" className="w-[min(320px,100vw)] rounded-xl border border-slate-200 bg-white p-0 shadow-lg">
               <div className="sticky top-0 bg-white border-b border-slate-100 p-2">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -459,7 +515,7 @@ export default function TalentSearchPage() {
                   .map((skill) => (
                     <label
                       key={skill}
-                      className="flex items-center gap-2 p-2 hover:bg-indigo-50 rounded-lg cursor-pointer text-sm"
+                      className="flex cursor-pointer items-center gap-2 rounded-md p-2 text-sm hover:bg-slate-50"
                     >
                       <Checkbox
                         checked={skills.has(skill)}
@@ -486,88 +542,169 @@ export default function TalentSearchPage() {
           ))}
         </Section>
 
-        <Button variant="ghost" className="w-full mt-2" onClick={clearFilters}>Clear All Filters</Button>
+        <Button
+          variant="softSurface"
+          className="mt-4 w-full"
+          onClick={clearFilters}
+          disabled={activeFilterCount === 0}
+        >
+          Clear all filters
+        </Button>
       </aside>
 
-      <main className="lg:col-span-3 space-y-6">
-        <div className="flex items-center justify-between gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <Input value={query} onChange={(event) => setQuery(event.target.value)} className="h-12 pl-12 rounded-xl bg-white border-none shadow-sm" />
+      <main className="min-w-0 space-y-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative min-w-0 flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search by name, university, degree, or skill..."
+              className="h-11 rounded-xl border-slate-200 bg-white pl-10 shadow-none"
+            />
           </div>
-          <Button variant="ghost" onClick={() => setGridView((value) => !value)}>
-            <LayoutGrid className="w-4 h-4 mr-2" />
-            {gridView ? "Grid" : "List"}
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button>
-                <Download className="w-4 h-4 mr-2" /> Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-white">
-              <DropdownMenuItem onClick={exportCSV}>Export CSV</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            <select
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value as "Relevance" | "GPA" | "Class")}
+              className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none focus:border-[#6C5DD3] focus:ring-1 focus:ring-[#6C5DD3]/30"
+              aria-label="Sort candidates"
+            >
+              <option value="Relevance">Sort: Relevance</option>
+              <option value="GPA">Sort: GPA</option>
+              <option value="Class">Sort: Class year</option>
+            </select>
+            <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+              <button
+                type="button"
+                onClick={() => setView("grid")}
+                aria-label="Grid view"
+                className={cn(
+                  "rounded-lg p-2.5 transition-colors",
+                  view === "grid" ? "bg-white text-[#6C5DD3] shadow-sm" : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                <LayoutGrid className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("list")}
+                aria-label="List view"
+                className={cn(
+                  "rounded-lg p-2.5 transition-colors",
+                  view === "list" ? "bg-white text-[#6C5DD3] shadow-sm" : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                <ListIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="h-11 rounded-xl border-slate-200 font-medium">
+                  <Download className="mr-2 h-4 w-4" /> Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="rounded-xl border border-slate-200 bg-white">
+                <DropdownMenuItem onClick={exportCSV}>Export CSV</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
-        <p className="text-xs text-slate-400">Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} of {filtered.length} results</p>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <p className="font-medium text-slate-600">
+            {filtered.length === 0
+              ? "No results"
+              : `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, filtered.length)} of ${filtered.length}`}
+          </p>
+          {candidates.length > 0 && filtered.length !== candidates.length && (
+            <p className="text-slate-500">{filtered.length} of {candidates.length} in directory</p>
+          )}
+        </div>
 
-        {gridView ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {pageItems.length === 0 ? (
-              <div className="col-span-full bg-white rounded-2xl p-10 text-center shadow-sm">
-                <p className="text-slate-700 font-bold">No candidates match your filters</p>
-              </div>
-            ) : (
-              pageItems.map((candidate) => <CandidateCard key={candidate.id} c={candidate} />)
+        {pageItems.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-16 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white border border-slate-200">
+              <Sparkles className="h-6 w-6 text-slate-400" />
+            </div>
+            <p className="font-bold text-slate-800">No candidates match your criteria</p>
+            <p className="mt-1 text-sm text-slate-500">Adjust filters or clear your search to see more profiles.</p>
+            {(activeFilterCount > 0 || query.trim()) && (
+              <Button
+                variant="outline"
+                className="mt-4 rounded-lg"
+                onClick={() => {
+                  clearFilters();
+                  setQuery("");
+                }}
+              >
+                Reset search & filters
+              </Button>
             )}
           </div>
-        ) : (
-          <div className="space-y-2">
+        ) : view === "grid" ? (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
             {pageItems.map((candidate) => (
-              <div key={candidate.id} className="bg-white rounded-[18px] p-4 shadow-sm flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-12 w-12 border-2 border-white shadow-sm">
-                    {candidate.photoDataUrl && <AvatarImage src={candidate.photoDataUrl} alt={candidate.name} />}
-                    <AvatarFallback className="bg-indigo-50 text-[#6C5DD3] text-sm font-bold">
-                      {candidate.name.split(" ").map((name) => name[0]).join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-sm">{candidate.name}</h3>
-                    <p className="text-xs text-slate-500 truncate">
-                      {candidate.university} • {resolveFieldOfMajorLabel(candidate.fieldOfMajor, candidate.degree) || candidate.degree} • Class {candidate.classOf} • GPA {candidate.gpa.toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button asChild variant="outline" size="sm"><Link href={`/dashboard/company/student-dashboard/${encodeURIComponent(candidate.name.toLowerCase().replace(/\s+/g, "-"))}?id=${candidate.id}`}>View Profile</Link></Button>
-                  <Button asChild size="sm"><Link href={`/dashboard/company/messages?studentProfileId=${encodeURIComponent(candidate.id)}`}>Message</Link></Button>
-                </div>
-              </div>
+              <CandidateCard key={candidate.id} c={candidate} />
+            ))}
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white divide-y divide-slate-100">
+            {pageItems.map((candidate) => (
+              <CandidateListRow key={candidate.id} c={candidate} />
             ))}
           </div>
         )}
 
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" disabled={page === 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</Button>
-          <div className="flex items-center gap-2">
-            {Array.from({ length: totalPages }).map((_, index) => (
-              <button key={index} onClick={() => setPage(index + 1)} className={`w-9 h-9 rounded-xl text-sm font-bold ${page === index + 1 ? "bg-[#6C5DD3] text-white" : "bg-white text-slate-700"}`}>{index + 1}</button>
-            ))}
+        {pageItems.length > 0 && totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-lg"
+              disabled={page === 1}
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+            >
+              Previous
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }).map((_, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => setPage(index + 1)}
+                  className={cn(
+                    "flex h-9 min-w-9 items-center justify-center rounded-lg text-sm font-semibold transition-colors",
+                    page === index + 1
+                      ? "bg-[#6C5DD3] text-white"
+                      : "text-slate-600 hover:bg-slate-100"
+                  )}
+                >
+                  {index + 1}
+                </button>
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-lg"
+              disabled={page === totalPages}
+              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+            >
+              Next
+            </Button>
           </div>
-          <Button variant="ghost" disabled={page === totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}>Next</Button>
-        </div>
+        )}
       </main>
+      </div>
     </div>
   );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mb-6">
-      <h4 className="text-sm font-bold text-slate-800 mb-3">{title}</h4>
+    <div className="mb-4">
+      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</h4>
       <div className="space-y-2">{children}</div>
     </div>
   );
@@ -575,53 +712,176 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function FilterRow({ label, checked, onChange }: { label: string; checked?: boolean; onChange?: (v: boolean) => void }) {
   return (
-    <label className="flex items-center gap-2 text-sm text-slate-600">
-      <Checkbox className="w-4 h-4" checked={checked} onCheckedChange={onChange} /> {label}
+    <label className="flex cursor-pointer items-center gap-2.5 rounded-md py-1 text-sm text-slate-700 hover:text-slate-900">
+      <Checkbox className="h-4 w-4" checked={checked} onCheckedChange={onChange} />
+      <span>{label}</span>
     </label>
   );
 }
 
-function CandidateCard({ c }: { c: Candidate }) {
+function candidateProfileHref(c: Candidate) {
+  return `/dashboard/company/student-dashboard/${encodeURIComponent(c.name.toLowerCase().replace(/\s+/g, "-"))}?id=${c.id}`;
+}
+
+function StatusBadge({ status }: { status: string }) {
   return (
-    <div className="bg-white rounded-[24px] shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group border border-slate-100 hover:border-indigo-100 flex flex-col h-full">
-      <div className="px-5 pt-5 pb-6 flex flex-col flex-1">
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <Avatar className="h-16 w-16 border-2 border-slate-100 shadow-sm flex-shrink-0">
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-[11px] font-semibold",
+        status === "Available Now" && "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/10",
+        status === "Actively Looking" && "bg-sky-50 text-sky-700 ring-1 ring-sky-600/10",
+        status === "Open to Offers" && "bg-amber-50 text-amber-800 ring-1 ring-amber-600/10",
+        status !== "Available Now" &&
+          status !== "Actively Looking" &&
+          status !== "Open to Offers" &&
+          "bg-slate-100 text-slate-600 ring-1 ring-slate-200"
+      )}
+    >
+      {status}
+    </span>
+  );
+}
+
+function CandidateCardSection({
+  title,
+  children,
+  className,
+}: {
+  title?: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={cn("border-t border-slate-100 px-5 py-4", className)}>
+      {title ? (
+        <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</h4>
+      ) : null}
+      {children}
+    </section>
+  );
+}
+
+function CandidateDetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3 text-sm">
+      <span className="shrink-0 font-medium text-slate-500">{label}</span>
+      <span className="min-w-0 text-right font-medium leading-snug text-slate-800">{value}</span>
+    </div>
+  );
+}
+
+function CandidateCard({ c }: { c: Candidate }) {
+  const majorLabel = resolveFieldOfMajorLabel(c.fieldOfMajor, c.degree);
+  const extraSkills = Math.max(0, c.skills.length - 4);
+
+  return (
+    <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white transition-colors hover:border-slate-300">
+      {/* Identity */}
+      <section className="p-5">
+        <div className="flex gap-3">
+          <Avatar className="h-14 w-14 shrink-0 border border-slate-200">
             {c.photoDataUrl && <AvatarImage src={c.photoDataUrl} alt={c.name} />}
-            <AvatarFallback className="bg-indigo-50 text-[#6C5DD3] text-lg font-bold">
+            <AvatarFallback className="bg-slate-100 text-sm font-bold text-[#6C5DD3]">
               {c.name.split(" ").map((name) => name[0]).join("")}
             </AvatarFallback>
           </Avatar>
-          <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold whitespace-nowrap ${
-            c.status === "Available Now" ? "bg-emerald-50 text-emerald-600" :
-            c.status === "Actively Looking" ? "bg-blue-50 text-blue-600" :
-            c.status === "Open to Offers" ? "bg-amber-50 text-amber-600" :
-            "bg-slate-50 text-slate-600"
-          }`}>{c.status}</span>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-bold leading-snug text-slate-900">{c.name}</h3>
+            <div className="mt-2">
+              <StatusBadge status={c.status} />
+            </div>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600" title={c.university}>
+              {c.university}
+            </p>
+          </div>
         </div>
+      </section>
 
-        <div className="mb-4">
-          <h3 className="font-bold text-slate-800 text-lg group-hover:text-[#6C5DD3] transition-colors">{c.name}</h3>
-          <p className="text-sm text-slate-500 font-medium truncate">{c.university}</p>
-          <p className="text-xs text-slate-500 truncate">{resolveFieldOfMajorLabel(c.fieldOfMajor, c.degree)}</p>
-          <p className="text-xs text-slate-400 truncate">{c.degree}</p>
-          <p className="text-xs text-slate-400 mt-1">Class of {c.classOf} • GPA {c.gpa.toFixed(2)}</p>
+      {/* Education */}
+      <CandidateCardSection title="Education">
+        <div className="space-y-2.5">
+          {(majorLabel || c.degree) && (
+            <CandidateDetailRow label="Major" value={majorLabel || c.degree} />
+          )}
+          {c.degree && majorLabel && <CandidateDetailRow label="Degree" value={c.degree} />}
+          <p className="border-t border-slate-100 pt-2.5 text-xs font-medium text-slate-500">
+            Class of {c.classOf}
+            <span className="mx-1.5 text-slate-300" aria-hidden>
+              ·
+            </span>
+            GPA {c.gpa.toFixed(2)}
+          </p>
         </div>
+      </CandidateCardSection>
 
-        <div className="flex flex-wrap gap-2 mb-6">
-          {c.skills.slice(0, 3).map((skill) => (
-            <span key={skill} className="inline-block px-2 py-1 rounded-lg bg-slate-100 text-slate-700 text-[10px] font-bold">{skill}</span>
-          ))}
-        </div>
+      {/* Skills */}
+      {c.skills.length > 0 && (
+        <CandidateCardSection title="Skills">
+          <div className="flex flex-wrap gap-2">
+            {c.skills.slice(0, 4).map((skill) => (
+              <span
+                key={skill}
+                className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700"
+              >
+                {skill}
+              </span>
+            ))}
+            {extraSkills > 0 && (
+              <span className="self-center text-xs font-semibold text-slate-500">+{extraSkills} more</span>
+            )}
+          </div>
+        </CandidateCardSection>
+      )}
 
-        <div className="mt-auto grid grid-cols-2 gap-3">
-          <Button asChild variant="outline">
+      {/* Actions */}
+      <section className="mt-auto border-t border-slate-100 bg-slate-50/40 px-5 py-4">
+        <div className="flex gap-3">
+          <Button asChild variant="outline" size="sm" className="min-w-0 flex-1 rounded-lg border-slate-200 bg-white font-medium">
             <Link href={`/dashboard/company/messages?studentProfileId=${encodeURIComponent(c.id)}`}>Message</Link>
           </Button>
-          <Button asChild>
-            <Link href={`/dashboard/company/student-dashboard/${encodeURIComponent(c.name.toLowerCase().replace(/\s+/g, "-"))}?id=${c.id}`}>View Profile</Link>
+          <Button asChild size="sm" className="min-w-0 flex-1 rounded-lg font-medium">
+            <Link href={candidateProfileHref(c)}>View profile</Link>
           </Button>
         </div>
+      </section>
+    </article>
+  );
+}
+
+function CandidateListRow({ c }: { c: Candidate }) {
+  const majorLabel = resolveFieldOfMajorLabel(c.fieldOfMajor, c.degree);
+
+  return (
+    <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+      <div className="flex min-w-0 items-center gap-4">
+        <Avatar className="h-11 w-11 shrink-0 border border-slate-200">
+          {c.photoDataUrl && <AvatarImage src={c.photoDataUrl} alt={c.name} />}
+          <AvatarFallback className="bg-slate-100 text-xs font-bold text-[#6C5DD3]">
+            {c.name.split(" ").map((name) => name[0]).join("")}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-bold text-slate-900">{c.name}</h3>
+            <StatusBadge status={c.status} />
+          </div>
+          <p className="mt-0.5 text-sm text-slate-600 line-clamp-1" title={c.university}>
+            {c.university}
+            {(majorLabel || c.degree) && ` · ${majorLabel || c.degree}`}
+          </p>
+          <p className="mt-0.5 text-xs font-medium text-slate-500">
+            Class of {c.classOf} · GPA {c.gpa.toFixed(2)}
+            {c.skills.length > 0 && ` · ${c.skills.slice(0, 3).join(", ")}${c.skills.length > 3 ? "…" : ""}`}
+          </p>
+        </div>
+      </div>
+      <div className="flex shrink-0 gap-2 sm:justify-end">
+        <Button asChild variant="outline" size="sm" className="rounded-lg">
+          <Link href={`/dashboard/company/messages?studentProfileId=${encodeURIComponent(c.id)}`}>Message</Link>
+        </Button>
+        <Button asChild size="sm" className="rounded-lg">
+          <Link href={candidateProfileHref(c)}>View profile</Link>
+        </Button>
       </div>
     </div>
   );
@@ -652,7 +912,7 @@ function FilterMultiSelectChips({
       {items.map(({ key, label }) => (
         <span
           key={key}
-          className="inline-flex items-center gap-1 max-w-full px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md text-xs font-medium"
+          className="inline-flex max-w-full items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"
         >
           <span className="truncate">{label}</span>
           <button

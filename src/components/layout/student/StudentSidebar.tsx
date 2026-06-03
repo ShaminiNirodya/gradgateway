@@ -11,6 +11,7 @@ import {
   GraduationCap,
   Briefcase,
   Compass,
+  LifeBuoy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/contexts/AuthContext";
@@ -19,7 +20,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useUnreadConversations } from "@/components/shared/UnreadConversationsProvider";
 import { UnreadMessageIndicator } from "@/components/shared/UnreadMessageIndicator";
-
 const navItems = [
   { name: "Dashboard", href: "/dashboard/student", icon: LayoutGrid },
   { name: "My Projects", href: "/dashboard/student/projects", icon: Folder },
@@ -89,9 +89,29 @@ export default function StudentSidebar() {
         </div>
       </div>
 
+      <div className="mx-2 mt-6 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-[#6C5DD3] shadow-sm">
+            <LifeBuoy className="h-4 w-4" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-slate-800">Need Help?</h4>
+            <p className="text-[11px] font-medium text-slate-500">Contact support team</p>
+          </div>
+        </div>
+        <Button
+          asChild
+          variant="secondary"
+          size="sm"
+          className="h-9 w-full rounded-xl bg-white text-[#6C5DD3] shadow-sm hover:bg-white/90"
+        >
+          <Link href="/help">Get Support</Link>
+        </Button>
+      </div>
+
       <button
         onClick={() => setShowLogoutConfirm(true)}
-        className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-red-500 transition-colors mt-6 font-semibold"
+        className="mt-4 flex items-center gap-3 px-4 py-3 font-semibold text-slate-400 transition-colors hover:text-red-500"
       >
         <LogOut className="w-5 h-5" />
         Log Out

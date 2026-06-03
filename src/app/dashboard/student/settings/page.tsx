@@ -38,6 +38,11 @@ import {
     fieldOfMajorFromDegreeSelection,
 } from "@/lib/constants/field-of-major";
 import { FieldOfMajorSelect } from "@/components/shared/FieldOfMajorSelect";
+import {
+  SELECT_UNSET,
+  fromControlledSelectValue,
+  toControlledSelectValue,
+} from "@/lib/utils/controlled-select";
 import { FieldOfMajorSubcategoriesNotice } from "@/components/shared/FieldOfMajorSubcategoriesNotice";
 import {
     ClearableFilterField,
@@ -45,6 +50,8 @@ import {
     CLEARABLE_SELECT_PADDING,
 } from "@/components/shared/ClearableFilterField";
 import { cn } from "@/lib/utils";
+import { StudentPageContainer } from "@/components/layout/student/StudentPageContainer";
+import { StudentPageHero } from "@/components/layout/student/StudentPageHero";
 
 // Dynamic filtering will be applied via useMemo hooks below
 
@@ -305,16 +312,15 @@ export default function StudentSettingsPage() {
     };
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 pb-10">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
-                    <p className="text-sm text-slate-500">Manage your profile, portfolio, and preferences.</p>
-                </div>
-            </div>
+        <StudentPageContainer>
+            <StudentPageHero
+                eyebrow="Account"
+                title="Settings"
+                description="Manage your profile, security, and notification preferences."
+            />
 
             <Tabs defaultValue="profile" className="w-full">
-                <TabsList className="bg-white rounded-xl p-1 shadow-sm border border-slate-100">
+                <TabsList className="rounded-2xl border border-slate-200/80 bg-white p-1 shadow-sm">
                     <TabsTrigger value="profile" className="rounded-lg data-[state=active]:bg-[#6C5DD3] data-[state=active]:text-white">
                         <User className="w-4 h-4 mr-2" />
                         Profile & Portfolio
@@ -332,8 +338,8 @@ export default function StudentSettingsPage() {
                 {/* Profile Settings */}
                 <TabsContent value="profile" className="mt-6 space-y-6">
                     {/* Basic Info */}
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                        <h3 className="font-bold text-lg text-slate-900 mb-4">About You</h3>
+                    <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+                        <h3 className="mb-4 text-lg font-extrabold text-slate-900">About You</h3>
                         <div className="flex items-center gap-6 mb-8">
                             <div className="relative group">
                                 <Avatar className="w-24 h-24 border-4 border-white shadow-lg cursor-pointer" onClick={() => fileInputRef.current?.click()}>
@@ -487,8 +493,13 @@ export default function StudentSettingsPage() {
                                     variant="select"
                                 >
                                     <Select
-                                        value={currentYear === "" ? undefined : String(currentYear)}
-                                        onValueChange={(val) => setCurrentYear(parseInt(val))}
+                                        value={toControlledSelectValue(
+                                            currentYear === "" ? "" : String(currentYear)
+                                        )}
+                                        onValueChange={(val) => {
+                                            const next = fromControlledSelectValue(val);
+                                            setCurrentYear(next === "" ? "" : parseInt(next, 10));
+                                        }}
                                     >
                                         <SelectTrigger
                                             className={cn(
@@ -499,6 +510,9 @@ export default function StudentSettingsPage() {
                                             <SelectValue placeholder="Select Year" />
                                         </SelectTrigger>
                                         <SelectContent className="rounded-xl">
+                                            <SelectItem value={SELECT_UNSET} disabled className="hidden">
+                                                Select Year
+                                            </SelectItem>
                                             <SelectItem value="1" className="rounded-lg cursor-pointer">1st Year</SelectItem>
                                             <SelectItem value="2" className="rounded-lg cursor-pointer">2nd Year</SelectItem>
                                             <SelectItem value="3" className="rounded-lg cursor-pointer">3rd Year</SelectItem>
@@ -599,7 +613,10 @@ export default function StudentSettingsPage() {
                                     clearLabel="graduation year"
                                     variant="select"
                                 >
-                                    <Select value={gradYear || undefined} onValueChange={setGradYear}>
+                                    <Select
+                                        value={toControlledSelectValue(gradYear)}
+                                        onValueChange={(val) => setGradYear(fromControlledSelectValue(val))}
+                                    >
                                         <SelectTrigger
                                             className={cn(
                                                 "w-full rounded-xl h-10",
@@ -609,6 +626,9 @@ export default function StudentSettingsPage() {
                                             <SelectValue placeholder="Select year" />
                                         </SelectTrigger>
                                         <SelectContent className="rounded-xl max-h-60">
+                                            <SelectItem value={SELECT_UNSET} disabled className="hidden">
+                                                Select year
+                                            </SelectItem>
                                             {GRADUATION_YEARS.map((year) => (
                                                 <SelectItem key={year} value={String(year)} className="rounded-lg cursor-pointer">
                                                     {year}
@@ -640,7 +660,9 @@ export default function StudentSettingsPage() {
                     </div>
 
                     <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
-                        <Button variant="outline" className="rounded-xl h-12 px-8" onClick={refresh} disabled={loading || isSaving}>Reload</Button>
+                        <Button variant="softSurface" className="h-12 px-8" onClick={refresh} disabled={loading || isSaving}>
+                            Reload
+                        </Button>
                         <Button className="rounded-xl bg-[#6C5DD3] hover:bg-[#5b4eb8] h-12 px-8" onClick={handleSave} disabled={loading || isSaving}>
                             {isSaving ? "Saving Profile..." : "Save Profile"}
                         </Button>
@@ -649,14 +671,32 @@ export default function StudentSettingsPage() {
 
                 {/* Keep existing tabs logic for completeness, simplified for brevity here since we focus on Profile */}
                 <TabsContent value="account" className="mt-6 space-y-6">
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                        <h3 className="font-bold text-lg text-slate-900 mb-4">Account Security</h3>
-                        <p className="text-sm text-slate-500 mb-4">Change your password securely or request a reset link.</p>
-                        <div className="flex items-center gap-2">
-                            <Button variant="outline" className="rounded-xl" type="button" onClick={() => setShowChangePasswordModal(true)}>
+                    <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+                        <div className="mb-4 flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-[#6C5DD3]">
+                                <Shield className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-extrabold text-slate-900">Account Security</h3>
+                                <p className="text-sm text-slate-500">Change your password or request a reset link.</p>
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                                variant="outline"
+                                className="rounded-xl"
+                                type="button"
+                                onClick={() => setShowChangePasswordModal(true)}
+                            >
                                 Change Password
                             </Button>
-                            <Button variant="ghost" className="rounded-xl" type="button" onClick={handleSendResetLink} disabled={isSendingReset}>
+                            <Button
+                                variant="ghost"
+                                className="rounded-xl"
+                                type="button"
+                                onClick={handleSendResetLink}
+                                disabled={isSendingReset}
+                            >
                                 {isSendingReset ? "Sending..." : "Send Reset Link"}
                             </Button>
                         </div>
@@ -664,13 +704,19 @@ export default function StudentSettingsPage() {
                 </TabsContent>
 
                 <TabsContent value="notifications" className="mt-6 space-y-6">
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                        <h3 className="font-bold text-lg text-slate-900 mb-6">Email Notifications</h3>
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <span>Job Alerts</span>
-                                <Switch defaultChecked={true} />
+                    <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+                        <div className="mb-6 flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                                <Bell className="h-5 w-5" />
                             </div>
+                            <h3 className="text-lg font-extrabold text-slate-900">Email Notifications</h3>
+                        </div>
+                        <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
+                            <div>
+                                <p className="text-sm font-bold text-slate-800">Job alerts</p>
+                                <p className="text-xs text-slate-500">Get notified about new openings</p>
+                            </div>
+                            <Switch defaultChecked={true} />
                         </div>
                     </div>
                 </TabsContent>
@@ -699,7 +745,9 @@ export default function StudentSettingsPage() {
                         </div>
 
                         <div className="flex justify-end gap-2 mt-6">
-                            <Button variant="outline" type="button" onClick={() => setShowChangePasswordModal(false)} disabled={isChangingPassword}>Cancel</Button>
+                            <Button variant="softSurface" type="button" onClick={() => setShowChangePasswordModal(false)} disabled={isChangingPassword}>
+                                Cancel
+                            </Button>
                             <Button type="button" className="bg-[#6C5DD3] hover:bg-[#5b4eb8]" onClick={handleConfirmPasswordChange} disabled={isChangingPassword}>
                                 {isChangingPassword ? "Updating..." : "Update Password"}
                             </Button>
@@ -707,7 +755,7 @@ export default function StudentSettingsPage() {
                     </div>
                 </div>
             )}
-        </div>
+        </StudentPageContainer>
     );
 }
 

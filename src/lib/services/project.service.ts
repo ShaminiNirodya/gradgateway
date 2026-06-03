@@ -49,22 +49,22 @@ export class ProjectService {
   }
 
   static async getStudentProjects(token: string, studentProfileId: string): Promise<ProjectItem[]> {
-    // For now, fetch all projects and filter client-side
-    // TODO: Create backend endpoint to fetch projects by student profile ID
-    try {
-      const response = await fetch(API_ENDPOINTS.PROJECTS.ME, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) return [];
-      
-      const projects = await response.json() as ProjectItem[];
-      return projects;
-    } catch {
+    const id = studentProfileId?.trim();
+    if (!id) {
       return [];
     }
+
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    };
+
+    const primary = await fetch(API_ENDPOINTS.STUDENTS.PROJECTS(id), { headers });
+    if (primary.ok) {
+      return primary.json() as Promise<ProjectItem[]>;
+    }
+
+    const fallback = await fetch(API_ENDPOINTS.PROJECTS.BY_STUDENT(id), { headers });
+    return getJsonOrThrow<ProjectItem[]>(fallback, 'Failed to load student projects');
   }
 }

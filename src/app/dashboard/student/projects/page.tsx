@@ -1,9 +1,19 @@
 "use client";
 
-import { Search, Calendar, Download, Plus, Globe, Github, Trash2 } from "lucide-react";
+import {
+  Search,
+  Calendar,
+  Download,
+  Plus,
+  Globe,
+  Github,
+  Trash2,
+  FolderOpen,
+  Loader2,
+  ExternalLink,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -12,6 +22,7 @@ import { AuthService } from "@/lib/services/auth.service";
 import { ProjectService } from "@/lib/services/project.service";
 import { ProjectItem } from "@/lib/types/project";
 import { useStudentProfile } from "@/lib/hooks/useStudentProfile";
+import { StudentPageContainer } from "@/components/layout/student/StudentPageContainer";
 
 export default function StudentProjectsPortfolio() {
   const { show } = useToast();
@@ -53,11 +64,6 @@ export default function StudentProjectsPortfolio() {
         project.techStack.toLowerCase().includes(term)
     );
   }, [projects, search]);
-
-  const totalPublic = useMemo(
-    () => projects.filter((project) => project.isPublic).length,
-    [projects]
-  );
 
   const fileStamp = () => {
     const d = new Date();
@@ -155,156 +161,195 @@ export default function StudentProjectsPortfolio() {
   };
 
   return (
-    <div className="space-y-8">
+    <StudentPageContainer>
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#5b4eb8] via-[#6C5DD3] to-[#8a7cff] p-6 text-white shadow-lg sm:p-8">
+        <div
+          className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl"
+          aria-hidden
+        />
+        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 items-start gap-4">
+            <Avatar className="h-14 w-14 shrink-0 border-2 border-white/30 shadow-md sm:h-16 sm:w-16">
+              <AvatarImage src={profile?.photoDataUrl} alt={displayName} />
+              <AvatarFallback className="bg-white/20 text-lg font-bold text-white">{initials}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">Portfolio</p>
+              <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">My Project Portfolio</h1>
+              <p className="mt-1 text-sm font-medium text-white/80">
+                Showcase your work to recruiters and companies
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            <Button
+              asChild
+              className="h-10 rounded-xl border-0 bg-white text-[#6C5DD3] shadow-md hover:bg-white/95"
+            >
+              <Link href="/dashboard/student/projects/new">
+                <Plus className="mr-2 h-4 w-4" /> New Project
+              </Link>
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={exportCSV}
+              className="h-10 rounded-xl border border-white/20 bg-white/15 text-white hover:bg-white/25"
+            >
+              <Download className="mr-2 h-4 w-4" /> Export CSV
+            </Button>
+          </div>
+        </div>
+      </div>
+
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+        <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
         <Input
-          placeholder="Search projects by title, description, or tech stack..."
+          placeholder="Search by title, description, or tech stack..."
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          className="w-full bg-white border-none rounded-2xl h-14 pl-12 text-slate-600 shadow-sm placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-[#6C5DD3]"
+          className="h-12 w-full rounded-2xl border border-slate-200/80 bg-white pl-12 text-slate-700 shadow-sm placeholder:text-slate-400 focus-visible:border-[#6C5DD3]/40 focus-visible:ring-2 focus-visible:ring-[#6C5DD3]/20"
         />
       </div>
 
-      <div className="relative rounded-[30px] p-8 text-white overflow-hidden shadow-xl bg-gradient-to-br from-[#5b4eb8] via-[#6C5DD3] to-[#8a7cff]">
-        <div className="relative z-10 flex items-start justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <Avatar className="h-16 w-16 border-4 border-white/20 shadow-lg">
-              <AvatarImage src={profile?.photoDataUrl} alt={displayName} />
-              <AvatarFallback className="bg-white/20 text-white text-xl font-bold">{initials}</AvatarFallback>
-            </Avatar>
-            <div>
-              <h1 className="text-2xl lg:text-3xl font-extrabold mb-2">My Project Portfolio</h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button asChild variant="secondary">
-              <Link href="/dashboard/student/projects/new">
-                <Plus className="w-4 h-4 mr-2" /> New Project
-              </Link>
-            </Button>
-            <Button variant="secondary" onClick={exportCSV}>
-              <Download className="w-4 h-4 mr-2" /> Export CSV
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 mt-6">
-          <StatCard label="Total Projects" value={projects.length} />
-        </div>
-      </div>
-
       {loading ? (
-        <div className="bg-white rounded-[24px] p-10 text-center shadow-sm">
-          <p className="text-slate-700 font-bold">Loading projects...</p>
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200/80 bg-white py-16 shadow-sm">
+          <Loader2 className="h-8 w-8 animate-spin text-[#6C5DD3]" />
+          <p className="text-sm font-bold text-slate-600">Loading your projects...</p>
         </div>
       ) : filteredProjects.length === 0 ? (
-        <div className="bg-white rounded-[24px] p-10 text-center shadow-sm">
-          <p className="text-slate-700 font-bold">No projects found</p>
-          <p className="text-slate-500 text-sm mt-1">Create a project or adjust your search query.</p>
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-14 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-50 text-[#6C5DD3]">
+            <FolderOpen className="h-7 w-7" />
+          </div>
+          <p className="text-lg font-extrabold text-slate-800">No projects found</p>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
+            {search.trim()
+              ? "Try a different search term or clear the filter."
+              : "Add your first project to start building your portfolio."}
+          </p>
+          {!search.trim() && (
+            <Button asChild className="mt-6 rounded-xl bg-[#6C5DD3] hover:bg-[#5b4eb8]">
+              <Link href="/dashboard/student/projects/new">
+                <Plus className="mr-2 h-4 w-4" /> Create Project
+              </Link>
+            </Button>
+          )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           {filteredProjects.map((project) => {
             const skills = project.techStack
               .split(",")
               .map((item) => item.trim())
               .filter(Boolean)
               .slice(0, 4);
+            const hasImage = project.images && project.images.length > 0;
 
             return (
-              <div key={project.id} className="bg-white rounded-[24px] shadow-sm border border-slate-100 overflow-hidden">
-                {/* Image Thumbnail */}
-                {project.images && project.images.length > 0 ? (
-                  <div className="w-full h-40 overflow-hidden bg-slate-100">
+              <article
+                key={project.id}
+                className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#6C5DD3]/25 hover:shadow-lg"
+              >
+                <div className="relative h-44 overflow-hidden bg-slate-100">
+                  {hasImage ? (
                     <img
-                      src={project.images[0].imageUrl}
+                      src={project.images![0].imageUrl}
                       alt={project.title}
-                      className="w-full h-full object-cover"
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                     />
-                  </div>
-                ) : (
-                  <div className="w-full h-40 bg-gradient-to-br from-[#5b4eb8] via-[#6C5DD3] to-[#8a7cff] flex items-center justify-center">
-                    <span className="text-white text-sm font-medium opacity-60">No image</span>
-                  </div>
-                )}
-
-                <div className="p-6 space-y-4">
-                    <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-lg">{project.title}</h3>
-                      <p className="text-sm text-slate-500 line-clamp-2 mt-1">{project.description}</p>
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#5b4eb8] via-[#6C5DD3] to-[#8a7cff]">
+                      <span className="text-sm font-semibold text-white/70">No preview image</span>
                     </div>
-                    {/* Removed Public/Private badge per request */}
+                  )}
+                  <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/40 to-transparent" />
+                </div>
+
+                <div className="flex flex-1 flex-col gap-4 p-5">
+                  <div className="min-w-0">
+                    <h3 className="line-clamp-2 text-lg font-extrabold leading-snug text-slate-900">
+                      {project.title}
+                    </h3>
+                    <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-slate-500">
+                      {project.description}
+                    </p>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    {skills.map((skill) => (
-                      <span key={skill} className="px-2 py-1 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700">
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
+                  {skills.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {skills.map((skill) => (
+                        <span
+                          key={skill}
+                          className="rounded-lg bg-violet-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#6C5DD3]"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <Calendar className="w-4 h-4" />
+                  <div className="mt-auto space-y-3 border-t border-slate-100 pt-4">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                      <Calendar className="h-3.5 w-3.5 shrink-0" />
                       <span>{formatDate(project.updatedAt)}</span>
                     </div>
-                    <div className="flex items-center gap-2">
+
+                    <div className="flex flex-wrap items-center gap-2">
                       {project.repositoryUrl && (
-                        <Button asChild variant="outline" size="sm">
+                        <Button asChild variant="outline" size="sm" className="h-8 rounded-lg text-xs">
                           <a href={project.repositoryUrl} target="_blank" rel="noopener noreferrer">
-                            <Github className="w-4 h-4 mr-1" /> Code
+                            <Github className="mr-1 h-3.5 w-3.5" /> Code
                           </a>
                         </Button>
                       )}
                       {project.demoUrl && (
-                        <Button asChild variant="outline" size="sm">
+                        <Button asChild variant="outline" size="sm" className="h-8 rounded-lg text-xs">
                           <a href={project.demoUrl} target="_blank" rel="noopener noreferrer">
-                            <Globe className="w-4 h-4 mr-1" /> Demo
+                            <Globe className="mr-1 h-3.5 w-3.5" /> Demo
                           </a>
                         </Button>
                       )}
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => setDeleteConfirm(project.id)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                        className="h-8 rounded-lg border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                        aria-label="Delete project"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
-                      <Button asChild size="sm">
-                        <Link href={`/dashboard/student/projects/${project.id}`}>View</Link>
+                      <Button
+                        asChild
+                        size="sm"
+                        className="ml-auto h-8 rounded-lg bg-[#6C5DD3] text-xs hover:bg-[#5b4eb8]"
+                      >
+                        <Link href={`/dashboard/student/projects/${project.id}`}>
+                          View <ExternalLink className="ml-1 h-3 w-3 opacity-80" />
+                        </Link>
                       </Button>
                     </div>
                   </div>
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>
       )}
 
-      <Separator className="my-6" />
-      <div className="bg-white rounded-[24px] p-6 shadow-sm">
-        <h4 className="text-sm font-bold text-slate-800 mb-2">Need Help?</h4>
-        <p className="text-xs text-slate-500">Contact support team</p>
-        <Button asChild variant="secondary">
-          <Link href="/help">Get Support</Link>
-        </Button>
-      </div>
-
       {deleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
-            <h3 className="text-lg font-bold text-slate-800 mb-2">Delete Project</h3>
-            <p className="text-sm text-slate-600 mb-6">
-              Are you sure you want to delete this project? This action cannot be undone.
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-red-50 text-red-600">
+              <Trash2 className="h-6 w-6" />
+            </div>
+            <h3 className="text-center text-lg font-extrabold text-slate-900">Delete project?</h3>
+            <p className="mb-6 mt-2 text-center text-sm text-slate-600">
+              This cannot be undone. The project will be removed from your portfolio.
             </p>
-            <div className="flex gap-3 justify-end">
+            <div className="flex gap-3">
               <Button
-                variant="outline"
+                variant="soft"
+                className="flex-1"
                 onClick={() => setDeleteConfirm(null)}
                 disabled={deleting}
               >
@@ -314,7 +359,7 @@ export default function StudentProjectsPortfolio() {
                 variant="destructive"
                 onClick={() => handleDelete(deleteConfirm)}
                 disabled={deleting}
-                className="bg-red-600 hover:bg-red-700"
+                className="flex-1 rounded-xl bg-red-600 hover:bg-red-700"
               >
                 {deleting ? "Deleting..." : "Delete"}
               </Button>
@@ -322,15 +367,7 @@ export default function StudentProjectsPortfolio() {
           </div>
         </div>
       )}
-    </div>
+    </StudentPageContainer>
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="bg-white/10 rounded-2xl p-5">
-      <p className="text-xs text-white/80 font-semibold">{label}</p>
-      <h3 className="text-2xl font-extrabold tracking-tight">{value}</h3>
-    </div>
-  );
-}

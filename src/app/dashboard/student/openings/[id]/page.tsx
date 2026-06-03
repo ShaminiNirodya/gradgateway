@@ -13,11 +13,13 @@ import {
   Clock,
   CheckCircle2,
 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { AuthService } from "@/lib/services/auth.service";
 import { DashboardService } from "@/lib/services/dashboard.service";
 import { OpportunityItem } from "@/lib/types/dashboard";
+import { companyProfilePath } from "@/lib/utils/slug";
 
 export default function JobDetailPage() {
   const router = useRouter();
@@ -119,9 +121,14 @@ export default function JobDetailPage() {
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
               <div>
                 <h1 className="text-3xl font-bold text-slate-800 mb-2">{job.title}</h1>
-                <div className="flex items-center gap-2 text-slate-600 mb-3">
-                  <Building2 className="w-5 h-5" />
-                  <span className="text-lg font-semibold">{job.companyName}</span>
+                <div className="mb-3 flex items-center gap-2 text-slate-600">
+                  <Building2 className="h-5 w-5 shrink-0" />
+                  <Link
+                    href={`${companyProfilePath(job.companyName, job.companyProfileId)}&fromOpening=${encodeURIComponent(job.id)}`}
+                    className="text-lg font-semibold text-[#6C5DD3] underline-offset-2 hover:underline"
+                  >
+                    {job.companyName}
+                  </Link>
                 </div>
               </div>
             </div>

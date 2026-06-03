@@ -81,6 +81,22 @@ export class StudentService {
       throw new Error(error.message || 'Failed to fetch student directory');
     }
 
-    return response.json();
+    const rows = await response.json();
+    if (!Array.isArray(rows)) return [];
+
+    return rows.map((row: Record<string, unknown>) => ({
+      studentProfileId: String(row.studentProfileId ?? row.StudentProfileId ?? ''),
+      fullName: String(row.fullName ?? row.FullName ?? ''),
+      university: String(row.university ?? row.University ?? ''),
+      degree: String(row.degree ?? row.Degree ?? ''),
+      fieldOfMajor: String(row.fieldOfMajor ?? row.FieldOfMajor ?? ''),
+      gradYear: Number(row.gradYear ?? row.GradYear ?? 0),
+      currentYear: Number(row.currentYear ?? row.CurrentYear ?? 0),
+      gpa: Number(row.gpa ?? row.Gpa ?? 0),
+      email: String(row.email ?? row.Email ?? ''),
+      skills: String(row.skills ?? row.Skills ?? ''),
+      photoDataUrl: (row.photoDataUrl ?? row.PhotoDataUrl) as string | undefined,
+      availability: String(row.availability ?? row.Availability ?? ''),
+    }));
   }
 }

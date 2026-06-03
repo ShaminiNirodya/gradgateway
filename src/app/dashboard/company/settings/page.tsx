@@ -6,14 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2, Users2, CreditCard, Bell, Shield } from "lucide-react";
+import { Building2, CreditCard, Shield } from "lucide-react";
+import { CompanyPageContainer } from "@/components/layout/company/CompanyPageContainer";
+import { CompanyPageHeader } from "@/components/layout/company/CompanyPageHeader";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { AuthService } from "@/lib/services/auth.service";
 import { CompanyService } from "@/lib/services/company.service";
-import { CompanyTeamService } from "@/lib/services/company-team.service";
 import { DashboardService } from "@/lib/services/dashboard.service";
-import { CompanyProfile, TeamMember } from "@/lib/types/company";
+import { CompanyProfile } from "@/lib/types/company";
+import { auth } from "@/lib/firebase";
 
 const COMPANY_SIZE_OPTIONS = ["1-10 employees", "11-50 employees", "51-200 employees", "201-500 employees", "500+ employees"];
 
@@ -39,17 +41,18 @@ const emptyProfile: CompanyProfile = {
 };
 
 export default function CompanySettingsPage() {
-    const { user } = useAuth();
+    const { user, resetPassword, changePassword } = useAuth();
     const { show } = useToast();
     const [isLoading, setIsLoading] = useState(false);
     const [loadingPage, setLoadingPage] = useState(true);
     const [companySize, setCompanySize] = useState("51-200 employees");
     const [profile, setProfile] = useState<CompanyProfile>(emptyProfile);
-    const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-    const [teamLoading, setTeamLoading] = useState(false);
-    const [inviting, setInviting] = useState(false);
-    const [removingId, setRemovingId] = useState<string | null>(null);
-    const [inviteForm, setInviteForm] = useState({ name: "", email: "", role: "Recruiter" });
+    const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmNewPassword, setConfirmNewPassword] = useState("");
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
+    const [isSendingReset, setIsSendingReset] = useState(false);
     const [usage, setUsage] = useState<UsageStats>({
         activeJobs: 0,
         totalApplications: 0,
@@ -101,85 +104,91 @@ export default function CompanySettingsPage() {
             .join("");
     }, [profile.companyName]);
 
-    const loadTeamMembers = async () => {
-        setTeamLoading(true);
-        try {
-            const token = await AuthService.getIdToken();
-            if (!token) {
-                setTeamMembers([]);
-                return;
-            }
-
-            const rows = await CompanyTeamService.getMyTeam(token);
-            setTeamMembers(rows);
-        } catch (error: any) {
+    const handleSendResetLink = async () => {
+        const email = user?.email || auth.currentUser?.email;
+        if (!email) {
             show({
-                title: "Failed to load team",
-                description: error?.message || "Please try again.",
+                title: "Unable to reset password",
+                description: "Your account email is not available.",
                 variant: "error",
             });
-        } finally {
-            setTeamLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        loadTeamMembers();
-    }, []);
-
-    const handleInvite = async () => {
-        if (!inviteForm.name.trim() || !inviteForm.email.trim() || !inviteForm.role.trim()) {
-            show({ title: "Missing fields", description: "Name, email, and role are required.", variant: "warning" });
             return;
         }
 
-        setInviting(true);
         try {
-            const token = await AuthService.getIdToken();
-            if (!token) throw new Error("You must be signed in to invite members.");
-
-            const invited = await CompanyTeamService.inviteMember(token, {
-                name: inviteForm.name.trim(),
-                email: inviteForm.email.trim(),
-                role: inviteForm.role.trim(),
-            });
-
-            setTeamMembers((prev) => [invited, ...prev.filter((m) => m.id !== invited.id)]);
-            setInviteForm({ name: "", email: "", role: "Recruiter" });
-
+            setIsSendingReset(true);
+            await resetPassword(email);
             show({
-                title: "Invitation created",
-                description: `Invite sent to ${invited.email}.`,
+                title: "Reset email sent",
+                description: `Password reset instructions were sent to ${email}.`,
                 variant: "success",
             });
         } catch (error: any) {
             show({
-                title: "Invite failed",
-                description: error?.message || "Please try again.",
+                title: "Reset failed",
+                description: error?.message || "Could not send reset email.",
                 variant: "error",
             });
         } finally {
-            setInviting(false);
+            setIsSendingReset(false);
         }
     };
 
-    const handleRemove = async (memberId: string) => {
-        setRemovingId(memberId);
-        try {
-            const token = await AuthService.getIdToken();
-            if (!token) throw new Error("You must be signed in to remove members.");
+    const handleConfirmPasswordChange = async () => {
+        if (!currentPassword || !newPassword || !confirmNewPassword) {
+            show({ title: "Missing fields", description: "Please fill all password fields.", variant: "error" });
+            return;
+        }
 
-            await CompanyTeamService.removeMember(token, memberId);
-            setTeamMembers((prev) => prev.filter((m) => m.id !== memberId));
-            show({ title: "Member removed", variant: "success" });
+        if (newPassword.length < 6) {
+            show({ title: "Weak password", description: "New password must be at least 6 characters.", variant: "error" });
+            return;
+        }
+
+        if (newPassword !== confirmNewPassword) {
+            show({
+                title: "Passwords do not match",
+                description: "New password and confirm password must match.",
+                variant: "error",
+            });
+            return;
+        }
+
+        try {
+            setIsChangingPassword(true);
+            await changePassword(currentPassword, newPassword);
+
+            let emailNoticeSent = false;
+            const email = user?.email || auth.currentUser?.email;
+            if (email) {
+                try {
+                    await resetPassword(email);
+                    emailNoticeSent = true;
+                } catch {
+                    emailNoticeSent = false;
+                }
+            }
+
+            show({
+                title: "Password changed",
+                description: emailNoticeSent
+                    ? "Your password was updated and a security email was sent."
+                    : "Your password was updated successfully.",
+                variant: "success",
+            });
+
+            setCurrentPassword("");
+            setNewPassword("");
+            setConfirmNewPassword("");
+            setShowChangePasswordModal(false);
         } catch (error: any) {
             show({
-                title: "Remove failed",
-                description: error?.message || "Please try again.",
+                title: "Change failed",
+                description: error?.message || "Failed to change password.",
                 variant: "error",
             });
         } finally {
-            setRemovingId(null);
+            setIsChangingPassword(false);
         }
     };
 
@@ -219,27 +228,30 @@ export default function CompanySettingsPage() {
     };
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 pb-10">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Company Settings</h1>
-                    <p className="text-sm text-slate-500">Manage your organization profile and team members.</p>
-                </div>
-            </div>
+        <CompanyPageContainer>
+            <CompanyPageHeader
+                eyebrow="Account"
+                title="Company Settings"
+                subtitle="Manage your organization profile, security, and billing."
+                showSearch={false}
+                showNotifications={false}
+            />
 
             {loadingPage ? (
-                <div className="bg-white rounded-2xl p-8 shadow-sm border border-slate-100 text-sm text-slate-500">Loading company settings...</div>
+                <div className="rounded-2xl border border-slate-200/80 bg-white p-8 text-sm text-slate-500 shadow-sm">
+                    Loading company settings...
+                </div>
             ) : (
 
             <Tabs defaultValue="organization" className="w-full">
-                <TabsList className="bg-white rounded-xl p-1 shadow-sm border border-slate-100">
+                <TabsList className="rounded-2xl border border-slate-200/80 bg-white p-1 shadow-sm">
                     <TabsTrigger value="organization" className="rounded-lg data-[state=active]:bg-[#6C5DD3] data-[state=active]:text-white">
                         <Building2 className="w-4 h-4 mr-2" />
                         Organization
                     </TabsTrigger>
-                    <TabsTrigger value="team" className="rounded-lg data-[state=active]:bg-[#6C5DD3] data-[state=active]:text-white">
-                        <Users2 className="w-4 h-4 mr-2" />
-                        Team
+                    <TabsTrigger value="security" className="rounded-lg data-[state=active]:bg-[#6C5DD3] data-[state=active]:text-white">
+                        <Shield className="w-4 h-4 mr-2" />
+                        Security
                     </TabsTrigger>
                     <TabsTrigger value="billing" className="rounded-lg data-[state=active]:bg-[#6C5DD3] data-[state=active]:text-white">
                         <CreditCard className="w-4 h-4 mr-2" />
@@ -249,7 +261,7 @@ export default function CompanySettingsPage() {
 
                 {/* Organization Settings */}
                 <TabsContent value="organization" className="mt-6 space-y-6">
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
                         <div className="flex items-center gap-6 mb-8">
                             <div className="relative">
                                 <Avatar className="w-24 h-24 border-4 border-white shadow-lg rounded-xl">
@@ -318,110 +330,90 @@ export default function CompanySettingsPage() {
                     </div>
                 </TabsContent>
 
-                {/* Team Settings */}
-                <TabsContent value="team" className="mt-6 space-y-6">
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="font-bold text-lg text-slate-900">Team Members</h3>
+                {/* Security Settings */}
+                <TabsContent value="security" className="mt-6 space-y-6">
+                    <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+                        <div className="mb-6 flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-[#6C5DD3]">
+                                <Shield className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-extrabold text-slate-900">Account Security</h3>
+                                <p className="text-sm text-slate-500">
+                                    Change your sign-in password or request a reset link sent to your account email.
+                                </p>
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 p-4 border border-slate-100 rounded-xl mb-4">
-                            <Input
-                                placeholder="Full name"
-                                value={inviteForm.name}
-                                onChange={(event) => setInviteForm((prev) => ({ ...prev, name: event.target.value }))}
-                                className="rounded-xl"
-                            />
-                            <Input
-                                placeholder="Email"
-                                type="email"
-                                value={inviteForm.email}
-                                onChange={(event) => setInviteForm((prev) => ({ ...prev, email: event.target.value }))}
-                                className="rounded-xl"
-                            />
-                            <Input
-                                placeholder="Role"
-                                value={inviteForm.role}
-                                onChange={(event) => setInviteForm((prev) => ({ ...prev, role: event.target.value }))}
-                                className="rounded-xl"
-                            />
+                        <div className="mb-6 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Signed in as</p>
+                            <p className="mt-1 text-sm font-bold text-slate-800">
+                                {user?.email || profile.email || "—"}
+                            </p>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
                             <Button
-                                size="sm"
-                                className="rounded-xl bg-slate-900 text-white hover:bg-slate-800"
-                                onClick={handleInvite}
-                                disabled={inviting}
+                                variant="outline"
+                                className="rounded-xl"
+                                type="button"
+                                onClick={() => setShowChangePasswordModal(true)}
                             >
-                                <Users2 className="w-4 h-4 mr-2" />
-                                {inviting ? "Inviting..." : "Invite Member"}
+                                Change Password
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                className="rounded-xl"
+                                type="button"
+                                onClick={handleSendResetLink}
+                                disabled={isSendingReset}
+                            >
+                                {isSendingReset ? "Sending..." : "Send Reset Link"}
                             </Button>
                         </div>
 
-                        <div className="space-y-4">
-                            {teamLoading && (
-                                <div className="text-sm text-slate-500 p-3">Loading team members...</div>
-                            )}
-
-                            {!teamLoading && teamMembers.map((member) => (
-                                <div key={member.id} className="flex items-center justify-between p-4 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors">
-                                    <div className="flex items-center gap-4">
-                                        <Avatar className="w-10 h-10 bg-slate-200">
-                                            <AvatarFallback>{member.name.substring(0, 2)}</AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <p className="font-bold text-sm text-slate-800">{member.name}</p>
-                                            <p className="text-xs text-slate-500">{member.email}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${member.status === "Active" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
-                                            }`}>{member.status}</span>
-                                        <span className="text-xs text-slate-500">{member.role}</span>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="text-slate-400 hover:text-red-500"
-                                            onClick={() => handleRemove(member.id)}
-                                            disabled={removingId === member.id}
-                                        >
-                                            {removingId === member.id ? "Removing..." : "Remove"}
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-                            {!teamLoading && teamMembers.length === 0 && (
-                                <p className="text-sm text-slate-500">No team members found in real data.</p>
-                            )}
-                        </div>
+                        <p className="mt-4 text-xs text-slate-400">
+                            Use a strong password you do not reuse on other sites. Reset links expire after a short time.
+                        </p>
                     </div>
                 </TabsContent>
 
                 {/* Billing Settings */}
                 <TabsContent value="billing" className="mt-6 space-y-6">
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <h3 className="font-bold text-lg text-slate-900">Current Plan</h3>
-                                <p className="text-sm text-slate-500">You are on the <span className="font-bold text-[#6C5DD3]">Pro Plan</span></p>
+                    <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-start gap-3">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                                    <CreditCard className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-extrabold text-slate-900">Current Plan</h3>
+                                    <p className="text-sm text-slate-500">
+                                        You are on the <span className="font-bold text-[#6C5DD3]">Pro Plan</span>
+                                    </p>
+                                </div>
                             </div>
-                            <span className="bg-[#6C5DD3]/10 text-[#6C5DD3] px-3 py-1 rounded-full text-xs font-bold">Active</span>
+                            <span className="shrink-0 rounded-full bg-[#6C5DD3]/10 px-3 py-1 text-xs font-bold text-[#6C5DD3]">
+                                Active
+                            </span>
                         </div>
 
-                        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+                            <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
                                 <p className="text-xs text-slate-500 mb-1">Job Posts</p>
                                 <p className="text-xl font-bold text-slate-900">{usage.activeJobs} / 10</p>
                                 <div className="w-full bg-slate-200 h-1 mt-2 rounded-full overflow-hidden">
                                     <div className="bg-[#6C5DD3] h-full" style={{ width: `${Math.min(100, Math.round((usage.activeJobs / 10) * 100))}%` }}></div>
                                 </div>
                             </div>
-                            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                            <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
                                 <p className="text-xs text-slate-500 mb-1">Applications Received</p>
                                 <p className="text-xl font-bold text-slate-900">{usage.totalApplications} / 500</p>
                                 <div className="w-full bg-slate-200 h-1 mt-2 rounded-full overflow-hidden">
                                     <div className="bg-[#6C5DD3] h-full" style={{ width: `${Math.min(100, Math.round((usage.totalApplications / 500) * 100))}%` }}></div>
                                 </div>
                             </div>
-                            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                            <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
                                 <p className="text-xs text-slate-500 mb-1">Conversations</p>
                                 <p className="text-xl font-bold text-slate-900">{usage.conversations}</p>
                             </div>
@@ -435,6 +427,70 @@ export default function CompanySettingsPage() {
                 </TabsContent>
             </Tabs>
             )}
-        </div>
+
+            {showChangePasswordModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+                        onClick={() => setShowChangePasswordModal(false)}
+                    />
+                    <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+                        <h3 className="mb-1 text-xl font-bold text-slate-900">Change Password</h3>
+                        <p className="mb-5 text-sm text-slate-500">
+                            Enter your current password and choose a new one.
+                        </p>
+
+                        <div className="space-y-4">
+                            <div className="space-y-1">
+                                <Label>Current Password</Label>
+                                <Input
+                                    type="password"
+                                    value={currentPassword}
+                                    onChange={(e) => setCurrentPassword(e.target.value)}
+                                    className="rounded-xl"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <Label>New Password</Label>
+                                <Input
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    className="rounded-xl"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <Label>Confirm New Password</Label>
+                                <Input
+                                    type="password"
+                                    value={confirmNewPassword}
+                                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                                    className="rounded-xl"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex justify-end gap-2">
+                            <Button
+                                variant="softSurface"
+                                type="button"
+                                onClick={() => setShowChangePasswordModal(false)}
+                                disabled={isChangingPassword}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="button"
+                                className="bg-[#6C5DD3] hover:bg-[#5b4eb8]"
+                                onClick={handleConfirmPasswordChange}
+                                disabled={isChangingPassword}
+                            >
+                                {isChangingPassword ? "Updating..." : "Update Password"}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </CompanyPageContainer>
     );
 }

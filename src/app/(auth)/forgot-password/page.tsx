@@ -201,7 +201,7 @@ export default function ForgotPasswordPage() {
                     value={code}
                     onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     placeholder="000000"
-                    className="pl-12 h-12 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-indigo-600 focus:ring-0 transition-all font-mono text-lg tracking-widest"
+                    className="pl-12 h-12 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-indigo-600 focus:ring-0 transition-all font-sans text-lg tracking-widest"
                     maxLength={6}
                     disabled={loading}
                   />

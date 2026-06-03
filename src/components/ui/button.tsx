@@ -18,11 +18,15 @@ const buttonVariants = cva(
           "bg-indigo-50/50 text-[#6C5DD3] border border-white/80 shadow-[0_4px_12px_rgba(108,93,211,0.05)] hover:bg-indigo-100/60 hover:text-[#5b4eb8]",
         ghost:
           "text-slate-500 hover:bg-white/40 hover:text-slate-900 border border-transparent hover:border-white/20 shadow-none hover:shadow-sm",
+        soft:
+          "btn-soft !rounded-2xl !font-medium border-0 text-slate-800 backdrop-blur-none disabled:!opacity-45",
+        softSurface:
+          "btn-soft btn-soft-surface !rounded-2xl !font-medium border-0 text-slate-800 backdrop-blur-none disabled:!opacity-45",
         link: "text-[#6C5DD3] underline-offset-4 hover:underline p-0 h-auto self-center bg-transparent backdrop-blur-0",
       },
       size: {
         default: "h-12 px-8 py-2",
-        sm: "h-10 rounded-[16px] gap-1.5 px-5 text-sm",
+        sm: "h-10 rounded-2xl gap-1.5 px-5 text-sm",
         lg: "h-14 rounded-[24px] px-10 text-base",
         icon: "size-12 flex items-center justify-center p-0 rounded-full",
         "icon-sm": "size-10 flex items-center justify-center p-0 rounded-full",

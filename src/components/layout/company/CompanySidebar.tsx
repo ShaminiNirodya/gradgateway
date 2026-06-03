@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 import {
   LayoutGrid,
   Users2,
-  FilePlus2,
+  ClipboardList,
+  Briefcase,
   MessageSquare,
   Settings,
   LogOut,
@@ -17,12 +18,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useUnreadConversations } from "@/components/shared/UnreadConversationsProvider";
 import { UnreadMessageIndicator } from "@/components/shared/UnreadMessageIndicator";
-
 const navItems = [
   { name: "Dashboard", href: "/dashboard/company", icon: LayoutGrid },
   { name: "Talent Search", href: "/dashboard/company/talent", icon: Users2 },
-  { name: "Applications", href: "/dashboard/company/applications", icon: FilePlus2 },
-  { name: "Job Posts", href: "/dashboard/company/jobs", icon: FilePlus2 },
+  { name: "Applications", href: "/dashboard/company/applications", icon: ClipboardList },
+  { name: "Job Posts", href: "/dashboard/company/jobs", icon: Briefcase },
   { name: "Messages", href: "/dashboard/company/messages", icon: MessageSquare },
   { name: "Settings", href: "/dashboard/company/settings", icon: Settings },
 ];
@@ -44,12 +44,15 @@ export default function CompanySidebar() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white w-72 p-6 overflow-y-auto">
-      <div className="flex items-center gap-3 px-2 mb-12">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden">
-          <img src="/logo.svg" alt="GradGateway Logo" className="w-full h-full object-contain" />
+    <div className="flex h-full w-72 flex-col overflow-x-visible overflow-y-auto border-r border-slate-200/80 bg-white p-6">
+      <div className="mb-12 flex items-center gap-3 px-2">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl">
+          <img src="/logo.svg" alt="GradGateway Logo" className="h-full w-full object-contain" />
         </div>
-        <span className="font-extrabold text-2xl text-slate-800 tracking-tight">GradGateway<span className="text-slate-400 font-bold text-sm ml-1">Recruit</span></span>
+        <span className="min-w-0 font-extrabold text-2xl tracking-tight text-slate-800">
+          GradGateway
+          <span className="ml-1 text-sm font-bold text-slate-400">Recruit</span>
+        </span>
       </div>
 
       <div className="space-y-8 flex-1">
@@ -64,10 +67,10 @@ export default function CompanySidebar() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "relative flex items-center gap-4 px-4 py-3.5 rounded-[24px] text-sm font-bold transition-all duration-300",
+                    "relative flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors",
                     isActive
-                      ? "bg-[#6C5DD3] text-white shadow-lg shadow-indigo-200"
-                      : "text-slate-500 hover:text-[#6C5DD3] hover:bg-slate-50"
+                      ? "bg-[#6C5DD3] text-white"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-[#6C5DD3]"
                   )}
                 >
                   <span className="relative inline-flex shrink-0">
@@ -102,7 +105,7 @@ export default function CompanySidebar() {
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
             onClick={() => setShowLogoutConfirm(false)}
           />
-          <div className="relative bg-white rounded-[32px] p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-95 fade-in duration-300">
+          <div className="relative w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-xl animate-in zoom-in-95 fade-in duration-300">
             <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-6 mx-auto">
               <LogOut className="w-8 h-8 text-red-500" />
             </div>

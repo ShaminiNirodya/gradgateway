@@ -17,7 +17,9 @@ export interface OpportunityItem {
 
 export interface ApplicationItem {
   id: string;
-  opportunityId: string;
+  opportunityId?: string | null;
+  /** Set when the company sent a job offer (not a student-initiated opening apply). */
+  companyProfileId?: string | null;
   studentProfileId: string;
   jobTitle: string;
   companyName: string;
@@ -55,4 +57,17 @@ export interface ScheduleInterviewsResult {
   shortlistedCount: number;
   messagesSent: number;
   interviewsScheduled: number;
+  planSaved?: boolean;
+}
+
+export interface OpportunityInterviewPlan {
+  opportunityId: string;
+  tentativeDates: string[];
+  durationMinutes: number;
+  mode: string;
+  meetingLink?: string | null;
+  location?: string | null;
+  notes?: string | null;
+  updatedAt?: string | null;
+  shortlistedCount: number;
 }

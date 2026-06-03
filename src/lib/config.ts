@@ -13,10 +13,16 @@ export const API_ENDPOINTS = {
     REGISTER: `${API_URL}/api/students/register`,
     ME: `${API_URL}/api/students/me`,
     DIRECTORY: `${API_URL}/api/students/directory`,
+    PROJECTS: (studentProfileId: string) =>
+      `${API_URL}/api/students/${studentProfileId}/projects`,
   },
   COMPANIES: {
     REGISTER: `${API_URL}/api/companies/register`,
     ME: `${API_URL}/api/companies/me`,
+    PUBLIC: (companyProfileId: string) =>
+      `${API_URL}/api/companies/public/${companyProfileId}`,
+    PUBLIC_LEGACY: (companyProfileId: string) =>
+      `${API_URL}/api/companies/${companyProfileId}/public`,
   },
   COMPANY_TEAM: {
     ME: `${API_URL}/api/companyteam/me`,
@@ -26,14 +32,21 @@ export const API_ENDPOINTS = {
   },
   OPPORTUNITIES: {
     LIST: `${API_URL}/api/opportunities`,
+    EXPIRED_COUNT: `${API_URL}/api/opportunities/expired-count`,
     BY_ID: (id: string) => `${API_URL}/api/opportunities/${id}`,
+    COMPANY_PROFILE: (opportunityId: string) =>
+      `${API_URL}/api/opportunities/${opportunityId}/company-profile`,
     COMPANY_ME: `${API_URL}/api/opportunities/company/me`,
     CREATE: `${API_URL}/api/opportunities`,
     SCHEDULE_INTERVIEWS: (id: string) => `${API_URL}/api/opportunities/${id}/schedule-interviews`,
+    INTERVIEW_PLAN: (id: string) => `${API_URL}/api/opportunities/${id}/interview-plan`,
   },
   APPLICATIONS: {
     APPLY: `${API_URL}/api/applications/apply`,
+    RESPOND_JOB_OFFER: (conversationId: string) =>
+      `${API_URL}/api/applications/conversation/${conversationId}/offer-response`,
     STUDENT_ME: `${API_URL}/api/applications/student/me`,
+    SYNC_OFFER_REPLIES: `${API_URL}/api/applications/student/sync-offer-replies`,
     COMPANY_ME: `${API_URL}/api/applications/company/me`,
     UPDATE_STATUS: (id: string) => `${API_URL}/api/applications/${id}/status`,
     CREATE_JOB_OFFER: `${API_URL}/api/applications/job-offer`,
@@ -46,6 +59,8 @@ export const API_ENDPOINTS = {
   PROJECTS: {
     ME: `${API_URL}/api/projects/me`,
     ME_BY_ID: (id: string) => `${API_URL}/api/projects/me/${id}`,
+    BY_STUDENT: (studentProfileId: string) =>
+      `${API_URL}/api/projects/student/${studentProfileId}`,
     DELETE: (id: string) => `${API_URL}/api/projects/${id}`,
   },
   NOTIFICATIONS: {

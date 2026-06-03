@@ -25,6 +25,11 @@ import {
 } from "@/lib/constants/field-of-major";
 import { FieldOfMajorSelect } from "@/components/shared/FieldOfMajorSelect";
 import { FieldOfMajorSubcategoriesNotice } from "@/components/shared/FieldOfMajorSubcategoriesNotice";
+import {
+  SELECT_UNSET,
+  fromControlledSelectValue,
+  toControlledSelectValue,
+} from "@/lib/utils/controlled-select";
 
 interface Step2Props {
   onNext: (data: AcademicInfoData) => void;
@@ -65,7 +70,10 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
             name="university"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={field.onChange} value={field.value}>
+              <Select
+                value={toControlledSelectValue(field.value)}
+                onValueChange={(val) => field.onChange(fromControlledSelectValue(val))}
+              >
                 <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3] data-[state=open]:border-[#6C5DD3]">
                   <div className="flex items-center gap-3 text-slate-700">
                     <GraduationCap className="w-5 h-5 text-[#6C5DD3]" />
@@ -73,6 +81,9 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
                   </div>
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-none shadow-xl max-h-72">
+                  <SelectItem value={SELECT_UNSET} disabled className="hidden">
+                    Select University
+                  </SelectItem>
                   {ALL_UNIVERSITIES.map((u) => (
                     <SelectItem key={u} value={u} className="rounded-lg my-1 cursor-pointer">{u}</SelectItem>
                   ))}
@@ -114,15 +125,16 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
             control={control}
             render={({ field }) => (
               <Select
+                value={toControlledSelectValue(field.value)}
                 onValueChange={(val) => {
-                  field.onChange(val);
+                  const next = fromControlledSelectValue(val);
+                  field.onChange(next);
                   const inferred = fieldOfMajorFromDegreeSelection(
-                    val,
+                    next,
                     (selectedFieldOfMajor as FieldOfMajorId) || ""
                   );
                   if (inferred) setValue("fieldOfMajor", inferred);
                 }}
-                value={field.value}
                 disabled={!selectedUniversity}
               >
                 <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3]">
@@ -136,6 +148,9 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
                   </div>
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-none shadow-xl max-h-72">
+                  <SelectItem value={SELECT_UNSET} disabled className="hidden">
+                    Select Degree
+                  </SelectItem>
                   {availableDegrees.map((d) => (
                     <SelectItem key={d} value={d} className="rounded-lg my-1 cursor-pointer">{d}</SelectItem>
                   ))}
@@ -152,7 +167,15 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
             name="currentYear"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={(val) => field.onChange(parseInt(val))} value={field.value?.toString()}>
+              <Select
+                value={toControlledSelectValue(
+                  field.value != null ? String(field.value) : ""
+                )}
+                onValueChange={(val) => {
+                  const next = fromControlledSelectValue(val);
+                  field.onChange(next === "" ? undefined : parseInt(next, 10));
+                }}
+              >
                 <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3]">
                   <div className="flex items-center gap-3 text-slate-700">
                     <GraduationCap className="w-5 h-5 text-[#6C5DD3]" />
@@ -160,6 +183,9 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
                   </div>
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-none shadow-xl">
+                  <SelectItem value={SELECT_UNSET} disabled className="hidden">
+                    Select Academic Year
+                  </SelectItem>
                   <SelectItem value="1" className="rounded-lg my-1 cursor-pointer">1st Year</SelectItem>
                   <SelectItem value="2" className="rounded-lg my-1 cursor-pointer">2nd Year</SelectItem>
                   <SelectItem value="3" className="rounded-lg my-1 cursor-pointer">3rd Year</SelectItem>

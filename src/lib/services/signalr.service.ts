@@ -1,73 +1,222 @@
 import * as signalR from '@microsoft/signalr';
+import { API_ENDPOINTS, API_URL } from '@/lib/config';
 import { AuthService } from './auth.service';
+
+const RETRY_MS_WHEN_API_DOWN = 15_000;
+const RECONNECT_DELAYS = [0, 2000, 5000, 10000, 30000];
+
+const globalForSignalR = globalThis as typeof globalThis & {
+  __gradgatewaySignalRService?: SignalRService;
+};
+
+function getSignalRHubUrl(): string {
+  if (typeof window === 'undefined') {
+    return `${API_URL}/hubs/chat`;
+  }
+
+  // Local dev: proxy /hubs/* via next.config rewrites (same origin as :3000).
+  if (window.location.hostname === 'localhost' && window.location.port === '3000') {
+    return '/hubs/chat';
+  }
+
+  return `${API_URL}/hubs/chat`;
+}
+
+async function isApiReachable(): Promise<boolean> {
+  try {
+    const response = await fetch(API_ENDPOINTS.AUTH.HEALTH, {
+      method: 'GET',
+      cache: 'no-store',
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
 
 class SignalRService {
   private connection: signalR.HubConnection | null = null;
-  private messageCallbacks: ((message: any) => void)[] = [];
-  private conversationCallbacks: ((data: any) => void)[] = [];
+  private startPromise: Promise<void> | null = null;
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
+  private hasConnectedOnce = false;
+  private intentionalStop = false;
+  private messageCallbacks: ((message: unknown) => void)[] = [];
+  private conversationCallbacks: ((data: unknown) => void)[] = [];
+  private notificationCallbacks: ((notification: unknown) => void)[] = [];
+
+  private async getAccessToken(): Promise<string> {
+    const token = await AuthService.getIdToken();
+    return token ?? '';
+  }
+
+  private buildConnection(): signalR.HubConnection {
+    const builder = new signalR.HubConnectionBuilder()
+      .withUrl(getSignalRHubUrl(), {
+        accessTokenFactory: () => this.getAccessToken(),
+        transport: signalR.HttpTransportType.WebSockets,
+        skipNegotiation: false,
+      })
+      .configureLogging(signalR.LogLevel.None);
+
+    if (this.hasConnectedOnce) {
+      builder.withAutomaticReconnect(RECONNECT_DELAYS);
+    }
+
+    return builder.build();
+  }
+
+  private wireHandlers(connection: signalR.HubConnection) {
+    connection.off('ReceiveMessage');
+    connection.off('ConversationUpdated');
+    connection.off('ReceiveNotification');
+
+    connection.on('ReceiveMessage', (message) => {
+      this.messageCallbacks.forEach((cb) => cb(message));
+    });
+
+    connection.on('ConversationUpdated', (data) => {
+      this.conversationCallbacks.forEach((cb) => cb(data));
+    });
+
+    connection.on('ReceiveNotification', (notification) => {
+      this.notificationCallbacks.forEach((cb) => cb(notification));
+    });
+
+    connection.onclose(() => {
+      if (this.intentionalStop) {
+        return;
+      }
+
+      if (this.connection === connection) {
+        this.connection = null;
+      }
+
+      this.scheduleRetryWhenApiDown();
+    });
+  }
+
+  private clearRetryTimer() {
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+    }
+  }
+
+  private scheduleRetryWhenApiDown() {
+    if (this.retryTimer) return;
+
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null;
+      void this.start();
+    }, RETRY_MS_WHEN_API_DOWN);
+  }
 
   async start() {
     if (this.connection?.state === signalR.HubConnectionState.Connected) {
       return;
     }
 
+    if (this.connection?.state === signalR.HubConnectionState.Connecting) {
+      return this.startPromise ?? undefined;
+    }
+
+    if (this.startPromise) {
+      return this.startPromise;
+    }
+
+    this.startPromise = this.connectInternal();
     try {
-      const token = await AuthService.getIdToken();
-      if (!token) {
-        console.warn('[SignalR] No auth token, skipping connection');
-        return;
+      await this.startPromise;
+    } finally {
+      this.startPromise = null;
+    }
+  }
+
+  private async connectInternal() {
+    const token = await this.getAccessToken();
+    if (!token) {
+      return;
+    }
+
+    if (!(await isApiReachable())) {
+      this.scheduleRetryWhenApiDown();
+      return;
+    }
+
+    this.clearRetryTimer();
+
+    if (this.connection) {
+      this.intentionalStop = true;
+      try {
+        await this.connection.stop();
+      } catch {
+        // Ignore stop errors while recycling the connection.
+      } finally {
+        this.intentionalStop = false;
       }
+      this.connection = null;
+    }
 
-      this.connection = new signalR.HubConnectionBuilder()
-        .withUrl('http://localhost:5160/hubs/chat', {
-          accessTokenFactory: () => token,
-        })
-        .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
-        .configureLogging(signalR.LogLevel.None) // Completely suppress all SignalR logs
-        .build();
+    const connection = this.buildConnection();
+    this.wireHandlers(connection);
+    this.connection = connection;
 
-      this.connection.on('ReceiveMessage', (message) => {
-        console.log('[SignalR] Received message:', message);
-        this.messageCallbacks.forEach((cb) => cb(message));
-      });
-
-      this.connection.on('ConversationUpdated', (data) => {
-        console.log('[SignalR] Conversation updated:', data);
-        this.conversationCallbacks.forEach((cb) => cb(data));
-      });
-
-      this.connection.onclose(() => {
-        console.log('[SignalR] Connection closed');
-      });
-
-      await this.connection.start();
-      console.log('[SignalR] Connected successfully');
-    } catch (error) {
-      // Silently fail - real-time features will be disabled but app continues working
-      console.warn('[SignalR] Real-time messaging unavailable. Chat will work in polling mode.');
+    try {
+      await connection.start();
+      this.hasConnectedOnce = true;
+    } catch {
+      this.connection = null;
+      this.scheduleRetryWhenApiDown();
     }
   }
 
   async stop() {
-    if (this.connection) {
+    this.clearRetryTimer();
+    this.startPromise = null;
+    this.hasConnectedOnce = false;
+
+    if (!this.connection) {
+      return;
+    }
+
+    this.intentionalStop = true;
+    try {
       await this.connection.stop();
-      console.log('[SignalR] Disconnected');
+    } catch {
+      // Ignore disconnect errors during sign-out.
+    } finally {
+      this.intentionalStop = false;
+      this.connection = null;
     }
   }
 
-  onMessage(callback: (message: any) => void) {
+  onMessage(callback: (message: unknown) => void) {
     this.messageCallbacks.push(callback);
     return () => {
       this.messageCallbacks = this.messageCallbacks.filter((cb) => cb !== callback);
     };
   }
 
-  onConversationUpdate(callback: (data: any) => void) {
+  onConversationUpdate(callback: (data: unknown) => void) {
     this.conversationCallbacks.push(callback);
     return () => {
       this.conversationCallbacks = this.conversationCallbacks.filter((cb) => cb !== callback);
     };
   }
+
+  onNotification(callback: (notification: unknown) => void) {
+    this.notificationCallbacks.push(callback);
+    return () => {
+      this.notificationCallbacks = this.notificationCallbacks.filter((cb) => cb !== callback);
+    };
+  }
 }
 
-export const signalRService = new SignalRService();
+function getSignalRService(): SignalRService {
+  if (!globalForSignalR.__gradgatewaySignalRService) {
+    globalForSignalR.__gradgatewaySignalRService = new SignalRService();
+  }
+  return globalForSignalR.__gradgatewaySignalRService;
+}
+
+export const signalRService = getSignalRService();

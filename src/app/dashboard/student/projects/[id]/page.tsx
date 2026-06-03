@@ -2,12 +2,22 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Github, Globe, Calendar, User, Lock, Globe2, Pencil } from "lucide-react";
+import {
+  ArrowLeft,
+  Github,
+  Globe,
+  Calendar,
+  User,
+  Pencil,
+  Loader2,
+  ExternalLink,
+} from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { AuthService } from "@/lib/services/auth.service";
 import { ProjectService } from "@/lib/services/project.service";
 import { ProjectItem } from "@/lib/types/project";
+import { StudentPageContainer } from "@/components/layout/student/StudentPageContainer";
 
 export default function ProjectDetailsPage() {
   const params = useParams();
@@ -79,145 +89,205 @@ export default function ProjectDetailsPage() {
   }, [project?.studentName]);
 
   const heroImage = useMemo(() => {
-    // Use first uploaded image if available
     if (project?.images && project.images.length > 0) {
       return project.images[0].imageUrl;
     }
 
-    // Fallback to Unsplash image
-    const keywords = [
-      techStack[0],
-      techStack[1],
-      normalizedTitle,
-      "software project",
-    ]
+    const keywords = [techStack[0], techStack[1], normalizedTitle, "software project"]
       .filter(Boolean)
       .join(",");
 
     return `https://source.unsplash.com/1600x900/?${encodeURIComponent(keywords)}`;
   }, [normalizedTitle, techStack, project?.images]);
 
+  const updatedLabel = project
+    ? new Date(project.updatedAt).toLocaleDateString("en-LK", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "";
+
   if (loading) {
-    return <div className="bg-white rounded-2xl p-8 shadow-sm">Loading project details...</div>;
+    return (
+      <StudentPageContainer>
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200/80 bg-white py-20 shadow-sm">
+          <Loader2 className="h-8 w-8 animate-spin text-[#6C5DD3]" />
+          <p className="text-sm font-bold text-slate-600">Loading project details...</p>
+        </div>
+      </StudentPageContainer>
+    );
   }
 
   if (!project) {
     return (
-      <div className="bg-white rounded-2xl p-8 shadow-sm space-y-4">
-        <h2 className="text-xl font-bold text-slate-800">Project not found</h2>
-        <Button asChild>
-          <Link href="/dashboard/student/projects">Back to Projects</Link>
-        </Button>
-      </div>
+      <StudentPageContainer>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-8 text-center shadow-sm">
+          <h2 className="font-serif text-xl font-extrabold text-slate-900">Project not found</h2>
+          <p className="mt-2 text-sm text-slate-500">This project may have been removed or you do not have access.</p>
+          <Button asChild variant="soft" className="mt-6">
+            <Link href="/dashboard/student/projects">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Projects
+            </Link>
+          </Button>
+        </div>
+      </StudentPageContainer>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto pb-20 space-y-8">
-      <div className="flex items-center justify-between gap-4">
-        <Button variant="ghost" asChild className="pl-0 group">
-          <Link href="/dashboard/student/projects">
-            <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+    <StudentPageContainer className="pb-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Button variant="soft" asChild className="w-fit">
+          <Link href="/dashboard/student/projects" className="group">
+            <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
             Back to Projects
           </Link>
         </Button>
-        <Button asChild className="bg-[#6C5DD3] hover:bg-[#5b4eb8]">
+        <Button asChild className="rounded-xl bg-[#6C5DD3] shadow-md shadow-indigo-200/50 hover:bg-[#5b4eb8]">
           <Link href={`/dashboard/student/projects/${id}/edit`}>
-            <Pencil className="w-4 h-4 mr-2" />
+            <Pencil className="mr-2 h-4 w-4" />
             Edit Project
           </Link>
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        <div className="lg:col-span-2 space-y-8">
-          <div className="rounded-3xl overflow-hidden border border-slate-100 shadow-sm">
-            <img
-              src={heroImage}
-              alt={`${normalizedTitle} visual`}
-              className="w-full h-64 md:h-80 object-cover"
-            />
-          </div>
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3 lg:gap-8">
+        <div className="space-y-6 lg:col-span-2">
+          <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+            <div className="relative">
+              <img
+                src={heroImage}
+                alt=""
+                className="h-56 w-full object-cover md:h-72"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/85 via-slate-900/25 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6">
+                <p className="mb-2 text-[10px] font-semibold text-white/90">
+                  Updated {updatedLabel}
+                </p>
+                <h1 className="font-serif text-2xl font-extrabold leading-tight text-white sm:text-3xl md:text-4xl">
+                  {normalizedTitle}
+                </h1>
+              </div>
+            </div>
+          </section>
 
-          <div className="rounded-3xl p-8 bg-gradient-to-br from-[#5b4eb8] via-[#6C5DD3] to-[#8a7cff] text-white shadow-lg">
-            <h1 className="text-3xl md:text-4xl font-bold">{normalizedTitle}</h1>
-            <p className="mt-4 text-indigo-100 leading-relaxed">{normalizedDescription}</p>
-          </div>
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-7">
+            <h2 className="text-sm font-bold uppercase tracking-[0.15em] text-[#6C5DD3]">About this project</h2>
+            <p className="mt-4 text-sm leading-relaxed text-slate-600 sm:text-base">{normalizedDescription}</p>
+          </section>
 
-          <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
-            <h2 className="font-bold text-xl text-slate-900 mb-5">Tech Stack</h2>
-            <div className="flex flex-wrap gap-2">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-7">
+            <h2 className="text-lg font-extrabold text-slate-900">Tech stack</h2>
+            <p className="mt-1 text-sm text-slate-500">Technologies and tools used in this build</p>
+            <div className="mt-5 flex flex-wrap gap-2">
               {techStack.map((tech) => (
-                <span key={tech} className="px-3 py-1.5 bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold border border-slate-100">
+                <span
+                  key={tech}
+                  className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-[#6C5DD3]/20 hover:bg-violet-50/80 hover:text-[#6C5DD3]"
+                >
                   {tech}
                 </span>
               ))}
-              {techStack.length === 0 && <p className="text-sm text-slate-500">No technologies listed.</p>}
+              {techStack.length === 0 && (
+                <p className="text-sm text-slate-500">No technologies listed yet.</p>
+              )}
             </div>
-          </div>
+          </section>
 
-          {project.images && project.images.length > 0 && (
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
-              <h2 className="font-bold text-xl text-slate-900 mb-5">Project Images</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {project.images.map((img) => (
-                  <div key={img.id} className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          {project.images && project.images.length > 1 && (
+            <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-7">
+              <h2 className="text-lg font-extrabold text-slate-900">Gallery</h2>
+              <p className="mt-1 text-sm text-slate-500">Additional screenshots and visuals</p>
+              <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {project.images.slice(1).map((img) => (
+                  <div
+                    key={img.id}
+                    className="overflow-hidden rounded-xl border border-slate-200/80 transition-all hover:border-[#6C5DD3]/25 hover:shadow-md"
+                  >
                     <img
                       src={img.imageUrl}
-                      alt={`Project image ${img.displayOrder + 1}`}
-                      className="w-full h-48 object-cover"
+                      alt={`Project screenshot ${img.displayOrder + 1}`}
+                      className="h-44 w-full object-cover"
                     />
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
           )}
         </div>
 
-        <div className="space-y-6 lg:sticky lg:top-8">
-          <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 space-y-6">
-            <div>
-              <h3 className="font-bold text-xs text-slate-400 uppercase tracking-wider mb-4">Project Links</h3>
-              <div className="flex flex-col gap-3">
-                <Button className="w-full justify-start h-12" asChild disabled={!project.repositoryUrl}>
-                  <a href={project.repositoryUrl || "#"} target="_blank" rel="noopener noreferrer">
-                    <Github className="w-4 h-4 mr-3" /> View Source Code
+        <aside className="space-y-6 lg:sticky lg:top-6">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+            <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Project links</h3>
+            <div className="mt-4 flex flex-col gap-3">
+              <Button
+                className="h-11 w-full justify-start rounded-xl bg-[#6C5DD3] hover:bg-[#5b4eb8] disabled:opacity-50"
+                asChild={!!project.repositoryUrl}
+                disabled={!project.repositoryUrl}
+              >
+                {project.repositoryUrl ? (
+                  <a href={project.repositoryUrl} target="_blank" rel="noopener noreferrer">
+                    <Github className="mr-2 h-4 w-4 shrink-0" />
+                    View source code
+                    <ExternalLink className="ml-auto h-3.5 w-3.5 opacity-70" />
                   </a>
-                </Button>
-                <Button variant="outline" className="w-full justify-start h-12" asChild disabled={!project.demoUrl}>
-                  <a href={project.demoUrl || "#"} target="_blank" rel="noopener noreferrer">
-                    <Globe className="w-4 h-4 mr-3" /> Project Demo
+                ) : (
+                  <span>
+                    <Github className="mr-2 h-4 w-4 shrink-0" />
+                    No repository linked
+                  </span>
+                )}
+              </Button>
+              <Button
+                variant={project.demoUrl ? "softSurface" : "soft"}
+                className="h-11 w-full justify-start rounded-xl disabled:opacity-50"
+                asChild={!!project.demoUrl}
+                disabled={!project.demoUrl}
+              >
+                {project.demoUrl ? (
+                  <a href={project.demoUrl} target="_blank" rel="noopener noreferrer">
+                    <Globe className="mr-2 h-4 w-4 shrink-0" />
+                    Project demo
+                    <ExternalLink className="ml-auto h-3.5 w-3.5 opacity-60" />
                   </a>
-                </Button>
-              </div>
-            </div>
-
-            <div className="w-full h-px bg-slate-100" />
-
-            <div className="space-y-4">
-              <h3 className="font-bold text-xs text-slate-400 uppercase tracking-wider">Details</h3>
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-[#6C5DD3]">
-                  <Calendar className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400 font-medium">Last Updated</p>
-                  <p className="text-sm font-bold text-slate-700">{new Date(project.updatedAt).toLocaleDateString("en-LK")}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-orange-500">
-                  <User className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400 font-medium">Owner</p>
-                  <p className="text-sm font-bold text-slate-700">{ownerName}</p>
-                </div>
-              </div>
+                ) : (
+                  <span>
+                    <Globe className="mr-2 h-4 w-4 shrink-0" />
+                    No demo linked
+                  </span>
+                )}
+              </Button>
             </div>
           </div>
-        </div>
+
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+            <h3 className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Details</h3>
+            <ul className="mt-4 space-y-4">
+              <li className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-[#6C5DD3]">
+                  <Calendar className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-400">Last updated</p>
+                  <p className="text-sm font-bold text-slate-800">{updatedLabel}</p>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
+                  <User className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-slate-400">Owner</p>
+                  <p className="text-sm font-bold text-slate-800">{ownerName}</p>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </aside>
       </div>
-    </div>
+    </StudentPageContainer>
   );
 }

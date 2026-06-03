@@ -39,6 +39,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
+
+      if (firebaseUser) {
+        const previousUid = sessionStorage.getItem('gg_firebase_uid');
+        if (previousUid !== firebaseUser.uid && mounted) {
+          setUserData(null);
+        }
+        try {
+          sessionStorage.setItem('gg_firebase_uid', firebaseUser.uid);
+        } catch {
+          // ignore storage issues
+        }
+      }
+
       if (mounted) {
         // Do not block route rendering while we fetch backend profile/role.
         setLoading(false);
@@ -87,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUserData(null);
           try {
             sessionStorage.removeItem('gg_user_data');
+            sessionStorage.removeItem('gg_firebase_uid');
           } catch {
             // ignore storage issues
           }
@@ -127,6 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserData(null);
     try {
       sessionStorage.removeItem('gg_user_data');
+      sessionStorage.removeItem('gg_firebase_uid');
     } catch {
       // ignore storage issues
     }

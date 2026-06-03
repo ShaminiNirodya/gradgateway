@@ -24,6 +24,12 @@ export default function Step2Recruiter({ onNext, onBack }: Step2Props) {
     formState: { errors },
   } = useForm<RecruiterInfoData>({
     resolver: zodResolver(recruiterInfoSchema),
+    defaultValues: {
+      recruiterName: "",
+      recruiterEmail: "",
+      recruiterPhone: "+94",
+      position: "",
+    },
   });
 
   return (

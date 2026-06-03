@@ -26,6 +26,7 @@ export function useUnreadConversationsState() {
         return;
       }
 
+      DashboardService.clearConversationsCache();
       const conversations = await DashboardService.getMyConversations(token);
       const count = conversations.filter((c) => Boolean(c.hasUnread)).length;
       setUnreadCount(count);
@@ -63,8 +64,6 @@ export function useUnreadConversationsState() {
   }, [refreshUnreadCount]);
 
   useEffect(() => {
-    void signalRService.start();
-
     const unsubscribeMessage = signalRService.onMessage((newMessage) => {
       const isFromMe =
         Boolean(user?.email) &&
