@@ -13,6 +13,8 @@ export const API_ENDPOINTS = {
     REGISTER: `${API_URL}/api/students/register`,
     ME: `${API_URL}/api/students/me`,
     DIRECTORY: `${API_URL}/api/students/directory`,
+    DIRECTORY_ENTRY: (studentProfileId: string) =>
+      `${API_URL}/api/students/${studentProfileId}/directory-entry`,
     PROJECTS: (studentProfileId: string) =>
       `${API_URL}/api/students/${studentProfileId}/projects`,
   },

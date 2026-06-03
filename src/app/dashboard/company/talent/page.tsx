@@ -69,6 +69,7 @@ type Candidate = {
   skills: string[];
   status: string;
   photoDataUrl?: string;
+  cvUrl?: string;
 };
 
 export default function TalentSearchPage() {
@@ -173,6 +174,7 @@ export default function TalentSearchPage() {
             skills: skillList,
             status: row.availability || "Available Now",
             photoDataUrl: row.photoDataUrl,
+            cvUrl: row.cvUrl,
           };
         }));
       } catch {
@@ -835,7 +837,14 @@ function CandidateCard({ c }: { c: Candidate }) {
 
       {/* Actions */}
       <section className="mt-auto border-t border-slate-100 bg-slate-50/40 px-5 py-4">
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2">
+          {c.cvUrl ? (
+            <Button asChild variant="outline" size="sm" className="rounded-lg border-slate-200 bg-white font-medium">
+              <a href={c.cvUrl} target="_blank" rel="noopener noreferrer">
+                View CV
+              </a>
+            </Button>
+          ) : null}
           <Button asChild variant="outline" size="sm" className="min-w-0 flex-1 rounded-lg border-slate-200 bg-white font-medium">
             <Link href={`/dashboard/company/messages?studentProfileId=${encodeURIComponent(c.id)}`}>Message</Link>
           </Button>

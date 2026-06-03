@@ -44,6 +44,12 @@ import {
 } from "@/lib/constants/application-status";
 import { resolveApplicationJobRole } from "@/lib/constants/job-positions";
 import { buildCompanyStudentProfileHref } from "@/lib/utils/company-student-profile-link";
+import {
+  applicationHighlightElementId,
+  scrollAndHighlightElement,
+} from "@/lib/utils/highlight-target";
+import { resolveApplicationIdFromNotification } from "@/lib/utils/notifications";
+import type { NotificationItem } from "@/lib/types/dashboard";
 import { CompanyPageContainer } from "@/components/layout/company/CompanyPageContainer";
 import {
   CompanyPageHeader,
@@ -54,6 +60,10 @@ export default function ApplicationManagement() {
   const jobIdParam = searchParams.get("jobId");
   const studentProfileIdParam = searchParams.get("studentProfileId");
   const studentNameParam = searchParams.get("studentName");
+  const jobTitleParam = searchParams.get("jobTitle");
+  const applicationIdParam = searchParams.get("applicationId");
+  const highlightParam = searchParams.get("highlight");
+  const filterParam = searchParams.get("filter");
   const viewParam = searchParams.get("view");
   const { show } = useToast();
 
@@ -92,6 +102,49 @@ export default function ApplicationManagement() {
     load();
   }, []);
 
+  useEffect(() => {
+    if (!filterParam) return;
+    if (filterParam === OFFERS_APPLICATION_FILTER_OPTION.filterKey) {
+      setStatusFilter(OFFERS_APPLICATION_FILTER_OPTION.filterKey);
+    }
+  }, [filterParam]);
+
+  const highlightApplicationId = useMemo(() => {
+    if (applicationIdParam) return applicationIdParam;
+    if (!applications.length) return null;
+    if (
+      !studentNameParam &&
+      !jobTitleParam &&
+      !studentProfileIdParam &&
+      !jobIdParam
+    ) {
+      return null;
+    }
+    const stub: NotificationItem = {
+      id: "",
+      type: "Application",
+      title: jobTitleParam ? "Offer accepted" : "New Application",
+      body:
+        studentNameParam && jobTitleParam
+          ? `${studentNameParam} is open for an interview for ${jobTitleParam}.`
+          : studentNameParam
+            ? `${studentNameParam} applied for ${jobTitleParam ?? ""}.`
+            : "",
+      isRead: true,
+      createdAt: new Date().toISOString(),
+      relatedStudentProfileId: studentProfileIdParam,
+      relatedOpportunityId: jobIdParam,
+    };
+    return resolveApplicationIdFromNotification(stub, applications);
+  }, [
+    applicationIdParam,
+    applications,
+    jobIdParam,
+    jobTitleParam,
+    studentNameParam,
+    studentProfileIdParam,
+  ]);
+
   const filtered = useMemo(() => {
     return applications
       .filter((application) => {
@@ -114,6 +167,13 @@ export default function ApplicationManagement() {
         (a, b) => new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime()
       );
   }, [applications, search, statusFilter, jobIdParam, studentProfileIdParam]);
+
+  useEffect(() => {
+    if (highlightParam !== "1" || !highlightApplicationId) return;
+    const isVisible = filtered.some((a) => a.id === highlightApplicationId);
+    if (!isVisible) return;
+    scrollAndHighlightElement(applicationHighlightElementId(highlightApplicationId));
+  }, [highlightParam, highlightApplicationId, filtered]);
 
   const studentFilterLabel =
     studentNameParam ||
@@ -358,6 +418,7 @@ export default function ApplicationManagement() {
           {filtered.map((application) => (
             <div
               key={application.id}
+              id={applicationHighlightElementId(application.id)}
               className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#6C5DD3]/20 hover:shadow-md"
             >
               <div className="flex items-start justify-between">
@@ -433,7 +494,11 @@ export default function ApplicationManagement() {
             </thead>
             <tbody>
               {filtered.map((application) => (
-                <tr key={application.id} className="border-b border-slate-50">
+                <tr
+                  key={application.id}
+                  id={applicationHighlightElementId(application.id)}
+                  className="border-b border-slate-50"
+                >
                   <td className="p-4">
                     <div className="font-semibold text-slate-800">{application.studentName}</div>
                     <div className="text-xs text-slate-500">{application.studentEmail}</div>

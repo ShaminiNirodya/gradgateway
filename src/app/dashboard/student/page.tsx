@@ -1,5 +1,5 @@
 "use client";
-import { Search, FolderOpen, FileText, MessageSquare, PlayCircle, Award, BadgeCheck, Info, Plus, Zap, X, CheckCircle2, UserCircle, Target } from "lucide-react";
+import { Search, FolderOpen, FileText, MessageSquare, PlayCircle, Award, BadgeCheck, Info, Plus, Zap, X, CheckCircle2, UserCircle, Target, ScrollText } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -198,10 +198,17 @@ export default function StudentDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-2 items-stretch gap-3 lg:grid-cols-4 lg:gap-4">
+      <div className="grid grid-cols-2 items-stretch gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4">
         <StatCard icon={<FolderOpen className="w-3.5 h-3.5" />} label="Projects" value={String(projects.length)} href="/dashboard/student/projects" />
         <StatCard icon={<FileText className="w-3.5 h-3.5" />} label="Applications" value={`${activeApplications} active`} href="/dashboard/student/applications" />
         <StatCard icon={<MessageSquare className="w-3.5 h-3.5" />} label="Messages" value={`${newMessagesCount} new`} href="/dashboard/student/messages" />
+        <StatCard
+          icon={<ScrollText className="w-3.5 h-3.5" />}
+          label="CV"
+          value={profile?.cvUrl ? "Visit CV" : "Upload CV"}
+          externalHref={profile?.cvUrl || undefined}
+          href={profile?.cvUrl ? undefined : "/dashboard/student/settings"}
+        />
 
         <div className={cn(STAT_CARD_CLASS, "hover:translate-y-0")}>
           <div className="flex h-full items-center gap-3">
@@ -501,14 +508,17 @@ function StatCard({
   label,
   value,
   href,
+  externalHref,
 }: {
   icon: ReactNode;
   label: string;
   value: string;
   href?: string;
+  externalHref?: string;
 }) {
+  const isClickable = Boolean(href || externalHref);
   const content = (
-    <div className={cn(STAT_CARD_CLASS, href && "cursor-pointer")}>
+    <div className={cn(STAT_CARD_CLASS, isClickable && "cursor-pointer")}>
       <div className="flex h-full items-center gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#6C5DD3]/10 text-[#6C5DD3] transition-colors group-hover:bg-[#6C5DD3]/15">
           {icon}
@@ -522,6 +532,19 @@ function StatCard({
       </div>
     </div>
   );
+  if (externalHref) {
+    return (
+      <a
+        href={externalHref}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C5DD3]/30"
+      >
+        {content}
+      </a>
+    );
+  }
+
   return href ? (
     <Link href={href} className="block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C5DD3]/30 rounded-2xl">
       {content}

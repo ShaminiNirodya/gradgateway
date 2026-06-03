@@ -4,6 +4,7 @@ export interface StudentRegistration {
   fullName: string;
   phone: string;
   photoDataUrl?: string;
+  cvUrl?: string;
   university: string;
   studentId?: string;
   degree: string;
@@ -22,6 +23,7 @@ export interface StudentProfile {
   fullName: string;
   phone: string;
   photoDataUrl?: string;
+  cvUrl?: string;
   university: string;
   studentId: string;
   degree: string;

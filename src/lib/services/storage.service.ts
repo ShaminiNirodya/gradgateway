@@ -14,6 +14,55 @@ export class StorageService {
    * @param studentId The student ID for organizing storage
    * @returns Promise resolving to the download URL
    */
+  private static readonly CV_ALLOWED_TYPES = new Set([
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ]);
+
+  private static readonly CV_MAX_BYTES = 10 * 1024 * 1024;
+
+  static validateCvFile(file: File): void {
+    const lowerName = file.name.toLowerCase();
+    const hasAllowedExtension =
+      lowerName.endsWith(".pdf") ||
+      lowerName.endsWith(".doc") ||
+      lowerName.endsWith(".docx");
+
+    if (
+      !this.CV_ALLOWED_TYPES.has(file.type) &&
+      !(file.type === "" && hasAllowedExtension)
+    ) {
+      throw new Error("CV must be a PDF or Word document (.pdf, .doc, .docx).");
+    }
+
+    if (file.size > this.CV_MAX_BYTES) {
+      throw new Error("CV must be under 10MB.");
+    }
+  }
+
+  /**
+   * Upload a student CV to Firebase Storage (PDF or Word).
+   */
+  static async uploadStudentCv(file: File, firebaseUid: string): Promise<string> {
+    try {
+      this.validateCvFile(file);
+      const timestamp = Date.now();
+      const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+      const filename = `${firebaseUid}/${timestamp}-${safeName}`;
+      const storageRef = ref(storage, `student-cvs/${filename}`);
+
+      await uploadBytes(storageRef, file, {
+        contentType: file.type || "application/octet-stream",
+      });
+      return await getDownloadURL(storageRef);
+    } catch (error) {
+      console.error("Error uploading CV:", error);
+      if (error instanceof Error) throw error;
+      throw new Error("Failed to upload CV to Firebase Storage");
+    }
+  }
+
   static async uploadProfilePicture(
     file: File,
     studentId: string

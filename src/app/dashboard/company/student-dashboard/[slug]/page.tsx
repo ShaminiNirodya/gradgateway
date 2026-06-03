@@ -44,6 +44,7 @@ type DirectoryCandidate = {
 	email: string;
 	skills: string;
 	photoDataUrl?: string;
+	cvUrl?: string;
 	availability: string;
 };
 
@@ -222,14 +223,25 @@ export default function CompanyStudentDashboardPreviewPage() {
 
 				const profileId = (candidateId || found?.studentProfileId || "").trim();
 
-				setCandidate(
-					found
-						? {
-								...found,
-								studentProfileId: profileId || found.studentProfileId,
-							}
-						: null
-				);
+				let merged = found
+					? {
+							...found,
+							studentProfileId: profileId || found.studentProfileId,
+						}
+					: null;
+
+				if (profileId) {
+					try {
+						const fresh = await StudentService.getStudentDirectoryEntry(token, profileId);
+						if (fresh) {
+							merged = merged ? { ...merged, ...fresh } : fresh;
+						}
+					} catch {
+						// keep directory match if refresh fails
+					}
+				}
+
+				setCandidate(merged);
 				setCompanyApplications(apps);
 				setConversations(convs);
 
@@ -407,10 +419,37 @@ export default function CompanyStudentDashboardPreviewPage() {
 							</div>
 						</div>
 
-						<div className="flex shrink-0 gap-2 lg:self-start">
-							<Button asChild variant="outline" size="sm" className="whitespace-nowrap">
+						<div className="flex w-full shrink-0 flex-col gap-2 sm:flex-row sm:items-stretch lg:w-[30rem] lg:self-start">
+							{candidate.cvUrl ? (
+								<Button
+									asChild
+									size="sm"
+									className="h-10 w-full flex-1 basis-0 justify-center bg-[#6C5DD3] px-3 hover:bg-[#5b4eb8]"
+								>
+									<a href={candidate.cvUrl} target="_blank" rel="noopener noreferrer">
+										<FileText className="mr-2 h-4 w-4 shrink-0" />
+										View CV
+									</a>
+								</Button>
+							) : (
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									disabled
+									className="h-10 w-full flex-1 basis-0 justify-center px-3 text-xs font-medium text-slate-400"
+								>
+									No CV
+								</Button>
+							)}
+							<Button
+								asChild
+								variant="outline"
+								size="sm"
+								className="h-10 w-full flex-1 basis-0 justify-center px-3"
+							>
 								<Link href={openChatHref}>
-									<MessageSquare className="mr-2 h-4 w-4" />
+									<MessageSquare className="mr-2 h-4 w-4 shrink-0" />
 									{hasConversation ? "Open Chat" : "Start Chat"}
 								</Link>
 							</Button>
@@ -418,6 +457,8 @@ export default function CompanyStudentDashboardPreviewPage() {
 								candidateName={candidate.fullName}
 								studentProfileId={candidate.studentProfileId}
 								existingConversationId={existingConversation?.id}
+								size="sm"
+								className="h-10 flex-1 basis-0 px-3"
 							/>
 						</div>
 					</div>

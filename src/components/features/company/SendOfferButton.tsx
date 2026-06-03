@@ -15,11 +15,14 @@ import {
   buildPostedJobTitle,
   isOtherJobCategory,
 } from "@/lib/constants/job-positions";
+import { cn } from "@/lib/utils";
 
 type SendOfferButtonProps = {
   candidateName: string;
   studentProfileId?: string;
   existingConversationId?: string | null;
+  className?: string;
+  size?: "default" | "sm" | "lg" | "icon" | "icon-sm" | "icon-lg";
 };
 
 const INITIAL_FORM = {
@@ -36,6 +39,8 @@ export default function SendOfferButton({
   candidateName,
   studentProfileId,
   existingConversationId,
+  className,
+  size = "default",
 }: SendOfferButtonProps) {
   const { show } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -192,8 +197,9 @@ export default function SendOfferButton({
 
   return (
     <>
-      <Button onClick={openModal}>
-        <Send className="w-4 h-4 mr-2" /> Send Job Offer
+      <Button onClick={openModal} size={size} className={cn("w-full justify-center whitespace-nowrap", className)}>
+        <Send className="mr-2 h-4 w-4 shrink-0" />
+        Send Job Offer
       </Button>
 
       {isOpen && (

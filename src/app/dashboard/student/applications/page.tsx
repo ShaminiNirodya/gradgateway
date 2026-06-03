@@ -11,7 +11,8 @@ import {
   List as ListIcon,
 } from "lucide-react";
 import Link from "next/link";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AuthService } from "@/lib/services/auth.service";
 import { DashboardService } from "@/lib/services/dashboard.service";
 import { ApplicationItem } from "@/lib/types/dashboard";
@@ -28,12 +29,28 @@ import {
 import { getApplicationProgressModel } from "@/lib/utils/application-progress";
 import { StudentPageContainer } from "@/components/layout/student/StudentPageContainer";
 import { StudentPageHero } from "@/components/layout/student/StudentPageHero";
+import {
+  applicationHighlightElementId,
+  scrollAndHighlightElement,
+} from "@/lib/utils/highlight-target";
+import {
+  resolveApplicationIdFromNotification,
+  studentApplicationsTabForApp,
+} from "@/lib/utils/notifications";
+import type { NotificationItem } from "@/lib/types/dashboard";
 
 export default function StudentApplicationsPage() {
   const { show } = useToast();
+  const searchParams = useSearchParams();
+  const applicationIdParam = searchParams.get("applicationId");
+  const jobTitleParam = searchParams.get("jobTitle");
+  const opportunityIdParam = searchParams.get("opportunityId");
+  const filterParam = searchParams.get("filter");
+  const highlightParam = searchParams.get("highlight");
   const [activeTab, setActiveTab] = useState<string>("All");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [myApplications, setMyApplications] = useState<ApplicationItem[]>([]);
+  const highlightTabAdjustedRef = useRef(false);
 
   const loadApplications = async () => {
     try {
@@ -71,10 +88,62 @@ export default function StudentApplicationsPage() {
     };
   }, []);
 
+  useEffect(() => {
+    highlightTabAdjustedRef.current = false;
+  }, [applicationIdParam, jobTitleParam, opportunityIdParam, filterParam, highlightParam]);
+
+  useEffect(() => {
+    if (filterParam) setActiveTab(filterParam);
+  }, [filterParam]);
+
+  const highlightApplicationId = useMemo(() => {
+    if (applicationIdParam) return applicationIdParam;
+    if (!myApplications.length || (!jobTitleParam && !opportunityIdParam)) return null;
+
+    const stub: NotificationItem = {
+      id: "",
+      type: "Application",
+      title: filterParam === "Hired" ? "Congratulations — you're hired!" : "Application Status Updated",
+      body: jobTitleParam
+        ? filterParam === "Hired"
+          ? `Company hired you for ${jobTitleParam}.`
+          : `Your application for ${jobTitleParam} is now updated.`
+        : "",
+      isRead: true,
+      createdAt: new Date().toISOString(),
+      relatedOpportunityId: opportunityIdParam,
+    };
+    return resolveApplicationIdFromNotification(stub, myApplications);
+  }, [
+    applicationIdParam,
+    filterParam,
+    jobTitleParam,
+    myApplications,
+    opportunityIdParam,
+  ]);
+
   const filtered = useMemo(() => {
     if (activeTab === "All") return myApplications;
     return myApplications.filter((c) => matchesApplicationFilter(c, activeTab));
   }, [activeTab, myApplications]);
+
+  useEffect(() => {
+    const targetId = highlightApplicationId ?? applicationIdParam;
+    if (highlightParam !== "1" || !targetId || !myApplications.length) return;
+
+    const isVisible = filtered.some((a) => a.id === targetId);
+    if (isVisible) {
+      scrollAndHighlightElement(applicationHighlightElementId(targetId));
+      return;
+    }
+
+    if (highlightTabAdjustedRef.current) return;
+    const app = myApplications.find((a) => a.id === targetId);
+    if (!app) return;
+
+    highlightTabAdjustedRef.current = true;
+    setActiveTab(studentApplicationsTabForApp(app));
+  }, [highlightParam, highlightApplicationId, applicationIdParam, myApplications, filtered]);
 
   const stats = [
     { label: "Total Applications", value: myApplications.length },
@@ -240,7 +309,10 @@ function ApplicationGridCard({ application: c }: { application: ApplicationItem 
   const statusLabel = applicationStatusLabel(c.status);
 
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#6C5DD3]/20 hover:shadow-md">
+    <div
+      id={applicationHighlightElementId(c.id)}
+      className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#6C5DD3]/20 hover:shadow-md"
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -299,7 +371,10 @@ function ApplicationListRow({ application: c }: { application: ApplicationItem }
   const statusLabel = applicationStatusLabel(c.status);
 
   return (
-    <div className="flex flex-col gap-4 p-5 transition-colors hover:bg-slate-50/80 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      id={applicationHighlightElementId(c.id)}
+      className="flex flex-col gap-4 p-5 transition-colors hover:bg-slate-50/80 sm:flex-row sm:items-center sm:justify-between"
+    >
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-extrabold text-slate-900">{c.companyName}</h3>

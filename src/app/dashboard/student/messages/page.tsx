@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Paperclip, Phone, Video, MoreVertical, X, Copy, ExternalLink, MessageSquare, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  conversationHighlightElementId,
+  scrollAndHighlightElement,
+} from "@/lib/utils/highlight-target";
 import { useToast } from "@/components/ui/toast";
 import {
   DropdownMenu,
@@ -198,6 +202,7 @@ export default function StudentMessagesPage() {
   const conversationIdParam = searchParams.get("conversationId");
   const opportunityIdParam = searchParams.get("opportunityId");
   const studentProfileIdParam = searchParams.get("studentProfileId");
+  const highlightParam = searchParams.get("highlight");
 
   useEffect(() => {
     selectedConversationIdRef.current = selectedConversationId;
@@ -310,6 +315,14 @@ export default function StudentMessagesPage() {
       setSelectedConversationId(null);
     }
   }, [conversationIdParam, opportunityIdParam, studentProfileIdParam]);
+
+  useEffect(() => {
+    if (highlightParam !== "1" || !conversationIdParam || !conversations.length) return;
+    if (selectedConversationId !== conversationIdParam) return;
+    scrollAndHighlightElement(conversationHighlightElementId(conversationIdParam), {
+      durationMs: 3500,
+    });
+  }, [highlightParam, conversationIdParam, conversations.length, selectedConversationId]);
 
   const loadMessages = useCallback(async (conversationId: string, silent = false) => {
     try {
@@ -669,6 +682,7 @@ export default function StudentMessagesPage() {
             return (
             <div
               key={conversation.id}
+              id={conversationHighlightElementId(conversation.id)}
               onClick={() => handleSelectConversation(conversation.id)}
               className={cn(
                 "flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-all",

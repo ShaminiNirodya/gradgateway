@@ -61,9 +61,13 @@ export class StudentService {
     degree: string;
     fieldOfMajor: string;
     gradYear: number;
+    currentYear: number;
     gpa: number;
     email: string;
     skills: string;
+    photoDataUrl?: string;
+    availability: string;
+    cvUrl?: string;
   }>> {
     const url = query?.trim()
       ? `${API_ENDPOINTS.STUDENTS.DIRECTORY}?q=${encodeURIComponent(query.trim())}`
@@ -84,7 +88,47 @@ export class StudentService {
     const rows = await response.json();
     if (!Array.isArray(rows)) return [];
 
-    return rows.map((row: Record<string, unknown>) => ({
+    return rows.map(mapDirectoryRow);
+  }
+
+  static async getStudentDirectoryEntry(
+    token: string,
+    studentProfileId: string
+  ): Promise<{
+    studentProfileId: string;
+    fullName: string;
+    university: string;
+    degree: string;
+    fieldOfMajor: string;
+    gradYear: number;
+    currentYear: number;
+    gpa: number;
+    email: string;
+    skills: string;
+    photoDataUrl?: string;
+    availability: string;
+    cvUrl?: string;
+  } | null> {
+    const response = await fetch(API_ENDPOINTS.STUDENTS.DIRECTORY_ENTRY(studentProfileId), {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'Failed to fetch student profile');
+    }
+
+    const row = await response.json();
+    return mapDirectoryRow(row as Record<string, unknown>);
+  }
+}
+
+function mapDirectoryRow(row: Record<string, unknown>) {
+    return ({
       studentProfileId: String(row.studentProfileId ?? row.StudentProfileId ?? ''),
       fullName: String(row.fullName ?? row.FullName ?? ''),
       university: String(row.university ?? row.University ?? ''),
@@ -97,6 +141,6 @@ export class StudentService {
       skills: String(row.skills ?? row.Skills ?? ''),
       photoDataUrl: (row.photoDataUrl ?? row.PhotoDataUrl) as string | undefined,
       availability: String(row.availability ?? row.Availability ?? ''),
-    }));
-  }
+      cvUrl: (row.cvUrl ?? row.CvUrl) as string | undefined,
+    });
 }

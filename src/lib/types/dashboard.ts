@@ -49,6 +49,9 @@ export interface NotificationItem {
   isRead: boolean;
   createdAt: string;
   relatedOpportunityId?: string | null;
+  relatedApplicationId?: string | null;
+  relatedConversationId?: string | null;
+  relatedStudentProfileId?: string | null;
 }
 
 export interface ScheduleInterviewsResult {

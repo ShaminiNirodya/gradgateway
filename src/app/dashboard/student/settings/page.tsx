@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bell, Shield, User, Search, Camera } from "lucide-react";
+import { Bell, Shield, User, Search, Camera, FileText, Upload, ExternalLink, Trash2 } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -83,8 +83,12 @@ export default function StudentSettingsPage() {
     const [universitySearch, setUniversitySearch] = useState("");
     const [isUniversityDropdownOpen, setIsUniversityDropdownOpen] = useState(false);
     const [photoDataUrl, setPhotoDataUrl] = useState<string>("");
+    const [cvUrl, setCvUrl] = useState<string>("");
+    const [cvFileName, setCvFileName] = useState<string>("");
     const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+    const [isUploadingCv, setIsUploadingCv] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const cvInputRef = useRef<HTMLInputElement>(null);
 
     // Dynamic filtering based on selections
     const availableDegrees = useMemo(() => {
@@ -138,9 +142,97 @@ export default function StudentSettingsPage() {
         setCertificationsText((profile.certifications || []).join("\n"));
         setAwardsText((profile.awards || []).join("\n"));
         setPhotoDataUrl(profile.photoDataUrl || "");
+        setCvUrl(profile.cvUrl || "");
+        setCvFileName(profile.cvUrl ? "CV on file" : "");
     }, [profile]);
 
     const fullName = useMemo(() => `${firstName} ${lastName}`.trim(), [firstName, lastName]);
+
+    const persistProfile = async (nextCvUrl: string) => {
+        if (!profile) return;
+
+        const resolvedFieldId =
+            fieldOfMajorId || fieldOfMajorFromDegreeSelection(degree, "");
+        if (!resolvedFieldId) {
+            throw new Error("Select your field of major before saving your CV.");
+        }
+
+        const token = await AuthService.getIdToken();
+        const firebaseUid = auth.currentUser?.uid || profile.firebaseUid;
+        const email = auth.currentUser?.email || profile.email;
+
+        if (!token || !firebaseUid || !email) {
+            throw new Error("You are not authenticated. Please log in again.");
+        }
+
+        await StudentService.registerStudent(token, {
+            email,
+            firebaseUid,
+            fullName,
+            phone: profile.phone,
+            photoDataUrl: photoDataUrl || profile.photoDataUrl,
+            cvUrl: nextCvUrl.trim() || "",
+            university,
+            studentId: profile.studentId,
+            degree: normalizeDegreeName(degree),
+            fieldOfMajor: getFieldOfMajorById(resolvedFieldId)?.label ?? "",
+            gradYear,
+            currentYear: typeof currentYear === "number" ? currentYear : profile.currentYear || 1,
+            gpa,
+            certifications: certificationsText.split(/\r?\n/).map((v) => v.trim()).filter(Boolean),
+            awards: awardsText.split(/\r?\n/).map((v) => v.trim()).filter(Boolean),
+        });
+
+        await refresh();
+    };
+
+    const handleCvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            setIsUploadingCv(true);
+            StorageService.validateCvFile(file);
+            const firebaseUid = auth.currentUser?.uid || profile?.firebaseUid;
+            if (!firebaseUid) throw new Error("User not authenticated");
+
+            const downloadUrl = await StorageService.uploadStudentCv(file, firebaseUid);
+            setCvUrl(downloadUrl);
+            setCvFileName(file.name);
+            await persistProfile(downloadUrl);
+            show({
+                title: "CV saved",
+                description: "Recruiters can now view your CV on your profile.",
+                variant: "success",
+            });
+        } catch (error: unknown) {
+            show({
+                title: "CV upload failed",
+                description: error instanceof Error ? error.message : "Unable to upload CV.",
+                variant: "error",
+            });
+        } finally {
+            setIsUploadingCv(false);
+            if (cvInputRef.current) {
+                cvInputRef.current.value = "";
+            }
+        }
+    };
+
+    const handleRemoveCv = async () => {
+        try {
+            setCvUrl("");
+            setCvFileName("");
+            await persistProfile("");
+            show({ title: "CV removed", description: "Your CV is no longer visible to companies.", variant: "success" });
+        } catch (error: unknown) {
+            show({
+                title: "Could not remove CV",
+                description: error instanceof Error ? error.message : "Please try again.",
+                variant: "error",
+            });
+        }
+    };
 
     const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -223,6 +315,7 @@ export default function StudentSettingsPage() {
                 fullName,
                 phone: profile.phone,
                 photoDataUrl: photoDataUrl || profile.photoDataUrl,
+                cvUrl: cvUrl.trim() || "",
                 university,
                 studentId: profile.studentId,
                 degree: normalizeDegreeName(degree),
@@ -366,6 +459,62 @@ export default function StudentSettingsPage() {
                                 <p className="text-sm text-slate-500">Click on your photo to change it</p>
                                 <p className="text-xs text-slate-400 mt-1">Max size: 5MB • JPG, PNG, or GIF</p>
                             </div>
+                        </div>
+
+                        <div className="mb-8 rounded-xl border border-slate-200/80 bg-slate-50/60 p-4">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <h4 className="text-sm font-bold text-slate-800">Resume / CV</h4>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                        Stored in Firebase Storage. Companies can view it from your profile.
+                                    </p>
+                                    <p className="mt-1 text-xs text-slate-400">PDF or Word • Max 10MB</p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="rounded-lg"
+                                        disabled={isUploadingCv}
+                                        onClick={() => cvInputRef.current?.click()}
+                                    >
+                                        <Upload className="mr-2 h-4 w-4" />
+                                        {isUploadingCv ? "Uploading…" : cvUrl ? "Replace CV" : "Upload CV"}
+                                    </Button>
+                                    {cvUrl ? (
+                                        <>
+                                            <Button asChild variant="outline" size="sm" className="rounded-lg">
+                                                <a href={cvUrl} target="_blank" rel="noopener noreferrer">
+                                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                                    Preview
+                                                </a>
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="rounded-lg text-red-600 hover:text-red-700"
+                                                onClick={handleRemoveCv}
+                                            >
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                Remove
+                                            </Button>
+                                        </>
+                                    ) : null}
+                                </div>
+                            </div>
+                            <div className="mt-3 flex items-center gap-2 text-sm text-slate-600">
+                                <FileText className="h-4 w-4 shrink-0 text-[#6C5DD3]" />
+                                <span>{cvUrl ? cvFileName || "CV saved for recruiters" : "No CV uploaded yet"}</span>
+                            </div>
+                            <input
+                                ref={cvInputRef}
+                                type="file"
+                                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                onChange={handleCvUpload}
+                                className="hidden"
+                            />
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
