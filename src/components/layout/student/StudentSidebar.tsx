@@ -20,6 +20,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useUnreadConversations } from "@/components/shared/UnreadConversationsProvider";
 import { UnreadMessageIndicator } from "@/components/shared/UnreadMessageIndicator";
+import { GradGatewayLogo } from "@/components/brand/GradGatewayLogo";
 const navItems = [
   { name: "Dashboard", href: "/dashboard/student", icon: LayoutGrid },
   { name: "My Projects", href: "/dashboard/student/projects", icon: Folder },
@@ -47,11 +48,8 @@ export default function StudentSidebar() {
 
   return (
     <div className="flex flex-col h-full bg-white w-72 p-6 overflow-y-auto">
-      <div className="flex items-center gap-3 px-2 mb-12">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden">
-          <img src="/logo.svg" alt="GradGateway Logo" className="w-full h-full object-contain" />
-        </div>
-        <span className="font-extrabold text-2xl text-slate-800 tracking-tight">GradGateway</span>
+      <div className="mb-12 px-2">
+        <GradGatewayLogo href="/dashboard/student" size={40} wordmarkClassName="text-2xl text-slate-800" />
       </div>
 
       <div className="space-y-8 flex-1">

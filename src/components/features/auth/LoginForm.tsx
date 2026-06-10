@@ -15,7 +15,7 @@ import { useAuth } from "@/lib/contexts/AuthContext";
 import { UserRole } from "@/lib/types/auth";
 
 interface LoginFormProps {
-  role: "student" | "company";
+  role: "student" | "company" | "admin";
 }
 
 export default function LoginForm({ role }: LoginFormProps) {
@@ -35,7 +35,8 @@ export default function LoginForm({ role }: LoginFormProps) {
     setError(null);
 
     try {
-      const expectedRole: UserRole = role === "company" ? "Company" : "Student";
+      const expectedRole: UserRole | undefined =
+        role === "admin" ? "Admin" : role === "company" ? "Company" : "Student";
       const userData = await signIn(data.email, data.password, expectedRole);
       
       // Navigate based on the user's role from backend
@@ -76,23 +77,44 @@ export default function LoginForm({ role }: LoginFormProps) {
     }
   };
 
+  const isAdmin = role === "admin";
+
   return (
-       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 mt-6">
+       <form onSubmit={handleSubmit(onSubmit)} className={isAdmin ? "space-y-6" : "space-y-6 mt-6"}>
          <div className="space-y-5">
         
         {/* Email Field */}
         <div className="space-y-2">
-             <Label htmlFor="email" className="text-slate-600 font-bold ml-1">
-               {role === 'company' ? 'Company Email' : 'Email Address'}
+             <Label
+               htmlFor="email"
+               className={`font-bold ml-1 ${isAdmin ? "text-slate-300" : "text-slate-600"}`}
+             >
+               {role === "company" ? "Company Email" : "Email Address"}
              </Label>
           <div className="relative group">
-               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-[#6C5DD3] transition-colors" />
+               <Mail
+                 className={`absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors ${
+                   isAdmin
+                     ? "text-slate-500 group-focus-within:text-slate-200"
+                     : "text-slate-400 group-focus-within:text-[#6C5DD3]"
+                 }`}
+               />
             <Input 
               id="email" 
               type="email" 
               {...register("email")} 
-                 className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 transition-all font-medium text-slate-700 placeholder:text-slate-400" 
-              placeholder={role === 'company' ? 'recruitment@company.com' : 'student@university.edu'} 
+                 className={
+                   isAdmin
+                     ? "pl-12 h-14 rounded-2xl bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:border-slate-500 focus:ring-0"
+                     : "pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 transition-all font-medium text-slate-700 placeholder:text-slate-400"
+                 }
+              placeholder={
+                role === "company"
+                  ? "recruitment@company.com"
+                  : role === "admin"
+                    ? "admin@gradgateway.com"
+                    : "student@university.edu"
+              }
             />
           </div>
              {errors.email && <p className="text-xs text-red-500 font-bold ml-2">{errors.email.message}</p>}
@@ -101,21 +123,38 @@ export default function LoginForm({ role }: LoginFormProps) {
         {/* Password Field */}
         <div className="space-y-2">
              <div className="flex items-center justify-between ml-1">
-               <Label htmlFor="password" className="text-slate-600 font-bold">Password</Label>
+               <Label
+                 htmlFor="password"
+                 className={`font-bold ${isAdmin ? "text-slate-300" : "text-slate-600"}`}
+               >
+                 Password
+               </Label>
             <Link 
               href="/forgot-password" 
-                 className="text-xs font-bold text-[#6C5DD3] hover:underline"
+                 className={`text-xs font-bold hover:underline ${
+                   isAdmin ? "text-slate-400 hover:text-slate-200" : "text-[#6C5DD3]"
+                 }`}
             >
               Forgot password?
             </Link>
           </div>
           <div className="relative group">
-               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 group-focus-within:text-[#6C5DD3] transition-colors" />
+               <Lock
+                 className={`absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors ${
+                   isAdmin
+                     ? "text-slate-500 group-focus-within:text-slate-200"
+                     : "text-slate-400 group-focus-within:text-[#6C5DD3]"
+                 }`}
+               />
             <Input 
               id="password" 
               type={showPassword ? "text" : "password"} 
               {...register("password")} 
-                 className="pl-12 pr-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 transition-all font-medium text-slate-700 placeholder:text-slate-400" 
+                 className={
+                   isAdmin
+                     ? "pl-12 pr-12 h-14 rounded-2xl bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:border-slate-500 focus:ring-0"
+                     : "pl-12 pr-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 transition-all font-medium text-slate-700 placeholder:text-slate-400"
+                 }
               placeholder="••••••••" 
             />
             <button
@@ -130,12 +169,14 @@ export default function LoginForm({ role }: LoginFormProps) {
         </div>
 
         {/* Remember Me */}
+           {!isAdmin && (
            <div className="flex items-center space-x-3 ml-1">
              <Checkbox id="remember" {...register("rememberMe")} className="data-[state=checked]:bg-[#6C5DD3] data-[state=checked]:border-[#6C5DD3] border-slate-300 w-5 h-5 rounded-md" />
              <Label htmlFor="remember" className="text-sm font-semibold text-slate-500 cursor-pointer">
             Remember me
           </Label>
         </div>
+           )}
       </div>
 
       {/* Error Message */}
@@ -147,10 +188,13 @@ export default function LoginForm({ role }: LoginFormProps) {
 
       <Button 
         type="submit" 
-           className={`w-full h-14 rounded-2xl text-lg font-bold shadow-lg transition-all hover:-translate-y-1
-             ${role === 'student' 
-               ? 'bg-[#6C5DD3] hover:bg-[#5b4eb8] shadow-indigo-200 text-white' 
-               : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200 text-white'
+           className={`w-full h-14 rounded-2xl text-lg font-bold shadow-lg transition-all hover:-translate-y-1 text-white
+             ${
+               role === "student"
+                 ? "bg-[#6C5DD3] hover:bg-[#5b4eb8] shadow-indigo-200"
+                 : role === "admin"
+                   ? "bg-white text-slate-900 hover:bg-slate-100 shadow-none"
+                   : "bg-blue-600 hover:bg-blue-700 shadow-blue-200"
              }`}
         disabled={isLoading}
       >
@@ -160,7 +204,11 @@ export default function LoginForm({ role }: LoginFormProps) {
             Signing in...
           </>
         ) : (
-          role === 'student' ? 'Login as Student' : 'Login to Dashboard'
+          role === "student"
+            ? "Login as Student"
+            : role === "admin"
+              ? "Login as Admin"
+              : "Login to Dashboard"
         )}
       </Button>
 

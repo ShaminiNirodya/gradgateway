@@ -69,8 +69,11 @@ export function JobPositionPicker({
           </SelectTrigger>
           <SelectContent
             position="popper"
+            side="bottom"
             align="start"
-            className="max-h-72 rounded-xl border-slate-200/80 bg-white"
+            sideOffset={6}
+            collisionPadding={12}
+            className="max-h-72 rounded-xl border-slate-200/80 bg-white shadow-xl"
           >
             <SelectItem value={SELECT_UNSET} disabled className="hidden">
               Select a category
@@ -96,8 +99,11 @@ export function JobPositionPicker({
             </SelectTrigger>
             <SelectContent
               position="popper"
+              side="bottom"
               align="start"
-              className="max-h-72 rounded-xl border-slate-200/80 bg-white"
+              sideOffset={6}
+              collisionPadding={12}
+              className="max-h-72 rounded-xl border-slate-200/80 bg-white shadow-xl"
             >
               <SelectItem value={SELECT_UNSET} disabled className="hidden">
                 Select a position

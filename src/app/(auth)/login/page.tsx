@@ -1,8 +1,9 @@
 import Link from "next/link";
 import Image from "next/image";
+import { GradGatewayLogo } from "@/components/brand/GradGatewayLogo";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LoginForm from "@/components/features/auth/LoginForm";
-import { Compass, Briefcase, GraduationCap } from "lucide-react";
+import { Briefcase, GraduationCap } from "lucide-react";
 
 export default function LoginPage() {
   return (
@@ -31,12 +32,13 @@ export default function LoginPage() {
         <div className="absolute bottom-[-10%] left-[-10%] w-[300px] h-[300px] bg-indigo-500/20 rounded-full blur-2xl z-0 pointer-events-none" />
 
         <div className="relative z-10">
-          <Link href="/" className="flex items-center gap-3 mb-16 w-fit group">
-            <div className="w-12 h-12 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl flex items-center justify-center overflow-hidden shadow-lg group-hover:bg-white transition-all duration-300">
-              <img src="/logo.svg" alt="GradGateway Logo" className="w-full h-full object-contain p-1" />
-            </div>
-            <span className="font-extrabold text-3xl tracking-tight">GradGateway</span>
-          </Link>
+          <div className="mb-16">
+            <GradGatewayLogo
+              href="/"
+              size={48}
+              wordmarkClassName="text-3xl text-white"
+            />
+          </div>
 
           <h1 className="text-5xl xl:text-6xl font-extrabold leading-[1.1] mb-6 tracking-tight">
             Welcome back to <br />

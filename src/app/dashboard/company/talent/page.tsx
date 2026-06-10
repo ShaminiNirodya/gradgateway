@@ -9,6 +9,10 @@ import {
   X,
   SlidersHorizontal,
   Sparkles,
+  FileText,
+  MessageSquare,
+  UserRound,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -645,7 +649,7 @@ export default function TalentSearchPage() {
             )}
           </div>
         ) : view === "grid" ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3">
             {pageItems.map((candidate) => (
               <CandidateCard key={candidate.id} c={candidate} />
             ))}
@@ -754,9 +758,11 @@ function CandidateCardSection({
   className?: string;
 }) {
   return (
-    <section className={cn("border-t border-slate-100 px-5 py-4", className)}>
+    <section className={cn("border-t border-slate-100/90 px-5 py-4", className)}>
       {title ? (
-        <h4 className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{title}</h4>
+        <h4 className="mb-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[#6C5DD3]/80">
+          {title}
+        </h4>
       ) : null}
       {children}
     </section>
@@ -765,35 +771,44 @@ function CandidateCardSection({
 
 function CandidateDetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-3 text-sm">
-      <span className="shrink-0 font-medium text-slate-500">{label}</span>
-      <span className="min-w-0 text-right font-medium leading-snug text-slate-800">{value}</span>
+    <div className="space-y-0.5">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="text-sm font-semibold leading-snug text-slate-800">{value}</p>
     </div>
   );
 }
 
 function CandidateCard({ c }: { c: Candidate }) {
   const majorLabel = resolveFieldOfMajorLabel(c.fieldOfMajor, c.degree);
+  const showDegreeRow =
+    Boolean(c.degree) &&
+    Boolean(majorLabel) &&
+    c.degree.trim().toLowerCase() !== majorLabel.trim().toLowerCase();
   const extraSkills = Math.max(0, c.skills.length - 4);
+  const messageHref = `/dashboard/company/messages?studentProfileId=${encodeURIComponent(c.id)}`;
 
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white transition-colors hover:border-slate-300">
+    <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#6C5DD3]/25 hover:shadow-md hover:shadow-indigo-100/40">
       {/* Identity */}
-      <section className="p-5">
-        <div className="flex gap-3">
-          <Avatar className="h-14 w-14 shrink-0 border border-slate-200">
+      <section className="p-5 pb-4">
+        <div className="flex gap-4">
+          <Avatar className="h-16 w-16 shrink-0 border-2 border-white shadow-md ring-2 ring-slate-100 transition-shadow group-hover:ring-[#6C5DD3]/20">
             {c.photoDataUrl && <AvatarImage src={c.photoDataUrl} alt={c.name} />}
-            <AvatarFallback className="bg-slate-100 text-sm font-bold text-[#6C5DD3]">
+            <AvatarFallback className="bg-gradient-to-br from-indigo-50 to-violet-100 text-base font-bold text-[#6C5DD3]">
               {c.name.split(" ").map((name) => name[0]).join("")}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <h3 className="font-bold leading-snug text-slate-900">{c.name}</h3>
-            <div className="mt-2">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+              <h3 className="text-base font-extrabold leading-snug text-slate-900">{c.name}</h3>
               <StatusBadge status={c.status} />
             </div>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600" title={c.university}>
-              {c.university}
+            <p
+              className="mt-2 flex items-start gap-1.5 text-sm leading-relaxed text-slate-600"
+              title={c.university}
+            >
+              <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+              <span className="line-clamp-2">{c.university}</span>
             </p>
           </div>
         </div>
@@ -801,56 +816,81 @@ function CandidateCard({ c }: { c: Candidate }) {
 
       {/* Education */}
       <CandidateCardSection title="Education">
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           {(majorLabel || c.degree) && (
             <CandidateDetailRow label="Major" value={majorLabel || c.degree} />
           )}
-          {c.degree && majorLabel && <CandidateDetailRow label="Degree" value={c.degree} />}
-          <p className="border-t border-slate-100 pt-2.5 text-xs font-medium text-slate-500">
-            Class of {c.classOf}
-            <span className="mx-1.5 text-slate-300" aria-hidden>
+          {showDegreeRow && <CandidateDetailRow label="Degree" value={c.degree} />}
+          <div className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50/90 px-3 py-2 text-xs font-semibold text-slate-600">
+            <span>Class of {c.classOf}</span>
+            <span className="text-slate-300" aria-hidden>
               ·
             </span>
-            GPA {c.gpa.toFixed(2)}
-          </p>
+            <span>GPA {c.gpa.toFixed(2)}</span>
+          </div>
         </div>
       </CandidateCardSection>
 
       {/* Skills */}
       {c.skills.length > 0 && (
-        <CandidateCardSection title="Skills">
-          <div className="flex flex-wrap gap-2">
+        <CandidateCardSection title="Skills" className="flex-1">
+          <div className="flex flex-wrap gap-1.5">
             {c.skills.slice(0, 4).map((skill) => (
               <span
                 key={skill}
-                className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700"
+                className="rounded-lg border border-indigo-100/80 bg-indigo-50/60 px-2.5 py-1 text-xs font-semibold text-indigo-900/90"
               >
                 {skill}
               </span>
             ))}
             {extraSkills > 0 && (
-              <span className="self-center text-xs font-semibold text-slate-500">+{extraSkills} more</span>
+              <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">
+                +{extraSkills} more
+              </span>
             )}
           </div>
         </CandidateCardSection>
       )}
 
-      {/* Actions */}
-      <section className="mt-auto border-t border-slate-100 bg-slate-50/40 px-5 py-4">
-        <div className="flex flex-wrap gap-2">
+      {/* Actions — stacked layout prevents button overlap */}
+      <section className="mt-auto border-t border-slate-100 bg-gradient-to-b from-slate-50/30 to-slate-50/80 px-5 py-4">
+        <div className="flex flex-col gap-2">
           {c.cvUrl ? (
-            <Button asChild variant="outline" size="sm" className="rounded-lg border-slate-200 bg-white font-medium">
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="h-10 w-full rounded-xl border-slate-200 bg-white font-semibold text-slate-700 shadow-sm hover:border-[#6C5DD3]/30 hover:bg-white"
+            >
               <a href={c.cvUrl} target="_blank" rel="noopener noreferrer">
+                <FileText className="mr-2 h-4 w-4 shrink-0" />
                 View CV
               </a>
             </Button>
           ) : null}
-          <Button asChild variant="outline" size="sm" className="min-w-0 flex-1 rounded-lg border-slate-200 bg-white font-medium">
-            <Link href={`/dashboard/company/messages?studentProfileId=${encodeURIComponent(c.id)}`}>Message</Link>
-          </Button>
-          <Button asChild size="sm" className="min-w-0 flex-1 rounded-lg font-medium">
-            <Link href={candidateProfileHref(c)}>View profile</Link>
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="h-10 w-full rounded-xl border-slate-200 bg-white font-semibold text-slate-700 shadow-sm hover:border-[#6C5DD3]/30"
+            >
+              <Link href={messageHref}>
+                <MessageSquare className="mr-2 h-4 w-4 shrink-0" />
+                Message
+              </Link>
+            </Button>
+            <Button
+              asChild
+              size="sm"
+              className="h-10 w-full rounded-xl bg-[#6C5DD3] font-semibold shadow-sm hover:bg-[#5b4eb8]"
+            >
+              <Link href={candidateProfileHref(c)}>
+                <UserRound className="mr-2 h-4 w-4 shrink-0" />
+                Profile
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
     </article>
@@ -859,37 +899,52 @@ function CandidateCard({ c }: { c: Candidate }) {
 
 function CandidateListRow({ c }: { c: Candidate }) {
   const majorLabel = resolveFieldOfMajorLabel(c.fieldOfMajor, c.degree);
+  const messageHref = `/dashboard/company/messages?studentProfileId=${encodeURIComponent(c.id)}`;
 
   return (
-    <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+    <div className="flex flex-col gap-4 p-5 transition-colors hover:bg-indigo-50/20 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div className="flex min-w-0 items-center gap-4">
-        <Avatar className="h-11 w-11 shrink-0 border border-slate-200">
+        <Avatar className="h-12 w-12 shrink-0 border-2 border-white shadow-sm ring-1 ring-slate-100">
           {c.photoDataUrl && <AvatarImage src={c.photoDataUrl} alt={c.name} />}
-          <AvatarFallback className="bg-slate-100 text-xs font-bold text-[#6C5DD3]">
+          <AvatarFallback className="bg-indigo-50 text-sm font-bold text-[#6C5DD3]">
             {c.name.split(" ").map((name) => name[0]).join("")}
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-bold text-slate-900">{c.name}</h3>
+            <h3 className="font-extrabold text-slate-900">{c.name}</h3>
             <StatusBadge status={c.status} />
           </div>
-          <p className="mt-0.5 text-sm text-slate-600 line-clamp-1" title={c.university}>
+          <p className="mt-1 text-sm text-slate-600 line-clamp-1" title={c.university}>
             {c.university}
             {(majorLabel || c.degree) && ` · ${majorLabel || c.degree}`}
           </p>
-          <p className="mt-0.5 text-xs font-medium text-slate-500">
+          <p className="mt-1 text-xs font-semibold text-slate-500">
             Class of {c.classOf} · GPA {c.gpa.toFixed(2)}
             {c.skills.length > 0 && ` · ${c.skills.slice(0, 3).join(", ")}${c.skills.length > 3 ? "…" : ""}`}
           </p>
         </div>
       </div>
-      <div className="flex shrink-0 gap-2 sm:justify-end">
-        <Button asChild variant="outline" size="sm" className="rounded-lg">
-          <Link href={`/dashboard/company/messages?studentProfileId=${encodeURIComponent(c.id)}`}>Message</Link>
+      <div className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end">
+        {c.cvUrl ? (
+          <Button asChild variant="outline" size="sm" className="h-9 rounded-xl border-slate-200 font-semibold">
+            <a href={c.cvUrl} target="_blank" rel="noopener noreferrer">
+              <FileText className="mr-1.5 h-3.5 w-3.5" />
+              CV
+            </a>
+          </Button>
+        ) : null}
+        <Button asChild variant="outline" size="sm" className="h-9 rounded-xl border-slate-200 font-semibold">
+          <Link href={messageHref}>
+            <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+            Message
+          </Link>
         </Button>
-        <Button asChild size="sm" className="rounded-lg">
-          <Link href={candidateProfileHref(c)}>View profile</Link>
+        <Button asChild size="sm" className="h-9 rounded-xl bg-[#6C5DD3] font-semibold hover:bg-[#5b4eb8]">
+          <Link href={candidateProfileHref(c)}>
+            <UserRound className="mr-1.5 h-3.5 w-3.5" />
+            Profile
+          </Link>
         </Button>
       </div>
     </div>

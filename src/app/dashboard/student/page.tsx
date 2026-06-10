@@ -1,5 +1,5 @@
 "use client";
-import { Search, FolderOpen, FileText, MessageSquare, PlayCircle, Award, BadgeCheck, Info, Plus, Zap, X, CheckCircle2, UserCircle, Target, ScrollText } from "lucide-react";
+import { Search, FolderOpen, FileText, MessageSquare, Award, BadgeCheck, Info, Plus, Zap, X, CheckCircle2, UserCircle, Target, ScrollText } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -568,10 +568,13 @@ function ProjectCard({ techStack, title, author, avatar, id, imageUrl }: any) {
     >
       <div className="group flex h-full cursor-pointer flex-col rounded-[24px] border border-slate-200/80 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#6C5DD3]/20 hover:shadow-lg">
         <div className="relative mb-4 h-40 overflow-hidden rounded-[20px] bg-gradient-to-br from-indigo-200 via-violet-200 to-purple-300">
-          {imageUrl && <img src={imageUrl} alt={title} className="h-full w-full object-cover" />}
-          <div className="absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity group-hover:opacity-100">
-            <PlayCircle className="h-12 w-12 fill-white/20 text-white" />
-          </div>
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={title}
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            />
+          ) : null}
         </div>
         <h3 className="mb-2 line-clamp-2 text-lg font-extrabold leading-snug text-slate-900">{title}</h3>
         {techTags.length > 0 && (

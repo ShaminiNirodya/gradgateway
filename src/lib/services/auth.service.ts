@@ -152,7 +152,10 @@ export class AuthService {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get user information from backend');
+        const errBody = await response.json().catch(() => ({}));
+        throw new Error(
+          (errBody?.message as string) || 'Failed to get user information from backend'
+        );
       }
 
       const userData: UserResponse = await response.json();

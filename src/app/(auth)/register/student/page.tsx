@@ -182,7 +182,7 @@ export default function StudentRegistrationPage() {
           <RegistrationStepper currentStep={currentStep} steps={steps} />
         </div>
 
-        <div className="w-full max-w-lg bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl shadow-purple-200/30 p-8 sm:p-12 relative border border-white/50 hover:shadow-2xl hover:shadow-purple-300/40 transition-all duration-300">
+        <div className="relative w-full min-w-0 max-w-lg overflow-hidden rounded-3xl border border-white/50 bg-white/95 p-8 shadow-2xl shadow-purple-200/30 backdrop-blur-sm transition-all duration-300 hover:shadow-2xl hover:shadow-purple-300/40 sm:p-12">
         <Link href="/" className="absolute top-8 left-8 text-slate-400 hover:text-slate-600 transition-colors">
           <ArrowLeft className="w-6 h-6" />
         </Link>

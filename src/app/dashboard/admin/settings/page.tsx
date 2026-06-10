@@ -1,126 +1,179 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Bell, Settings as SettingsIcon, AlertTriangle } from "lucide-react";
+import { AuthService } from "@/lib/services/auth.service";
+import { AdminService } from "@/lib/services/admin.service";
+import { AdminPlatformSettings } from "@/lib/types/admin";
+import { useToast } from "@/components/ui/toast";
+import { Settings as SettingsIcon, AlertTriangle } from "lucide-react";
+import { useAdminDashboard } from "@/components/features/admin/AdminDashboardProvider";
+import { AdminStatCards } from "@/components/features/admin/AdminStatCards";
 
 export default function AdminSettingsPage() {
-    const [isLoading, setIsLoading] = useState(false);
+  const { show } = useToast();
+  const { data: stats, refresh: refreshStats } = useAdminDashboard();
+  const [settings, setSettings] = useState<AdminPlatformSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-    const handleSave = () => {
-        setIsLoading(true);
-        setTimeout(() => setIsLoading(false), 1000);
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const token = await AuthService.getIdToken();
+        if (!token) return;
+        setSettings(await AdminService.getSettings(token));
+      } catch (e) {
+        show({
+          title: "Load failed",
+          description: e instanceof Error ? e.message : "Could not load settings.",
+          variant: "error",
+        });
+      } finally {
+        setLoading(false);
+      }
     };
+    void load();
+  }, [show]);
 
+  const handleSave = async () => {
+    if (!settings) return;
+    setSaving(true);
+    try {
+      const token = await AuthService.getIdToken();
+      if (!token) return;
+      const updated = await AdminService.updateSettings(token, {
+        allowRegistration: settings.allowRegistration,
+        requireCompanyVerification: false,
+        maintenanceMode: settings.maintenanceMode,
+      });
+      setSettings(updated);
+      void refreshStats();
+      show({ title: "Settings saved", variant: "success" });
+    } catch (e) {
+      show({
+        title: "Save failed",
+        description: e instanceof Error ? e.message : "Could not save settings.",
+        variant: "error",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
     return (
-        <div className="max-w-4xl mx-auto space-y-8 pb-10">
-            <h1 className="text-2xl font-bold text-slate-900">Admin Settings</h1>
-
-            <Tabs defaultValue="platform" className="w-full">
-                <TabsList className="bg-white rounded-xl p-1 shadow-sm border border-slate-100">
-                    <TabsTrigger value="platform" className="rounded-lg data-[state=active]:bg-slate-900 data-[state=active]:text-white">
-                        <SettingsIcon className="w-4 h-4 mr-2" />
-                        Platform
-                    </TabsTrigger>
-                    <TabsTrigger value="notifications" className="rounded-lg data-[state=active]:bg-slate-900 data-[state=active]:text-white">
-                        <Bell className="w-4 h-4 mr-2" />
-                        Notifications
-                    </TabsTrigger>
-                    <TabsTrigger value="security" className="rounded-lg data-[state=active]:bg-slate-900 data-[state=active]:text-white">
-                        <Shield className="w-4 h-4 mr-2" />
-                        Security
-                    </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="platform" className="mt-6 space-y-6">
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                        <h3 className="font-bold text-lg text-slate-900 mb-6">Platform Configuration</h3>
-                        <div className="space-y-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="font-medium text-slate-900">User Registration</p>
-                                    <p className="text-sm text-slate-500">Allow new users to sign up.</p>
-                                </div>
-                                <Switch defaultChecked={true} />
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="font-medium text-slate-900">Company Verification</p>
-                                    <p className="text-sm text-slate-500">Require manual verification for new companies.</p>
-                                </div>
-                                <Switch defaultChecked={true} />
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="font-medium text-slate-900 text-red-600">Maintenance Mode</p>
-                                    <p className="text-sm text-slate-500">Disable access for all non-admin users.</p>
-                                </div>
-                                <Switch />
-                            </div>
-                        </div>
-                        <div className="mt-6 flex justify-end">
-                            <Button className="rounded-xl bg-slate-900 hover:bg-slate-800" onClick={handleSave} disabled={isLoading}>
-                                {isLoading ? "Saving..." : "Save Changes"}
-                            </Button>
-                        </div>
-                    </div>
-                </TabsContent>
-
-                <TabsContent value="notifications" className="mt-6 space-y-6">
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                        <h3 className="font-bold text-lg text-slate-900 mb-6">System Alerts</h3>
-                        <div className="space-y-6">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="font-medium text-slate-900">New User Reports</p>
-                                    <p className="text-sm text-slate-500">Notify when a user is reported.</p>
-                                </div>
-                                <Switch defaultChecked={true} />
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="font-medium text-slate-900">Server Downtime</p>
-                                    <p className="text-sm text-slate-500">Critical alerts for system outages.</p>
-                                </div>
-                                <Switch defaultChecked={true} />
-                            </div>
-                        </div>
-                    </div>
-                </TabsContent>
-
-                <TabsContent value="security" className="mt-6 space-y-6">
-                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                        <h3 className="font-bold text-lg text-slate-900 mb-4">Admin Security</h3>
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="current-pw">Current Password</Label>
-                                <Input id="current-pw" type="password" className="rounded-xl" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="new-pw">New Password</Label>
-                                <Input id="new-pw" type="password" className="rounded-xl" />
-                            </div>
-                            <Button className="mt-2 rounded-xl bg-slate-900 text-white">Update Password</Button>
-                        </div>
-                    </div>
-                </TabsContent>
-            </Tabs>
-        </div>
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-[#6C5DD3]" />
+      </div>
     );
+  }
+
+  if (!settings) {
+    return <p className="text-red-600">Could not load platform settings.</p>;
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-8 pb-10">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Platform settings</h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Last saved {new Date(settings.updatedAt).toLocaleString()}
+        </p>
+      </div>
+
+      {stats && (
+        <AdminStatCards
+          columns={3}
+          items={[
+            {
+              label: "Registration",
+              value: settings.allowRegistration ? "Enabled" : "Disabled",
+            },
+            {
+              label: "Maintenance",
+              value: settings.maintenanceMode ? "Active" : "Off",
+              highlight: settings.maintenanceMode,
+            },
+          ]}
+        />
+      )}
+
+      <div className="space-y-6 rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="flex items-center gap-2 text-slate-800">
+          <SettingsIcon className="h-5 w-5" />
+          <h2 className="font-bold">General</h2>
+        </div>
+
+        <SettingRow
+          title="User registration"
+          description="Allow new student and company sign-ups."
+          checked={settings.allowRegistration}
+          onChange={(v) => setSettings({ ...settings, allowRegistration: v })}
+        />
+        <SettingRow
+          title="Maintenance mode"
+          description="Block access for all non-admin users."
+          checked={settings.maintenanceMode}
+          onChange={(v) => setSettings({ ...settings, maintenanceMode: v })}
+          danger
+        />
+      </div>
+
+      {settings.maintenanceMode && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+          <p>Maintenance mode is on. Students and companies cannot use the API until you turn it off.</p>
+        </div>
+      )}
+
+      <div className="flex justify-end">
+        <Button
+          className="rounded-xl bg-slate-900 hover:bg-slate-800"
+          onClick={() => void handleSave()}
+          disabled={saving}
+        >
+          {saving ? "Saving…" : "Save changes"}
+        </Button>
+      </div>
+    </div>
+  );
 }
 
-// Minimal Switch component reuse
-function Switch({ defaultChecked }: { defaultChecked?: boolean }) {
-    const [checked, setChecked] = useState(defaultChecked || false);
-    return (
-        <button
-            onClick={() => setChecked(!checked)}
-            className={`w-11 h-6 rounded-full transition-colors flex items-center px-1 ${checked ? "bg-slate-900" : "bg-slate-200"}`}
-        >
-            <div className={`w-4 h-4 rounded-full bg-white transition-transform ${checked ? "translate-x-5" : "translate-x-0"}`} />
-        </button>
-    );
+function SettingRow({
+  title,
+  description,
+  checked,
+  onChange,
+  danger,
+}: {
+  title: string;
+  description: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  danger?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-slate-50 pb-4 last:border-0 last:pb-0">
+      <div>
+        <p className={`font-medium ${danger ? "text-red-600" : "text-slate-900"}`}>{title}</p>
+        <p className="text-sm text-slate-500">{description}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`flex h-6 w-11 shrink-0 items-center rounded-full px-1 transition-colors ${
+          checked ? "bg-slate-900" : "bg-slate-200"
+        }`}
+      >
+        <div
+          className={`h-4 w-4 rounded-full bg-white transition-transform ${
+            checked ? "translate-x-5" : "translate-x-0"
+          }`}
+        />
+      </button>
+    </div>
+  );
 }

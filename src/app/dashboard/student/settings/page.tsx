@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bell, Shield, User, Search, Camera, FileText, Upload, ExternalLink, Trash2 } from "lucide-react";
+import { Shield, User, Search, Camera, FileText, Upload, ExternalLink, Trash2 } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -409,7 +409,7 @@ export default function StudentSettingsPage() {
             <StudentPageHero
                 eyebrow="Account"
                 title="Settings"
-                description="Manage your profile, security, and notification preferences."
+                description="Manage your profile and account security."
             />
 
             <Tabs defaultValue="profile" className="w-full">
@@ -421,10 +421,6 @@ export default function StudentSettingsPage() {
                     <TabsTrigger value="account" className="rounded-lg data-[state=active]:bg-[#6C5DD3] data-[state=active]:text-white">
                         <Shield className="w-4 h-4 mr-2" />
                         Security
-                    </TabsTrigger>
-                    <TabsTrigger value="notifications" className="rounded-lg data-[state=active]:bg-[#6C5DD3] data-[state=active]:text-white">
-                        <Bell className="w-4 h-4 mr-2" />
-                        Notifications
                     </TabsTrigger>
                 </TabsList>
 
@@ -851,24 +847,6 @@ export default function StudentSettingsPage() {
                         </div>
                     </div>
                 </TabsContent>
-
-                <TabsContent value="notifications" className="mt-6 space-y-6">
-                    <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-                        <div className="mb-6 flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-                                <Bell className="h-5 w-5" />
-                            </div>
-                            <h3 className="text-lg font-extrabold text-slate-900">Email Notifications</h3>
-                        </div>
-                        <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
-                            <div>
-                                <p className="text-sm font-bold text-slate-800">Job alerts</p>
-                                <p className="text-xs text-slate-500">Get notified about new openings</p>
-                            </div>
-                            <Switch defaultChecked={true} />
-                        </div>
-                    </div>
-                </TabsContent>
             </Tabs>
 
             {showChangePasswordModal && (
@@ -905,17 +883,5 @@ export default function StudentSettingsPage() {
                 </div>
             )}
         </StudentPageContainer>
-    );
-}
-
-function Switch({ defaultChecked }: { defaultChecked?: boolean }) {
-    const [checked, setChecked] = useState(defaultChecked || false);
-    return (
-        <button
-            onClick={() => setChecked(!checked)}
-            className={`w-11 h-6 rounded-full transition-colors flex items-center px-1 ${checked ? "bg-[#6C5DD3]" : "bg-slate-200"}`}
-        >
-            <div className={`w-4 h-4 rounded-full bg-white transition-transform ${checked ? "translate-x-5" : "translate-x-0"}`} />
-        </button>
     );
 }

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Inria_Serif } from "next/font/google";
+import { Inter, Roboto } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/toast";
 import { AuthProvider } from "@/lib/contexts/AuthContext";
@@ -11,9 +11,9 @@ const inter = Inter({
   display: "swap",
 });
 
-const inriaSerif = Inria_Serif({
+const roboto = Roboto({
   subsets: ["latin"],
-  weight: ["300", "400", "700"],
+  weight: ["400", "500", "700"],
   variable: "--font-serif",
   display: "swap",
 });
@@ -21,6 +21,10 @@ const inriaSerif = Inria_Serif({
 export const metadata: Metadata = {
   title: "GradGateway.lk",
   description: "Platform for Sri Lankan Undergraduates",
+  icons: {
+    icon: "/logo.svg",
+    apple: "/logo.svg",
+  },
 };
 
 export default function RootLayout({
@@ -29,7 +33,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn(inter.variable, inriaSerif.variable)}>
+    <html
+      lang="en"
+      data-scroll-behavior="smooth"
+      className={cn(inter.variable, roboto.variable)}
+    >
       <body className="min-h-screen font-sans antialiased">
         <AuthProvider>
           <ToastProvider>

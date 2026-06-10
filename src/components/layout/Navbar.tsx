@@ -1,31 +1,44 @@
 'use client';
 
 import Link from "next/link";
+import { GradGatewayLogo } from "@/components/brand/GradGatewayLogo";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const navLinks = [
     { href: "#features", label: "Features" },
     { href: "#how-it-works", label: "How It Works" },
-    { href: "#pricing", label: "Pricing" },
   ];
 
   return (
-    <nav className="w-full bg-white/80 backdrop-blur-xl sticky top-0 z-50 border-b border-slate-200/50">
+    <nav
+      className={cn(
+        "sticky top-0 z-50 w-full border-b transition-all duration-300",
+        scrolled
+          ? "border-slate-200/80 bg-white/95 shadow-sm shadow-slate-200/50 backdrop-blur-xl"
+          : "border-transparent bg-white/70 backdrop-blur-md"
+      )}
+    >
       <div className="container mx-auto px-6 h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 flex-shrink-0 group">
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-gradient-to-br from-blue-600 to-purple-600 group-hover:shadow-lg group-hover:shadow-purple-500/25 transition-all duration-300">
-            <img src="/logo.svg" alt="GradGateway Logo" className="w-full h-full object-contain filter invert" />
-          </div>
-          <span className="font-bold text-xl text-slate-900 tracking-tight hidden sm:inline">
-            GradGateway
-          </span>
-        </Link>
+        <GradGatewayLogo
+          href="/"
+          size={40}
+          wordmarkClassName="hidden text-xl font-bold sm:inline"
+        />
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-10 flex-1 justify-center">
@@ -33,10 +46,10 @@ export default function Navbar() {
             <Link
               key={link.href}
               href={link.href}
-              className="text-sm font-semibold text-slate-600 hover:text-purple-600 transition-colors duration-200 relative group"
+              className="relative text-sm font-semibold text-slate-600 transition-colors duration-200 hover:text-[#6C5DD3] group"
             >
               {link.label}
-              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-600 to-purple-600 group-hover:w-full transition-all duration-300" />
+              <span className="absolute bottom-0 left-0 h-0.5 w-0 bg-gradient-to-r from-[#6C5DD3] to-indigo-600 transition-all duration-300 group-hover:w-full" />
             </Link>
           ))}
         </div>
@@ -46,13 +59,13 @@ export default function Navbar() {
           <Link href="/login" className="hidden sm:block">
             <Button
               variant="ghost"
-              className="text-slate-700 hover:text-purple-600 hover:bg-purple-50 font-semibold transition-all duration-200"
+              className="font-semibold text-slate-700 transition-all duration-200 hover:bg-indigo-50 hover:text-[#6C5DD3]"
             >
               Log in
             </Button>
           </Link>
           <Link href="/register" className="hidden sm:block">
-            <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 transition-all duration-300">
+            <Button className="rounded-xl bg-[#6C5DD3] font-semibold text-white shadow-lg shadow-[#6C5DD3]/30 transition-all duration-300 hover:bg-[#5b4eb8] hover:shadow-xl hover:shadow-[#6C5DD3]/35">
               Sign Up
             </Button>
           </Link>
@@ -80,7 +93,7 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="block px-4 py-2 text-sm font-semibold text-slate-600 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors duration-200"
+                className="block rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors duration-200 hover:bg-indigo-50 hover:text-[#6C5DD3]"
                 onClick={() => setIsOpen(false)}
               >
                 {link.label}
@@ -89,13 +102,13 @@ export default function Navbar() {
             <Link href="/login" onClick={() => setIsOpen(false)}>
               <Button
                 variant="ghost"
-                className="w-full text-slate-700 hover:text-purple-600 hover:bg-purple-50 font-semibold justify-start"
+                className="w-full justify-start font-semibold text-slate-700 hover:bg-indigo-50 hover:text-[#6C5DD3]"
               >
                 Log in
               </Button>
             </Link>
             <Link href="/register" onClick={() => setIsOpen(false)}>
-              <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold">
+              <Button className="w-full rounded-xl bg-[#6C5DD3] font-semibold text-white hover:bg-[#5b4eb8]">
                 Sign Up
               </Button>
             </Link>

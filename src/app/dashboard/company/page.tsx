@@ -39,7 +39,6 @@ import {
 } from "@/components/layout/company/CompanyPageHeader";
 import { CompanyPageContainer } from "@/components/layout/company/CompanyPageContainer";
 import { studentProfilePath } from "@/lib/utils/slug";
-
 export default function CompanyDashboard() {
   const router = useRouter();
   const [q, setQ] = useState("");

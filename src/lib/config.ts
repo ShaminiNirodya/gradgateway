@@ -74,4 +74,16 @@ export const API_ENDPOINTS = {
     ME: `${API_URL}/api/emaillogs/me`,
   },
   PLATFORM_STATS: `${API_URL}/api/platformstats`,
+  SUPPORT_INQUIRIES: `${API_URL}/api/supportinquiries`,
+  ADMIN: {
+    DASHBOARD: `${API_URL}/api/admin/dashboard`,
+    USERS: `${API_URL}/api/admin/users`,
+    USER_ACTIVE: (userId: string) => `${API_URL}/api/admin/users/${userId}/active`,
+    USER_REMOVE: (userId: string) => `${API_URL}/api/admin/users/${userId}`,
+    COMPANIES: `${API_URL}/api/admin/companies`,
+    INQUIRIES: `${API_URL}/api/admin/inquiries`,
+    INQUIRY_REVIEWED: (inquiryId: string) => `${API_URL}/api/admin/inquiries/${inquiryId}/reviewed`,
+    SETTINGS: `${API_URL}/api/admin/settings`,
+    SETTINGS_PUBLIC: `${API_URL}/api/admin/settings/public`,
+  },
 } as const;

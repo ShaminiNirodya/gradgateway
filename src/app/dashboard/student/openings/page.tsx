@@ -261,7 +261,7 @@ export default function OpeningsPage() {
             </div>
 
             {showFilters && (
-                    <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm space-y-5">
+                    <div className="relative z-10 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm space-y-5 overflow-visible">
                         <div className="flex items-center justify-between gap-3">
                             <p className="text-sm font-bold text-slate-700">Refine results</p>
                             <Button
@@ -305,13 +305,22 @@ export default function OpeningsPage() {
                                         setSelectedJobPosition("");
                                     }}
                                 >
-                                    <SelectTrigger className="h-11 rounded-xl border-slate-200/80 bg-white">
+                                    <SelectTrigger className="h-11 w-full rounded-xl border-slate-200/80 bg-white">
                                         <SelectValue placeholder="All categories" />
                                     </SelectTrigger>
-                                    <SelectContent className="max-h-72 rounded-xl bg-white">
-                                        <SelectItem value="all">All categories</SelectItem>
+                                    <SelectContent
+                                        position="popper"
+                                        side="bottom"
+                                        align="start"
+                                        sideOffset={6}
+                                        collisionPadding={12}
+                                        className="max-h-72 rounded-xl border-slate-200/80 bg-white shadow-xl"
+                                    >
+                                        <SelectItem value="all" className="cursor-pointer">
+                                            All categories
+                                        </SelectItem>
                                         {JOB_POSITION_CATEGORIES.map((cat) => (
-                                            <SelectItem key={cat.id} value={cat.id}>
+                                            <SelectItem key={cat.id} value={cat.id} className="cursor-pointer">
                                                 {cat.label}
                                             </SelectItem>
                                         ))}
@@ -330,7 +339,7 @@ export default function OpeningsPage() {
                                     onValueChange={(value) => setSelectedJobPosition(value === "all" ? "" : value)}
                                     disabled={!selectedJobCategoryId || isOtherJobCategory(selectedJobCategoryId)}
                                 >
-                                    <SelectTrigger className="h-11 rounded-xl border-slate-200/80 bg-white">
+                                    <SelectTrigger className="h-11 w-full rounded-xl border-slate-200/80 bg-white disabled:opacity-60">
                                         <SelectValue
                                             placeholder={
                                                 !selectedJobCategoryId
@@ -341,10 +350,19 @@ export default function OpeningsPage() {
                                             }
                                         />
                                     </SelectTrigger>
-                                    <SelectContent className="max-h-72 rounded-xl bg-white">
-                                        <SelectItem value="all">All positions</SelectItem>
+                                    <SelectContent
+                                        position="popper"
+                                        side="bottom"
+                                        align="start"
+                                        sideOffset={6}
+                                        collisionPadding={12}
+                                        className="max-h-72 rounded-xl border-slate-200/80 bg-white shadow-xl"
+                                    >
+                                        <SelectItem value="all" className="cursor-pointer">
+                                            All positions
+                                        </SelectItem>
                                         {filterCategory?.positions.map((pos) => (
-                                            <SelectItem key={pos} value={pos}>
+                                            <SelectItem key={pos} value={pos} className="cursor-pointer">
                                                 {pos}
                                             </SelectItem>
                                         ))}

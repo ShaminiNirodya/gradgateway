@@ -60,6 +60,34 @@
   animation: unread-glow 2s ease-in-out infinite;
 }
 
+@keyframes hero-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.hero-float {
+  animation: hero-float 5s ease-in-out infinite;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.landing-marquee {
+  animation: marquee 28s linear infinite;
+}
+
+
 @layer components {
   /* Neumorphic / soft UI (matches dashboard #F5F7FB surfaces) */
   .btn-soft {

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { contactSchema, type ContactFormData, inquiryTypes } from "@/lib/validators/contact";
+import { SupportService } from "@/lib/services/support.service";
 import { Paperclip, FileText, Loader2, ChevronDown, CheckCircle2, Trash2, MapPin, ExternalLink, Copy, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -66,15 +67,24 @@ export default function ContactPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const submit = (data: ContactFormData) => {
+  const submit = async (data: ContactFormData) => {
     setIsSubmitting(true);
-    // Simulate async submit
-    setTimeout(() => {
-      console.log("Contact message submitted", data);
-      setIsSubmitting(false);
+    try {
+      await SupportService.submitInquiry({
+        name: data.name,
+        email: data.email,
+        phone: data.phone || undefined,
+        type: data.type,
+        message: data.message,
+        attachmentName: data.attachment?.name,
+      });
       setSubmitted(true);
       try { sessionStorage.removeItem(draftKey); } catch {}
-    }, 800);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed to send your message. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // FAQ search query (passed to accordion)

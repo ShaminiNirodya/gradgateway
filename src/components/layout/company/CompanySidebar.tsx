@@ -18,6 +18,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useUnreadConversations } from "@/components/shared/UnreadConversationsProvider";
 import { UnreadMessageIndicator } from "@/components/shared/UnreadMessageIndicator";
+import { GradGatewayLogo } from "@/components/brand/GradGatewayLogo";
 const navItems = [
   { name: "Dashboard", href: "/dashboard/company", icon: LayoutGrid },
   { name: "Talent Search", href: "/dashboard/company/talent", icon: Users2 },
@@ -46,9 +47,7 @@ export default function CompanySidebar() {
   return (
     <div className="flex h-full w-72 flex-col overflow-x-visible overflow-y-auto border-r border-slate-200/80 bg-white p-6">
       <div className="mb-12 flex items-center gap-3 px-2">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl">
-          <img src="/logo.svg" alt="GradGateway Logo" className="h-full w-full object-contain" />
-        </div>
+        <GradGatewayLogo href="/dashboard/company" size={40} showWordmark={false} />
         <span className="min-w-0 font-extrabold text-2xl tracking-tight text-slate-800">
           GradGateway
           <span className="ml-1 text-sm font-bold text-slate-400">Recruit</span>

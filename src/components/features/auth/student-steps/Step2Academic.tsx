@@ -55,13 +55,16 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
     return degrees;
   }, [selectedUniversity, selectedFieldOfMajor]);
 
+  const selectTriggerClass =
+    "h-14 w-full min-w-0 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3] data-[state=open]:border-[#6C5DD3]";
+
   return (
     <motion.form
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       onSubmit={handleSubmit(onNext)}
-      className="space-y-6"
+      className="min-w-0 space-y-6"
     >
       <div className="space-y-5">
         <div className="space-y-2">
@@ -74,18 +77,26 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
                 value={toControlledSelectValue(field.value)}
                 onValueChange={(val) => field.onChange(fromControlledSelectValue(val))}
               >
-                <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3] data-[state=open]:border-[#6C5DD3]">
-                  <div className="flex items-center gap-3 text-slate-700">
-                    <GraduationCap className="w-5 h-5 text-[#6C5DD3]" />
-                    <SelectValue placeholder="Select University" />
-                  </div>
+                <SelectTrigger className={selectTriggerClass}>
+                  <GraduationCap className="h-5 w-5 shrink-0 text-[#6C5DD3]" />
+                  <SelectValue placeholder="Select University" />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl border-none shadow-xl max-h-72">
+                <SelectContent
+                  position="popper"
+                  align="start"
+                  className="max-h-72 w-[var(--radix-select-trigger-width)] rounded-xl border-slate-200 shadow-xl"
+                >
                   <SelectItem value={SELECT_UNSET} disabled className="hidden">
                     Select University
                   </SelectItem>
                   {ALL_UNIVERSITIES.map((u) => (
-                    <SelectItem key={u} value={u} className="rounded-lg my-1 cursor-pointer">{u}</SelectItem>
+                    <SelectItem
+                      key={u}
+                      value={u}
+                      className="cursor-pointer whitespace-normal rounded-lg py-2.5 leading-snug"
+                    >
+                      {u}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -109,7 +120,7 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
                   }
                 }}
                 placeholder="Select Field of Major"
-                triggerClassName="h-14 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3] data-[state=open]:border-[#6C5DD3]"
+                triggerClassName={selectTriggerClass}
                 contentClassName="rounded-xl border-none shadow-xl max-h-72"
               />
             )}
@@ -137,22 +148,30 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
                 }}
                 disabled={!selectedUniversity}
               >
-                <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3]">
-                  <div className="flex items-center gap-3 text-slate-700">
-                    <BookOpen className="w-5 h-5 text-[#6C5DD3]" />
-                    <SelectValue
-                      placeholder={
-                        !selectedUniversity ? "Select university first" : "Select Degree"
-                      }
-                    />
-                  </div>
+                <SelectTrigger className={selectTriggerClass}>
+                  <BookOpen className="h-5 w-5 shrink-0 text-[#6C5DD3]" />
+                  <SelectValue
+                    placeholder={
+                      !selectedUniversity ? "Select university first" : "Select Degree"
+                    }
+                  />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl border-none shadow-xl max-h-72">
+                <SelectContent
+                  position="popper"
+                  align="start"
+                  className="max-h-72 w-[var(--radix-select-trigger-width)] rounded-xl border-slate-200 shadow-xl"
+                >
                   <SelectItem value={SELECT_UNSET} disabled className="hidden">
                     Select Degree
                   </SelectItem>
                   {availableDegrees.map((d) => (
-                    <SelectItem key={d} value={d} className="rounded-lg my-1 cursor-pointer">{d}</SelectItem>
+                    <SelectItem
+                      key={d}
+                      value={d}
+                      className="cursor-pointer whitespace-normal rounded-lg py-2.5 leading-snug"
+                    >
+                      {d}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -176,11 +195,9 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
                   field.onChange(next === "" ? undefined : parseInt(next, 10));
                 }}
               >
-                <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3]">
-                  <div className="flex items-center gap-3 text-slate-700">
-                    <GraduationCap className="w-5 h-5 text-[#6C5DD3]" />
-                    <SelectValue placeholder="Select Academic Year" />
-                  </div>
+                <SelectTrigger className={selectTriggerClass}>
+                  <GraduationCap className="h-5 w-5 shrink-0 text-[#6C5DD3]" />
+                  <SelectValue placeholder="Select Academic Year" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-none shadow-xl">
                   <SelectItem value={SELECT_UNSET} disabled className="hidden">
