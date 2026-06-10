@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutGrid,
   Users,
+  GraduationCap,
   Building2,
   Settings,
   LogOut,
@@ -16,12 +17,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { GradGatewayLogo } from "@/components/brand/GradGatewayLogo";
 import { useAdminDashboard } from "@/components/features/admin/AdminDashboardProvider";
+import { darkSidebar } from "@/components/layout/sidebar-dark-theme";
 
 const navItems = [
   { name: "Overview", href: "/dashboard/admin", icon: LayoutGrid, badgeKey: null as null | "inquiries" },
   { name: "Inquiries", href: "/dashboard/admin/inquiries", icon: MessageSquare, badgeKey: "inquiries" as const },
-  { name: "Users", href: "/dashboard/admin/users", icon: Users, badgeKey: null },
+  { name: "Students", href: "/dashboard/admin/students", icon: GraduationCap, badgeKey: null },
   { name: "Companies", href: "/dashboard/admin/companies", icon: Building2, badgeKey: null },
+  { name: "All users", href: "/dashboard/admin/users", icon: Users, badgeKey: null },
   { name: "Settings", href: "/dashboard/admin/settings", icon: Settings, badgeKey: null },
 ];
 
@@ -43,12 +46,12 @@ export default function AdminSidebar() {
   };
 
   return (
-    <div className="flex h-full w-72 flex-col overflow-y-auto border-r border-slate-200/80 bg-white p-6">
+    <div className={darkSidebar.shell}>
       <div className="mb-12 flex items-center gap-3 px-2">
         <GradGatewayLogo href="/dashboard/admin" size={40} showWordmark={false} />
-        <span className="min-w-0 font-extrabold text-2xl tracking-tight text-slate-800">
+        <span className="min-w-0 font-extrabold text-2xl tracking-tight text-white">
           GradGateway
-          <span className="ml-1 text-sm font-bold text-slate-400">Admin</span>
+          <span className={cn("ml-1", darkSidebar.wordmarkAccent)}>Admin</span>
         </span>
       </div>
 
@@ -64,9 +67,7 @@ export default function AdminSidebar() {
               href={item.href}
               className={cn(
                 "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-colors",
-                isActive
-                  ? "bg-[#6C5DD3] text-white"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-[#6C5DD3]"
+                isActive ? darkSidebar.navActive : darkSidebar.navInactive
               )}
             >
               <item.icon className="h-5 w-5 shrink-0" />
@@ -75,7 +76,7 @@ export default function AdminSidebar() {
                 <span
                   className={cn(
                     "min-w-[1.25rem] rounded-full px-1.5 py-0.5 text-center text-[10px] font-bold",
-                    isActive ? "bg-white/20 text-white" : "bg-amber-100 text-amber-800"
+                    isActive ? "bg-white/20 text-white" : darkSidebar.inquiryBadge
                   )}
                 >
                   {openInquiries}
@@ -86,11 +87,7 @@ export default function AdminSidebar() {
         })}
       </div>
 
-      <button
-        type="button"
-        onClick={() => setShowLogoutConfirm(true)}
-        className="mt-6 flex items-center gap-3 px-4 py-3 font-semibold text-slate-400 transition-colors hover:text-red-500"
-      >
+      <button type="button" onClick={() => setShowLogoutConfirm(true)} className={cn(darkSidebar.logout, "mt-6")}>
         <LogOut className="h-5 w-5" />
         Log Out
       </button>
@@ -99,7 +96,9 @@ export default function AdminSidebar() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <h3 className="text-lg font-bold text-slate-900">Log out?</h3>
-            <p className="mt-2 text-sm text-slate-500">You will need to sign in again to access the admin panel.</p>
+            <p className="mt-2 text-sm text-slate-500">
+              You will need to sign in again to access the admin panel.
+            </p>
             <div className="mt-6 flex justify-end gap-2">
               <Button variant="outline" className="rounded-xl" onClick={() => setShowLogoutConfirm(false)}>
                 Cancel

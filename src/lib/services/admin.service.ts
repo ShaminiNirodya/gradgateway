@@ -83,13 +83,26 @@ export class AdminService {
 
   static async getInquiries(
     token: string,
-    status?: string
+    params?: { status?: string; inquiryType?: string; submitterRole?: string }
   ): Promise<SupportInquiryListItem[]> {
-    const url = status
-      ? `${API_ENDPOINTS.ADMIN.INQUIRIES}?status=${encodeURIComponent(status)}`
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set('status', params.status);
+    if (params?.inquiryType) qs.set('inquiryType', params.inquiryType);
+    if (params?.submitterRole) qs.set('submitterRole', params.submitterRole);
+
+    const url = qs.toString()
+      ? `${API_ENDPOINTS.ADMIN.INQUIRIES}?${qs}`
       : API_ENDPOINTS.ADMIN.INQUIRIES;
     const response = await fetch(url, { headers: authHeaders(token) });
     return getJsonOrThrow(response, 'Failed to load inquiries');
+  }
+
+  static async deleteInquiry(token: string, inquiryId: string): Promise<void> {
+    const response = await fetch(API_ENDPOINTS.ADMIN.INQUIRY_DELETE(inquiryId), {
+      method: 'DELETE',
+      headers: authHeaders(token),
+    });
+    await getJsonOrThrow(response, 'Failed to delete inquiry');
   }
 
   static async markInquiryReviewed(token: string, inquiryId: string): Promise<void> {

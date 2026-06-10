@@ -83,6 +83,7 @@ export const API_ENDPOINTS = {
     COMPANIES: `${API_URL}/api/admin/companies`,
     INQUIRIES: `${API_URL}/api/admin/inquiries`,
     INQUIRY_REVIEWED: (inquiryId: string) => `${API_URL}/api/admin/inquiries/${inquiryId}/reviewed`,
+    INQUIRY_DELETE: (inquiryId: string) => `${API_URL}/api/admin/inquiries/${inquiryId}`,
     SETTINGS: `${API_URL}/api/admin/settings`,
     SETTINGS_PUBLIC: `${API_URL}/api/admin/settings/public`,
   },

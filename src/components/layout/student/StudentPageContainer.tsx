@@ -18,8 +18,7 @@ export function StudentPageContainer({
     <div
       className={cn(
         "mx-auto w-full max-w-6xl space-y-6 pb-4",
-        fillViewport &&
-          "flex min-h-[calc(100dvh-2rem)] flex-col lg:min-h-[calc(100dvh-4rem)]",
+        fillViewport && "flex h-full min-h-0 flex-col overflow-hidden",
         className
       )}
     >

@@ -3,6 +3,13 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
+function formatStatValue(value: string | number): string | number {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+  return value ?? "—";
+}
+
 export function AdminStatCards({
   items,
   columns = 4,
@@ -31,7 +38,7 @@ export function AdminStatCards({
                 columns === 6 ? "text-lg" : "text-2xl"
               )}
             >
-              {item.value}
+              {formatStatValue(item.value)}
             </h3>
           </>
         );

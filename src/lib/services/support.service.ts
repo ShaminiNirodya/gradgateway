@@ -8,6 +8,7 @@ export class SupportService {
     type: string;
     message: string;
     attachmentName?: string;
+    submitterRole?: string;
   }): Promise<void> {
     const response = await fetch(API_ENDPOINTS.SUPPORT_INQUIRIES, {
       method: 'POST',

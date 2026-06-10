@@ -12,6 +12,31 @@ import { AuthService } from "@/lib/services/auth.service";
 import { AdminService } from "@/lib/services/admin.service";
 import { AdminDashboard } from "@/lib/types/admin";
 
+function normalizeDashboard(raw: Partial<AdminDashboard>): AdminDashboard {
+  return {
+    totalStudents: raw.totalStudents ?? 0,
+    totalCompanies: raw.totalCompanies ?? 0,
+    totalProjects: raw.totalProjects ?? 0,
+    hiringRate: raw.hiringRate ?? 0,
+    totalUsers: raw.totalUsers ?? 0,
+    activeUsers: raw.activeUsers ?? 0,
+    suspendedUsers: raw.suspendedUsers ?? 0,
+    studentAccounts: raw.studentAccounts ?? 0,
+    companyAccounts: raw.companyAccounts ?? 0,
+    adminAccounts: raw.adminAccounts ?? 0,
+    pendingCompanyVerifications: raw.pendingCompanyVerifications ?? 0,
+    approvedCompanies: raw.approvedCompanies ?? 0,
+    rejectedCompanies: raw.rejectedCompanies ?? 0,
+    totalApplications: raw.totalApplications ?? 0,
+    hiredApplications: raw.hiredApplications ?? 0,
+    signupsLast7Days: raw.signupsLast7Days ?? 0,
+    activeJobPosts: raw.activeJobPosts ?? 0,
+    expiredJobPosts: raw.expiredJobPosts ?? 0,
+    openSupportInquiries: raw.openSupportInquiries ?? 0,
+    totalSupportInquiries: raw.totalSupportInquiries ?? 0,
+  };
+}
+
 type AdminDashboardContextValue = {
   data: AdminDashboard | null;
   loading: boolean;
@@ -39,7 +64,7 @@ export function AdminDashboardProvider({ children }: { children: ReactNode }) {
         return;
       }
       const dashboard = await AdminService.getDashboard(token);
-      setData(dashboard);
+      setData(normalizeDashboard(dashboard));
       setRefreshedAt(new Date());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load dashboard.");

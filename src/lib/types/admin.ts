@@ -29,6 +29,7 @@ export interface SupportInquiryListItem {
   inquiryType: string;
   message: string;
   attachmentName?: string | null;
+  submitterRole?: string | null;
   status: string;
   createdAt: string;
   reviewedAt?: string | null;
@@ -43,6 +44,8 @@ export interface AdminUserListItem {
   displayName?: string | null;
   studentProfileId?: string | null;
   companyProfileId?: string | null;
+  studentUniversity?: string | null;
+  studentDegree?: string | null;
 }
 
 export interface AdminCompanyListItem {

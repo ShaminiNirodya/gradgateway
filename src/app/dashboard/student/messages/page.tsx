@@ -639,7 +639,7 @@ export default function StudentMessagesPage() {
   const inboxUnread = sortedConversations.filter((c) => conversationShowsUnread(c)).length;
 
   return (
-    <StudentPageContainer fillViewport className="min-h-0 overflow-hidden">
+    <StudentPageContainer fillViewport className="min-h-0 flex-1 overflow-hidden pb-0 space-y-4">
       <StudentPageHero
         eyebrow="Inbox"
         title="Messages"
@@ -653,7 +653,7 @@ export default function StudentMessagesPage() {
         }
       />
 
-      <div className="grid min-h-0 flex-1 gap-4 overflow-hidden md:gap-4 lg:grid-cols-3">
+      <div className="grid min-h-0 flex-1 gap-4 overflow-hidden md:gap-4 lg:grid-cols-3 lg:min-h-[0]">
       <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5 lg:col-span-1 lg:max-h-full">
         <div className="relative mb-4 shrink-0">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -665,7 +665,7 @@ export default function StudentMessagesPage() {
           />
         </div>
 
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain">
+        <div className="chat-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
           {sortedConversations.length === 0 && (
             <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-8 text-center">
               <MessageSquare className="mx-auto mb-2 h-8 w-8 text-slate-300" />
@@ -766,7 +766,7 @@ export default function StudentMessagesPage() {
 
             <div
               ref={messagesScrollRef}
-              className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain bg-slate-50/30 p-6"
+              className="chat-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain bg-slate-50/30 p-6 pr-4"
             >
               {loadingMessages ? (
                 <div className="text-sm text-slate-400">Loading messages...</div>
@@ -1044,7 +1044,7 @@ function MessagesEmptyPanel({
   hasConversations: boolean;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-gradient-to-br from-slate-50/90 via-white to-indigo-50/30">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gradient-to-br from-slate-50/90 via-white to-indigo-50/30">
       <div className="flex flex-1 flex-col items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-lg space-y-8 text-center">
           <div className="relative mx-auto w-fit">

@@ -160,6 +160,10 @@ export class AuthService {
 
       const userData: UserResponse = await response.json();
 
+      if (userData.isActive === false && userData.role !== 'Admin') {
+        return userData;
+      }
+
       if (expectedRole && userData.role !== expectedRole) {
         await firebaseSignOut(auth);
         this.cachedToken = null;

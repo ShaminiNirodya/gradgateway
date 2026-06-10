@@ -4,6 +4,7 @@ export interface UserResponse {
   email: string;
   role: UserRole;
   firebaseUid: string;
+  isActive?: boolean;
 }
 
 export interface UserRegistration {

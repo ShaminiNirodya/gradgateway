@@ -162,38 +162,44 @@ export default function StudentProjectsPortfolio() {
 
   return (
     <StudentPageContainer>
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#5b4eb8] via-[#6C5DD3] to-[#8a7cff] p-6 text-white shadow-lg sm:p-8">
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
         <div
-          className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl"
+          className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#6C5DD3]/10 blur-3xl"
           aria-hidden
         />
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+        <div className="relative z-10 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-start gap-4">
-            <Avatar className="h-14 w-14 shrink-0 border-2 border-white/30 shadow-md sm:h-16 sm:w-16">
+            <Avatar className="h-14 w-14 shrink-0 ring-2 ring-white ring-offset-2 ring-offset-slate-100 sm:h-16 sm:w-16">
               <AvatarImage src={profile?.photoDataUrl} alt={displayName} />
-              <AvatarFallback className="bg-white/20 text-lg font-bold text-white">{initials}</AvatarFallback>
+              <AvatarFallback className="bg-gradient-to-br from-orange-100 to-amber-50 text-lg font-bold text-orange-600">
+                {initials}
+              </AvatarFallback>
             </Avatar>
-            <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">Portfolio</p>
-              <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">My Project Portfolio</h1>
-              <p className="mt-1 text-sm font-medium text-white/80">
+            <div className="min-w-0 space-y-1">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#6C5DD3]">
+                Portfolio
+              </p>
+              <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-[1.65rem]">
+                My Project Portfolio
+              </h1>
+              <p className="text-sm font-medium text-slate-500">
                 Showcase your work to recruiters and companies
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
             <Button
               asChild
-              className="h-10 rounded-xl border-0 bg-white text-[#6C5DD3] shadow-md hover:bg-white/95"
+              className="h-10 rounded-xl bg-[#6C5DD3] px-5 text-white shadow-md shadow-indigo-200/60 hover:bg-[#5b4eb8]"
             >
               <Link href="/dashboard/student/projects/new">
                 <Plus className="mr-2 h-4 w-4" /> New Project
               </Link>
             </Button>
             <Button
-              variant="secondary"
+              variant="outline"
               onClick={exportCSV}
-              className="h-10 rounded-xl border border-white/20 bg-white/15 text-white hover:bg-white/25"
+              className="h-10 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
             >
               <Download className="mr-2 h-4 w-4" /> Export CSV
             </Button>

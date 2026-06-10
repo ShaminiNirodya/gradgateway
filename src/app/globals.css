@@ -231,3 +231,45 @@
 ::-webkit-scrollbar-thumb {
   @apply bg-slate-200 rounded-full;
 }
+
+/* Chat / inbox panels — visible scrollbar inside the message area */
+.chat-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #6c5dd3 #e8edf4;
+  scrollbar-gutter: stable;
+}
+
+.chat-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.chat-scrollbar::-webkit-scrollbar-track {
+  background: #e8edf4;
+  border-radius: 9999px;
+  margin: 6px 0;
+}
+
+.chat-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #8a7cff 0%, #6c5dd3 100%);
+  border-radius: 9999px;
+  border: 2px solid #e8edf4;
+}
+
+.chat-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #5b4eb8;
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
