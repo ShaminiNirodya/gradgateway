@@ -125,6 +125,92 @@ export class StudentService {
     const row = await response.json();
     return mapDirectoryRow(row as Record<string, unknown>);
   }
+
+  static async getMySkills(token: string): Promise<StudentSkillItem[]> {
+    const response = await fetch(API_ENDPOINTS.SKILLS.ME, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'Failed to load skills');
+    }
+
+    return response.json();
+  }
+
+  static async addSkill(token: string, name: string): Promise<StudentSkillItem> {
+    const response = await fetch(API_ENDPOINTS.SKILLS.ME, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'Failed to add skill');
+    }
+
+    return response.json();
+  }
+
+  static async removeSkill(token: string, studentSkillId: string): Promise<void> {
+    const response = await fetch(API_ENDPOINTS.SKILLS.DELETE(studentSkillId), {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'Failed to remove skill');
+    }
+  }
+
+  static async getMyInterviews(token: string): Promise<StudentInterviewItem[]> {
+    const response = await fetch(API_ENDPOINTS.INTERVIEWS.STUDENT_ME, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || 'Failed to load interviews');
+    }
+
+    return response.json();
+  }
+}
+
+export interface StudentSkillItem {
+  id: string;
+  name: string;
+  category: string;
+  proficiencyLevel: string;
+}
+
+export interface StudentInterviewItem {
+  id: string;
+  scheduledAt: string;
+  mode: string;
+  meetingLink?: string | null;
+  location?: string | null;
+  status: string;
+  notes?: string | null;
+  jobTitle: string;
+  companyName: string;
+  companyLogoUrl?: string | null;
 }
 
 function mapDirectoryRow(row: Record<string, unknown>) {

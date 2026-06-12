@@ -48,7 +48,6 @@ export default function AdminSettingsPage() {
       if (!token) return;
       const updated = await AdminService.updateSettings(token, {
         allowRegistration: settings.allowRegistration,
-        requireCompanyVerification: false,
         maintenanceMode: settings.maintenanceMode,
       });
       setSettings(updated);

@@ -128,8 +128,8 @@ export default function StudentAnalyticsPage() {
               ...opportunities.slice(0, 20).map(opp => `"${opp.title}","${opp.companyName}","${opp.opportunityType}","${opp.location}"`),
               "",
               "Conversation Activity",
-              "Company,Last Message",
-              ...conversations.slice(0, 20).map(conv => `"${conv.companyName}","${conv.lastMessage || 'No messages'}"`),
+              "Contact,Last Message",
+              ...conversations.slice(0, 20).map(conv => `"${conv.otherPartyName}","${conv.lastMessage || 'No messages'}"`),
             ];
 
             const csvContent = sections.join("\n");

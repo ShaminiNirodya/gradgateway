@@ -2,11 +2,13 @@ import { API_ENDPOINTS } from '@/lib/config';
 import {
   AdminCompanyListItem,
   AdminDashboard,
+  AdminEmailLogItem,
   AdminPlatformSettings,
   AdminUserListItem,
   PublicPlatformSettings,
   SupportInquiryListItem,
 } from '@/lib/types/admin';
+import { unwrapPagedItems, type PagedResult } from '@/lib/types/paged';
 
 async function getJsonOrThrow<T>(response: Response, fallbackMessage: string): Promise<T> {
   if (!response.ok) {
@@ -45,7 +47,11 @@ export class AdminService {
       : API_ENDPOINTS.ADMIN.USERS;
 
     const response = await fetch(url, { headers: authHeaders(token) });
-    return getJsonOrThrow(response, 'Failed to load users');
+    const data = await getJsonOrThrow<PagedResult<AdminUserListItem> | AdminUserListItem[]>(
+      response,
+      'Failed to load users'
+    );
+    return unwrapPagedItems(data);
   }
 
   static async setUserActive(token: string, userId: string, isActive: boolean): Promise<void> {
@@ -70,7 +76,11 @@ export class AdminService {
       : API_ENDPOINTS.ADMIN.COMPANIES;
 
     const response = await fetch(url, { headers: authHeaders(token) });
-    return getJsonOrThrow(response, 'Failed to load companies');
+    const data = await getJsonOrThrow<PagedResult<AdminCompanyListItem> | AdminCompanyListItem[]>(
+      response,
+      'Failed to load companies'
+    );
+    return unwrapPagedItems(data);
   }
 
   static async removeUser(token: string, userId: string): Promise<void> {
@@ -94,7 +104,11 @@ export class AdminService {
       ? `${API_ENDPOINTS.ADMIN.INQUIRIES}?${qs}`
       : API_ENDPOINTS.ADMIN.INQUIRIES;
     const response = await fetch(url, { headers: authHeaders(token) });
-    return getJsonOrThrow(response, 'Failed to load inquiries');
+    const data = await getJsonOrThrow<PagedResult<SupportInquiryListItem> | SupportInquiryListItem[]>(
+      response,
+      'Failed to load inquiries'
+    );
+    return unwrapPagedItems(data);
   }
 
   static async deleteInquiry(token: string, inquiryId: string): Promise<void> {
@@ -111,6 +125,26 @@ export class AdminService {
       headers: authHeaders(token),
     });
     await getJsonOrThrow(response, 'Failed to update inquiry');
+  }
+
+  static async getEmailLogs(
+    token: string,
+    params?: { search?: string; status?: string; take?: number }
+  ): Promise<AdminEmailLogItem[]> {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set('search', params.search);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.take) qs.set('take', String(params.take));
+
+    const url = qs.toString()
+      ? `${API_ENDPOINTS.ADMIN.EMAIL_LOGS}?${qs}`
+      : API_ENDPOINTS.ADMIN.EMAIL_LOGS;
+    const response = await fetch(url, { headers: authHeaders(token) });
+    const data = await getJsonOrThrow<PagedResult<AdminEmailLogItem> | AdminEmailLogItem[]>(
+      response,
+      'Failed to load email logs'
+    );
+    return unwrapPagedItems(data);
   }
 
   static async getSettings(token: string): Promise<AdminPlatformSettings> {
@@ -133,7 +167,9 @@ export class AdminService {
   }
 
   static async getPublicSettings(): Promise<PublicPlatformSettings> {
-    const response = await fetch(API_ENDPOINTS.ADMIN.SETTINGS_PUBLIC);
+    const response = await fetch(API_ENDPOINTS.PLATFORM.SETTINGS, {
+      next: { revalidate: 60 },
+    });
     if (!response.ok) {
       return { allowRegistration: true, maintenanceMode: false };
     }

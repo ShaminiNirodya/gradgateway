@@ -10,9 +10,9 @@ export default function NotFound() {
         </div>
         <p className="text-sm text-slate-500 mb-4">Oops! The page you're looking for seems to have wandered off. Let's help you find your way back.</p>
         <div className="grid grid-cols-2 gap-3 mb-4">
-          <Link href="/student" className="px-3 py-2 bg-slate-100 rounded-xl text-sm font-bold">Home</Link>
-          <Link href="/student/projects" className="px-3 py-2 bg-slate-100 rounded-xl text-sm font-bold">Browse Projects</Link>
-          <Link href="/dashboard/company/talent" className="px-3 py-2 bg-slate-100 rounded-xl text-sm font-bold">Search Talent</Link>
+          <Link href="/" className="px-3 py-2 bg-slate-100 rounded-xl text-sm font-bold">Home</Link>
+          <Link href="/about" className="px-3 py-2 bg-slate-100 rounded-xl text-sm font-bold">About Us</Link>
+          <Link href="/faq" className="px-3 py-2 bg-slate-100 rounded-xl text-sm font-bold">FAQ</Link>
           <Link href="/help" className="px-3 py-2 bg-slate-100 rounded-xl text-sm font-bold">Help Center</Link>
         </div>
         <div className="flex items-center justify-center gap-2">

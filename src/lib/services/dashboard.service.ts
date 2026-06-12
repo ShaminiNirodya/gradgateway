@@ -11,6 +11,7 @@ import {
   ScheduleInterviewsResult,
   OpportunityInterviewPlan,
 } from '@/lib/types/dashboard';
+import { unwrapPagedItems, type PagedResult } from '@/lib/types/paged';
 
 async function getJsonOrThrow<T>(response: Response, fallbackMessage: string): Promise<T> {
   if (!response.ok) {
@@ -60,28 +61,36 @@ export class DashboardService {
   private static readonly CONVERSATIONS_TTL_MS = 5_000;
   private static readonly MESSAGES_TTL_MS = 3_000;
 
-  static async getStudentOpeningsFeed(): Promise<{
+  static async getStudentOpeningsFeed(page = 1, pageSize = 50): Promise<{
     active: OpportunityItem[];
     expiredCount: number;
+    totalActive: number;
   }> {
-    const response = await fetch(API_ENDPOINTS.OPPORTUNITIES.LIST, {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const response = await fetch(
+      `${API_ENDPOINTS.OPPORTUNITIES.LIST}?page=${page}&pageSize=${pageSize}`,
+      { headers: { 'Content-Type': 'application/json' } }
+    );
 
     const data = await getJsonOrThrow<unknown>(response, 'Failed to load opportunities');
 
     if (Array.isArray(data)) {
-      return { active: data as OpportunityItem[], expiredCount: 0 };
+      return { active: data as OpportunityItem[], expiredCount: 0, totalActive: data.length };
     }
 
     const record = data as Record<string, unknown>;
     const activeRaw = record.active ?? record.Active;
-    const active = Array.isArray(activeRaw) ? (activeRaw as OpportunityItem[]) : [];
+    const active = unwrapPagedItems(
+      activeRaw as OpportunityItem[] | PagedResult<OpportunityItem> | undefined
+    );
+    const totalActive =
+      activeRaw && typeof activeRaw === 'object' && !Array.isArray(activeRaw) && 'totalCount' in activeRaw
+        ? Number((activeRaw as PagedResult<OpportunityItem>).totalCount)
+        : active.length;
     const expiredRaw = record.expiredCount ?? record.ExpiredCount;
     const expiredCount =
       typeof expiredRaw === 'number' && Number.isFinite(expiredRaw) ? expiredRaw : 0;
 
-    return { active, expiredCount };
+    return { active, expiredCount, totalActive };
   }
 
   static async getStudentOpportunities(): Promise<OpportunityItem[]> {
@@ -138,16 +147,22 @@ export class DashboardService {
     }
   }
 
-  static async getMyApplications(token: string): Promise<ApplicationItem[]> {
-    const response = await fetch(API_ENDPOINTS.APPLICATIONS.STUDENT_ME, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      cache: 'no-store',
-    });
+  static async getMyApplications(token: string, page = 1, pageSize = 100): Promise<ApplicationItem[]> {
+    const response = await fetch(
+      `${API_ENDPOINTS.APPLICATIONS.STUDENT_ME}?page=${page}&pageSize=${pageSize}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+      }
+    );
 
-    return getJsonOrThrow<ApplicationItem[]>(response, 'Failed to load applications');
+    return getJsonOrThrow<ApplicationItem[] | PagedResult<ApplicationItem>>(
+      response,
+      'Failed to load applications'
+    ).then(unwrapPagedItems);
   }
 
   static async getMyConversations(token: string): Promise<ConversationItem[]> {
@@ -252,14 +267,24 @@ export class DashboardService {
     }
   }
 
-  static async sendConversationMessage(token: string, conversationId: string, content: string) {
+  static async sendConversationMessage(
+    token: string,
+    conversationId: string,
+    content: string,
+    attachment?: { url: string; name: string; type: string }
+  ) {
     const response = await fetchWithTimeout(API_ENDPOINTS.CONVERSATIONS.MESSAGES(conversationId), {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({
+        content,
+        attachmentUrl: attachment?.url ?? null,
+        attachmentName: attachment?.name ?? null,
+        attachmentType: attachment?.type ?? null,
+      }),
     });
 
     const data = await getJsonOrThrow<{
@@ -270,6 +295,9 @@ export class DashboardService {
       content: string;
       isRead: boolean;
       sentAt: string;
+      attachmentUrl?: string | null;
+      attachmentName?: string | null;
+      attachmentType?: string | null;
     }>(response, 'Failed to send message');
 
     // Invalidate relevant caches so UI gets fresh data after sending.
@@ -301,8 +329,51 @@ export class DashboardService {
     return getJsonOrThrow<OpportunityItem>(response, 'Failed to load opportunity details');
   }
 
-  static async getCompanyApplications(token: string): Promise<ApplicationItem[]> {
-    const response = await fetch(API_ENDPOINTS.APPLICATIONS.COMPANY_ME, {
+  static async getCompanyApplications(token: string, page = 1, pageSize = 100): Promise<ApplicationItem[]> {
+    const response = await fetch(
+      `${API_ENDPOINTS.APPLICATIONS.COMPANY_ME}?page=${page}&pageSize=${pageSize}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+      }
+    );
+
+    return getJsonOrThrow<ApplicationItem[] | PagedResult<ApplicationItem>>(
+      response,
+      'Failed to load company applications'
+    ).then(unwrapPagedItems);
+  }
+
+  static async getCompanyOpportunities(token: string, page = 1, pageSize = 100): Promise<OpportunityItem[]> {
+    const response = await fetch(
+      `${API_ENDPOINTS.OPPORTUNITIES.COMPANY_ME}?page=${page}&pageSize=${pageSize}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    return getJsonOrThrow<OpportunityItem[] | PagedResult<OpportunityItem>>(
+      response,
+      'Failed to load company opportunities'
+    ).then(unwrapPagedItems);
+  }
+
+  static async getCompanyAnalytics(token: string): Promise<{
+    totalApplications: number;
+    shortlisted: number;
+    interviewed: number;
+    offersSent: number;
+    hired: number;
+    applicationsByDay: { label: string; value: number; date: string }[];
+    applicationsByWeek: { label: string; value: number; date: string }[];
+  }> {
+    const response = await fetch(API_ENDPOINTS.APPLICATIONS.COMPANY_ANALYTICS, {
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -310,18 +381,23 @@ export class DashboardService {
       cache: 'no-store',
     });
 
-    return getJsonOrThrow<ApplicationItem[]>(response, 'Failed to load company applications');
-  }
+    const data = await getJsonOrThrow<Record<string, unknown>>(response, 'Failed to load analytics');
+    const mapPoints = (camel: string, pascal: string) => {
+      const raw = (data[camel] ?? data[pascal]) as
+        | { label: string; value: number; date: string }[]
+        | undefined;
+      return raw ?? [];
+    };
 
-  static async getCompanyOpportunities(token: string): Promise<OpportunityItem[]> {
-    const response = await fetch(API_ENDPOINTS.OPPORTUNITIES.COMPANY_ME, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    return getJsonOrThrow<OpportunityItem[]>(response, 'Failed to load company opportunities');
+    return {
+      totalApplications: Number(data.totalApplications ?? data.TotalApplications ?? 0),
+      shortlisted: Number(data.shortlisted ?? data.Shortlisted ?? 0),
+      interviewed: Number(data.interviewed ?? data.Interviewed ?? 0),
+      offersSent: Number(data.offersSent ?? data.OffersSent ?? 0),
+      hired: Number(data.hired ?? data.Hired ?? 0),
+      applicationsByDay: mapPoints('applicationsByDay', 'ApplicationsByDay'),
+      applicationsByWeek: mapPoints('applicationsByWeek', 'ApplicationsByWeek'),
+    };
   }
 
   static async createCompanyOpportunity(
@@ -347,6 +423,56 @@ export class DashboardService {
     });
 
     return getJsonOrThrow<OpportunityItem>(response, 'Failed to create opportunity');
+  }
+
+  static async updateCompanyOpportunity(
+    token: string,
+    opportunityId: string,
+    payload: {
+      title: string;
+      description: string;
+      opportunityType: string;
+      workMode: string;
+      location: string;
+      requiredSkills: string;
+      monthlyStipendLkr?: number | null;
+      deadlineAt: string;
+    }
+  ): Promise<OpportunityItem> {
+    const response = await fetch(API_ENDPOINTS.OPPORTUNITIES.UPDATE(opportunityId), {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    return getJsonOrThrow<OpportunityItem>(response, 'Failed to update job post');
+  }
+
+  static async closeCompanyOpportunity(token: string, opportunityId: string): Promise<OpportunityItem> {
+    const response = await fetch(API_ENDPOINTS.OPPORTUNITIES.CLOSE(opportunityId), {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return getJsonOrThrow<OpportunityItem>(response, 'Failed to close job post');
+  }
+
+  static async deleteCompanyOpportunity(token: string, opportunityId: string): Promise<void> {
+    const response = await fetch(API_ENDPOINTS.OPPORTUNITIES.DELETE(opportunityId), {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    await getJsonOrThrow(response, 'Failed to delete job post');
   }
 
   static async updateApplicationStatus(token: string, applicationId: string, status: string): Promise<ApplicationItem> {

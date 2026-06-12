@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Paperclip, Phone, Video, MoreVertical, X, Copy, ExternalLink, MessageSquare, Search } from "lucide-react";
+import { Paperclip, Video, MoreVertical, X, Copy, ExternalLink, MessageSquare, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   conversationHighlightElementId,
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { AuthService } from "@/lib/services/auth.service";
 import { DashboardService } from "@/lib/services/dashboard.service";
+import { StorageService } from "@/lib/services/storage.service";
 import { ConversationItem } from "@/lib/types/dashboard";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { signalRService } from "@/lib/services/signalr.service";
@@ -50,6 +51,9 @@ type MessageItem = {
   content: string;
   isRead: boolean;
   sentAt: string;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
+  attachmentType?: string | null;
 };
 
 type OfferMessagePayload = {
@@ -168,9 +172,11 @@ function findScrollTargetMessageId(
 ): string | null {
   if (messages.length === 0) return null;
 
+  const email = userEmail?.toLowerCase();
+  if (!email) return messages[messages.length - 1]?.id ?? null;
+
   const isIncoming = (message: MessageItem) =>
-    Boolean(userEmail) &&
-    message.senderName?.toLowerCase() !== userEmail.toLowerCase();
+    message.senderName?.toLowerCase() !== email;
 
   const firstUnreadIncoming = messages.find((m) => isIncoming(m) && !m.isRead);
   if (firstUnreadIncoming) return firstUnreadIncoming.id;
@@ -192,6 +198,9 @@ export default function StudentMessagesPage() {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [sendingAttachment, setSendingAttachment] = useState(false);
+  const attachmentInputRef = useRef<HTMLInputElement | null>(null);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [videoCallActive, setVideoCallActive] = useState(false);
   const isCompany = userData?.role === "Company";
@@ -363,11 +372,13 @@ export default function StudentMessagesPage() {
   }, [loadConversations, refreshUnreadCount]);
 
   useEffect(() => {
-    const unsubscribe = signalRService.onMessage((newMessage: MessageItem) => {
+    const unsubscribe = signalRService.onMessage((raw) => {
+      const newMessage = raw as MessageItem;
       const isActiveChat = selectedConversationIdRef.current === newMessage.conversationId;
+      const myEmail = user?.email?.toLowerCase();
       const isFromMe =
-        Boolean(user?.email) &&
-        newMessage.senderName?.toLowerCase() === user.email?.toLowerCase();
+        Boolean(myEmail) &&
+        newMessage.senderName?.toLowerCase() === myEmail;
 
       if (isActiveChat) {
         setMessages((prev) => [...prev, newMessage]);
@@ -619,14 +630,35 @@ export default function StudentMessagesPage() {
 
   const sendMessage = async () => {
     const content = input.trim();
-    if (!content || !selectedConversationId) return;
+    if ((!content && !attachmentFile) || !selectedConversationId) return;
 
     try {
-      await sendConversationReply(content);
-      await syncOfferStatusAfterReply(content);
+      if (attachmentFile) {
+        setSendingAttachment(true);
+        const token = await AuthService.getIdToken();
+        if (!token || !user?.uid) throw new Error("Please log in again.");
+
+        const url = await StorageService.uploadChatAttachment(attachmentFile, user.uid);
+        const sent = await DashboardService.sendConversationMessage(
+          token,
+          selectedConversationId,
+          content,
+          { url, name: attachmentFile.name, type: attachmentFile.type }
+        );
+        setMessages((prev) => [...prev, sent]);
+        await loadConversations();
+        setAttachmentFile(null);
+        if (attachmentInputRef.current) attachmentInputRef.current.value = "";
+        show({ title: "Message sent", description: "Your attachment has been delivered", variant: "success" });
+      } else {
+        await sendConversationReply(content);
+        await syncOfferStatusAfterReply(content);
+      }
       setInput("");
     } catch (error: any) {
       show({ title: "Send failed", description: error?.message || "Unable to send message.", variant: "error" });
+    } finally {
+      setSendingAttachment(false);
     }
   };
 
@@ -751,7 +783,6 @@ export default function StudentMessagesPage() {
                 >
                   <Video className={`w-4 h-4 ${isCompany ? "text-slate-500 hover:text-indigo-600" : "text-slate-300"}`} />
                 </Button>
-                <Button variant="ghost" size="icon-sm" disabled><Phone className="w-4 h-4 text-slate-300" /></Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon-sm"><MoreVertical className="w-4 h-4 text-slate-500" /></Button>
@@ -921,7 +952,17 @@ export default function StudentMessagesPage() {
                       )}
                     >
                       <ChatMessageRow from={fromMe ? "me" : "them"} sentAt={message.sentAt}>
-                        <Message from={fromMe ? "me" : "them"}>{message.content}</Message>
+                        <Message from={fromMe ? "me" : "them"}>
+                          {message.attachmentUrl && (
+                            <MessageAttachment
+                              from={fromMe ? "me" : "them"}
+                              url={message.attachmentUrl}
+                              name={message.attachmentName}
+                              type={message.attachmentType}
+                            />
+                          )}
+                          {message.content}
+                        </Message>
                       </ChatMessageRow>
                     </div>
                   );
@@ -929,21 +970,70 @@ export default function StudentMessagesPage() {
               )}
             </div>
 
-            <div className="flex shrink-0 items-center gap-2 rounded-b-[24px] border-t bg-white p-4">
-              <Button variant="ghost" size="icon-sm"><Paperclip className="w-4 h-4 text-slate-400" /></Button>
-              <Input
-                placeholder="Type your message..."
-                className="h-12 rounded-xl bg-slate-50 border-none focus-visible:ring-1 focus-visible:ring-indigo-100"
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    sendMessage();
-                  }
-                }}
-              />
-              <Button onClick={sendMessage} disabled={!input.trim()}>Send</Button>
+            <div className="shrink-0 rounded-b-[24px] border-t bg-white p-4">
+              {attachmentFile && (
+                <div className="mb-2 flex items-center justify-between gap-2 rounded-xl bg-indigo-50/70 px-3 py-2">
+                  <span className="flex min-w-0 items-center gap-2 text-xs font-semibold text-indigo-700">
+                    <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{attachmentFile.name}</span>
+                    <span className="shrink-0 text-indigo-400">
+                      ({(attachmentFile.size / 1024 / 1024).toFixed(1)} MB)
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Remove attachment"
+                    className="shrink-0 rounded-md p-1 text-indigo-400 hover:bg-indigo-100 hover:text-indigo-600"
+                    onClick={() => {
+                      setAttachmentFile(null);
+                      if (attachmentInputRef.current) attachmentInputRef.current.value = "";
+                    }}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <input
+                  ref={attachmentInputRef}
+                  type="file"
+                  className="hidden"
+                  accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,.doc,.docx"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 10 * 1024 * 1024) {
+                      show({ title: "File too large", description: "Attachments must be under 10MB.", variant: "warning" });
+                      event.target.value = "";
+                      return;
+                    }
+                    setAttachmentFile(file);
+                  }}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  title="Attach a file (image, PDF, or Word)"
+                  onClick={() => attachmentInputRef.current?.click()}
+                >
+                  <Paperclip className="w-4 h-4 text-slate-500 hover:text-indigo-600" />
+                </Button>
+                <Input
+                  placeholder="Type your message..."
+                  className="h-12 rounded-xl bg-slate-50 border-none focus-visible:ring-1 focus-visible:ring-indigo-100"
+                  value={input}
+                  onChange={(event) => setInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      sendMessage();
+                    }
+                  }}
+                />
+                <Button onClick={sendMessage} disabled={(!input.trim() && !attachmentFile) || sendingAttachment}>
+                  {sendingAttachment ? "Sending..." : "Send"}
+                </Button>
+              </div>
             </div>
           </>
         )}
@@ -1139,6 +1229,52 @@ function Message({ children, from }: { children: ReactNode; from: "me" | "them" 
     >
       {children}
     </div>
+  );
+}
+
+function MessageAttachment({
+  from,
+  url,
+  name,
+  type,
+}: {
+  from: "me" | "them";
+  url: string;
+  name?: string | null;
+  type?: string | null;
+}) {
+  const isMe = from === "me";
+  const isImage = (type ?? "").startsWith("image/");
+
+  if (isImage) {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="mb-2 block">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt={name ?? "Attached image"}
+          className="max-h-64 w-full rounded-xl object-cover"
+        />
+      </a>
+    );
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn(
+        "mb-2 flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
+        isMe
+          ? "bg-white/15 text-white hover:bg-white/25"
+          : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+      )}
+    >
+      <Paperclip className="h-4 w-4 shrink-0" />
+      <span className="truncate">{name ?? "Attachment"}</span>
+      <ExternalLink className="ml-auto h-3.5 w-3.5 shrink-0 opacity-70" />
+    </a>
   );
 }
 

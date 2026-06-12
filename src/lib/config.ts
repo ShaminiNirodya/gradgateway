@@ -26,12 +26,6 @@ export const API_ENDPOINTS = {
     PUBLIC_LEGACY: (companyProfileId: string) =>
       `${API_URL}/api/companies/${companyProfileId}/public`,
   },
-  COMPANY_TEAM: {
-    ME: `${API_URL}/api/companyteam/me`,
-    INVITE: `${API_URL}/api/companyteam/invite`,
-    REMOVE: (memberId: string) => `${API_URL}/api/companyteam/${memberId}/remove`,
-    ACCEPT: `${API_URL}/api/companyteam/accept`,
-  },
   OPPORTUNITIES: {
     LIST: `${API_URL}/api/opportunities`,
     EXPIRED_COUNT: `${API_URL}/api/opportunities/expired-count`,
@@ -40,8 +34,18 @@ export const API_ENDPOINTS = {
       `${API_URL}/api/opportunities/${opportunityId}/company-profile`,
     COMPANY_ME: `${API_URL}/api/opportunities/company/me`,
     CREATE: `${API_URL}/api/opportunities`,
+    UPDATE: (id: string) => `${API_URL}/api/opportunities/${id}`,
+    CLOSE: (id: string) => `${API_URL}/api/opportunities/${id}/close`,
+    DELETE: (id: string) => `${API_URL}/api/opportunities/${id}`,
     SCHEDULE_INTERVIEWS: (id: string) => `${API_URL}/api/opportunities/${id}/schedule-interviews`,
     INTERVIEW_PLAN: (id: string) => `${API_URL}/api/opportunities/${id}/interview-plan`,
+  },
+  INTERVIEWS: {
+    STUDENT_ME: `${API_URL}/api/interviews/student/me`,
+  },
+  SKILLS: {
+    ME: `${API_URL}/api/students/me/skills`,
+    DELETE: (skillId: string) => `${API_URL}/api/students/me/skills/${skillId}`,
   },
   APPLICATIONS: {
     APPLY: `${API_URL}/api/applications/apply`,
@@ -50,6 +54,7 @@ export const API_ENDPOINTS = {
     STUDENT_ME: `${API_URL}/api/applications/student/me`,
     SYNC_OFFER_REPLIES: `${API_URL}/api/applications/student/sync-offer-replies`,
     COMPANY_ME: `${API_URL}/api/applications/company/me`,
+    COMPANY_ANALYTICS: `${API_URL}/api/applications/company/analytics`,
     UPDATE_STATUS: (id: string) => `${API_URL}/api/applications/${id}/status`,
     CREATE_JOB_OFFER: `${API_URL}/api/applications/job-offer`,
   },
@@ -59,6 +64,7 @@ export const API_ENDPOINTS = {
     MESSAGES: (id: string) => `${API_URL}/api/conversations/${id}/messages`,
   },
   PROJECTS: {
+    BY_ID: (id: string) => `${API_URL}/api/projects/${id}`,
     ME: `${API_URL}/api/projects/me`,
     ME_BY_ID: (id: string) => `${API_URL}/api/projects/me/${id}`,
     BY_STUDENT: (studentProfileId: string) =>
@@ -74,6 +80,9 @@ export const API_ENDPOINTS = {
     ME: `${API_URL}/api/emaillogs/me`,
   },
   PLATFORM_STATS: `${API_URL}/api/platformstats`,
+  PLATFORM: {
+    SETTINGS: `${API_URL}/api/platform/settings`,
+  },
   SUPPORT_INQUIRIES: `${API_URL}/api/supportinquiries`,
   ADMIN: {
     DASHBOARD: `${API_URL}/api/admin/dashboard`,
@@ -85,6 +94,6 @@ export const API_ENDPOINTS = {
     INQUIRY_REVIEWED: (inquiryId: string) => `${API_URL}/api/admin/inquiries/${inquiryId}/reviewed`,
     INQUIRY_DELETE: (inquiryId: string) => `${API_URL}/api/admin/inquiries/${inquiryId}`,
     SETTINGS: `${API_URL}/api/admin/settings`,
-    SETTINGS_PUBLIC: `${API_URL}/api/admin/settings/public`,
+    EMAIL_LOGS: `${API_URL}/api/admin/email-logs`,
   },
 } as const;

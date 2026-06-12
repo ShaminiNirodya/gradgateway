@@ -62,6 +62,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const persistUserData = useCallback((data: UserResponse | null) => {
     setUserData(data);
+    // Lightweight role cookie consumed by the Next.js middleware route guard.
+    // Real authorization is enforced by the API via Firebase JWT.
+    try {
+      if (data?.role) {
+        document.cookie = `gg_role=${data.role}; path=/; max-age=86400; samesite=lax`;
+      } else {
+        document.cookie = 'gg_role=; path=/; max-age=0; samesite=lax';
+      }
+    } catch {
+      // ignore cookie issues
+    }
     if (data) {
       try {
         sessionStorage.setItem('gg_user_data', JSON.stringify(data));

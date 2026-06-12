@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   MessageSquare,
+  MailCheck,
 } from "lucide-react";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { useState } from "react";
@@ -25,6 +26,7 @@ const navItems = [
   { name: "Students", href: "/dashboard/admin/students", icon: GraduationCap, badgeKey: null },
   { name: "Companies", href: "/dashboard/admin/companies", icon: Building2, badgeKey: null },
   { name: "All users", href: "/dashboard/admin/users", icon: Users, badgeKey: null },
+  { name: "Email logs", href: "/dashboard/admin/email-logs", icon: MailCheck, badgeKey: null },
   { name: "Settings", href: "/dashboard/admin/settings", icon: Settings, badgeKey: null },
 ];
 

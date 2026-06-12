@@ -80,14 +80,13 @@ export function getApplicationProgressModel(
     const steps = DIRECT_ACCEPTED_STEPS.map((step) => {
       if (step.key !== "result") return step;
       if (phase === "hired") return { ...step, label: "Hired" };
-      if (phase === "rejected") return { ...step, label: "Rejected" };
       return step;
     });
 
     let activeKey = "offerReceived";
     if (phase === "accepted") activeKey = "accepted";
     else if (phase === "interviewed") activeKey = "interviewed";
-    else if (phase === "hired" || phase === "rejected") activeKey = "result";
+    else if (phase === "hired") activeKey = "result";
 
     const completedThroughIndex = DIRECT_ACCEPTED_ORDER.indexOf(activeKey);
     return {

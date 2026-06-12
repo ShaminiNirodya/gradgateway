@@ -11,6 +11,8 @@ import {
   Briefcase,
   Compass,
   LifeBuoy,
+  CalendarDays,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/contexts/AuthContext";
@@ -28,6 +30,8 @@ const navItems = [
   { name: "Messages", href: "/dashboard/student/messages", icon: MessageSquare },
   { name: "Openings", href: "/dashboard/student/openings", icon: Compass },
   { name: "Applications", href: "/dashboard/student/applications", icon: Briefcase },
+  { name: "Interviews", href: "/dashboard/student/interviews", icon: CalendarDays },
+  { name: "Analytics", href: "/dashboard/student/analytics", icon: BarChart3 },
   { name: "Settings", href: "/dashboard/student/settings", icon: Settings },
 ];
 

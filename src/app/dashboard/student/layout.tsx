@@ -4,6 +4,7 @@ import { AccountBlockedGate } from "@/components/features/auth/AccountBlockedGat
 import { UnreadConversationsProvider } from "@/components/shared/UnreadConversationsProvider";
 import { NotificationsProvider } from "@/components/shared/NotificationsProvider";
 import { SignalRConnectionProvider } from "@/components/shared/SignalRConnectionProvider";
+import { MaintenanceGate } from "@/components/shared/PlatformGates";
 
 export default function StudentLayout({
   children,
@@ -11,6 +12,7 @@ export default function StudentLayout({
   children: React.ReactNode;
 }) {
   return (
+    <MaintenanceGate>
     <ProtectedRoute allowedRoles={["Student"]}>
       <SignalRConnectionProvider>
       <NotificationsProvider>
@@ -30,5 +32,6 @@ export default function StudentLayout({
       </NotificationsProvider>
       </SignalRConnectionProvider>
     </ProtectedRoute>
+    </MaintenanceGate>
   );
 }

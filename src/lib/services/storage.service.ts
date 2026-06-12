@@ -63,6 +63,36 @@ export class StorageService {
     }
   }
 
+  private static readonly CHAT_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
+  private static readonly CHAT_ATTACHMENT_TYPES = new Set([
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ]);
+
+  /** Upload a chat attachment (image, PDF, or Word doc) under the sender's uid. */
+  static async uploadChatAttachment(file: File, firebaseUid: string): Promise<string> {
+    if (!this.CHAT_ATTACHMENT_TYPES.has(file.type)) {
+      throw new Error("Attachments must be an image (JPG, PNG, GIF, WebP), PDF, or Word document.");
+    }
+    if (file.size > this.CHAT_ATTACHMENT_MAX_BYTES) {
+      throw new Error("Attachments must be under 10MB.");
+    }
+
+    const timestamp = Date.now();
+    const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+    const storageRef = ref(storage, `chat-attachments/${firebaseUid}/${timestamp}-${safeName}`);
+
+    await uploadBytes(storageRef, file, {
+      contentType: file.type || "application/octet-stream",
+    });
+    return await getDownloadURL(storageRef);
+  }
+
   static async uploadProfilePicture(
     file: File,
     studentId: string

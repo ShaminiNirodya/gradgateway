@@ -212,6 +212,14 @@ export default function ApplicationManagement() {
   };
 
   const handleScheduleInterview = (application: ApplicationItem) => {
+    if (!application.opportunityId) {
+      show({
+        title: "Cannot schedule interview",
+        description: "This application is not linked to a job post.",
+        variant: "warning",
+      });
+      return;
+    }
     setSelectedOpportunity({ id: application.opportunityId, title: application.jobTitle });
     setScheduleDialogOpen(true);
   };

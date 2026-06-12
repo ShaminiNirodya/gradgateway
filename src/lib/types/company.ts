@@ -26,8 +26,6 @@ export interface CompanyProfile {
   recruiterEmail: string;
   recruiterPhone: string;
   position: string;
-  verificationStatus?: string;
-  verificationRejectionReason?: string | null;
 }
 
 export interface CompanyPublicOpening {

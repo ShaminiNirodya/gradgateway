@@ -1,5 +1,0 @@
-import { redirect } from "next/navigation";
-
-export default function StudentRootRedirect() {
-	redirect("/dashboard/student");
-}

@@ -9,9 +9,6 @@ export interface AdminDashboard {
   studentAccounts: number;
   companyAccounts: number;
   adminAccounts: number;
-  pendingCompanyVerifications: number;
-  approvedCompanies: number;
-  rejectedCompanies: number;
   totalApplications: number;
   hiredApplications: number;
   signupsLast7Days: number;
@@ -54,9 +51,6 @@ export interface AdminCompanyListItem {
   companyName: string;
   companyEmail: string;
   industry: string;
-  verificationStatus: string;
-  verificationRejectionReason?: string | null;
-  verifiedAt?: string | null;
   createdAt: string;
   activeJobCount: number;
   userEmail: string;
@@ -65,7 +59,6 @@ export interface AdminCompanyListItem {
 
 export interface AdminPlatformSettings {
   allowRegistration: boolean;
-  requireCompanyVerification: boolean;
   maintenanceMode: boolean;
   updatedAt: string;
 }
@@ -73,4 +66,17 @@ export interface AdminPlatformSettings {
 export interface PublicPlatformSettings {
   allowRegistration: boolean;
   maintenanceMode: boolean;
+}
+
+export interface AdminEmailLogItem {
+  id: string;
+  userEmail: string;
+  toEmail: string;
+  templateType: string;
+  purpose: string;
+  provider: string;
+  status: string;
+  error?: string | null;
+  createdAt: string;
+  sentAt?: string | null;
 }

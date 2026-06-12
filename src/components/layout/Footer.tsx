@@ -1,9 +1,6 @@
 import Link from "next/link";
 import { Facebook, Twitter, Linkedin, Instagram } from "lucide-react";
 
-import { Send, Mail } from "lucide-react";
-import { Button } from "@/components/ui/button";
-
 export default function Footer() {
   return (
     <footer className="bg-[#0f172a] text-white pt-20 pb-10 relative overflow-hidden">
@@ -25,24 +22,6 @@ export default function Footer() {
             <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
               We are Sri Lanka's leading platform connecting ambitious undergraduates with top-tier industry opportunities. Verified skills, real projects, zero barriers.
             </p>
-            
-            {/* Newsletter Input (New UX Addition) */}
-            <div className="pt-4">
-              <p className="text-sm font-semibold text-white mb-2">Subscribe to our newsletter</p>
-              <div className="flex gap-2 max-w-xs">
-                <div className="relative flex-1">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input 
-                    type="email" 
-                    placeholder="Enter your email" 
-                    className="w-full bg-slate-800/50 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                  />
-                </div>
-                <Button size="icon" className="bg-violet-600 hover:bg-violet-700 rounded-lg">
-                  <Send className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
           </div>
 
           {/* Links 1 */}

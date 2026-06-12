@@ -17,6 +17,9 @@ import {
     Search,
     LayoutGrid,
     List as ListIcon,
+    Pencil,
+    XCircle,
+    Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +47,9 @@ import {
 
 } from "@/components/ui/dropdown-menu";
 
+import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/toast";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { NotificationItem } from "@/lib/types/dashboard";
 import { DEADLINE_NOTIFICATION_TITLE } from "@/lib/utils/notifications";
 import { calendarDaysUntilDeadline, isJobPostDue } from "@/lib/utils/job-deadline";
@@ -92,6 +98,8 @@ function formatWorkModeLabel(mode: string): string {
 export default function CompanyJobsPage() {
     const searchParams = useSearchParams();
     const highlightJobId = searchParams.get("jobId");
+    const router = useRouter();
+    const { show } = useToast();
 
     const [jobs, setJobs] = useState<JobView[]>([]);
 
@@ -99,6 +107,9 @@ export default function CompanyJobsPage() {
 
     const [scheduleTarget, setScheduleTarget] = useState<{ id: string; title: string } | null>(null);
     const [shareOfferJob, setShareOfferJob] = useState<ShareableJob | null>(null);
+    const [closeTarget, setCloseTarget] = useState<JobView | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<JobView | null>(null);
+    const [actionLoading, setActionLoading] = useState(false);
     const [search, setSearch] = useState("");
     const [view, setView] = useState<"grid" | "list">("grid");
 
@@ -135,25 +146,16 @@ export default function CompanyJobsPage() {
 
 
             const appCountByOpportunity = applications.reduce((acc, item) => {
-
+                if (!item.opportunityId) return acc;
                 acc.set(item.opportunityId, (acc.get(item.opportunityId) || 0) + 1);
-
                 return acc;
-
             }, new Map<string, number>());
 
-
-
             const shortlistedByOpportunity = applications.reduce((acc, item) => {
-
-                if (!item.status.toLowerCase().includes("short")) {
-
+                if (!item.opportunityId || !item.status.toLowerCase().includes("short")) {
                     return acc;
-
                 }
-
                 acc.set(item.opportunityId, (acc.get(item.opportunityId) || 0) + 1);
-
                 return acc;
 
             }, new Map<string, number>());
@@ -326,6 +328,48 @@ export default function CompanyJobsPage() {
 
     };
 
+    const handleCloseJob = async () => {
+        if (!closeTarget) return;
+        setActionLoading(true);
+        try {
+            const token = await AuthService.getIdToken();
+            if (!token) throw new Error("Please sign in again.");
+            await DashboardService.closeCompanyOpportunity(token, closeTarget.id);
+            show({ title: "Job closed", description: `"${closeTarget.title}" is no longer visible to students.`, variant: "success" });
+            setCloseTarget(null);
+            await loadData();
+        } catch (error) {
+            show({
+                title: "Close failed",
+                description: error instanceof Error ? error.message : "Unable to close job post.",
+                variant: "error",
+            });
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleDeleteJob = async () => {
+        if (!deleteTarget) return;
+        setActionLoading(true);
+        try {
+            const token = await AuthService.getIdToken();
+            if (!token) throw new Error("Please sign in again.");
+            await DashboardService.deleteCompanyOpportunity(token, deleteTarget.id);
+            show({ title: "Job deleted", description: `"${deleteTarget.title}" has been removed.`, variant: "success" });
+            setDeleteTarget(null);
+            await loadData();
+        } catch (error) {
+            show({
+                title: "Delete failed",
+                description: error instanceof Error ? error.message : "Unable to delete job post.",
+                variant: "error",
+            });
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
 
 
     return (
@@ -449,6 +493,9 @@ export default function CompanyJobsPage() {
                             job={job}
                             onScheduleInterview={() => setScheduleTarget({ id: job.id, title: job.title })}
                             onShareAsOffer={() => setShareOfferJob(job)}
+                            onEdit={() => router.push(`/dashboard/company/jobs/${job.id}/edit`)}
+                            onClose={() => setCloseTarget(job)}
+                            onDelete={() => setDeleteTarget(job)}
                         />
                     ))}
                     {!search.trim() && (
@@ -471,6 +518,9 @@ export default function CompanyJobsPage() {
                             job={job}
                             onScheduleInterview={() => setScheduleTarget({ id: job.id, title: job.title })}
                             onShareAsOffer={() => setShareOfferJob(job)}
+                            onEdit={() => router.push(`/dashboard/company/jobs/${job.id}/edit`)}
+                            onClose={() => setCloseTarget(job)}
+                            onDelete={() => setDeleteTarget(job)}
                         />
                     ))}
                     {!search.trim() && (
@@ -518,21 +568,101 @@ export default function CompanyJobsPage() {
                     if (!open) setShareOfferJob(null);
                 }}
             />
+
+            <ConfirmDialog
+                open={!!closeTarget}
+                onOpenChange={(open) => {
+                    if (!open) setCloseTarget(null);
+                }}
+                title="Close this job post?"
+                description={`"${closeTarget?.title ?? ""}" will stop accepting applications and disappear from the student feed. Existing applicants and history are kept. You can re-open it later by editing the deadline.`}
+                confirmLabel="Close job"
+                loading={actionLoading}
+                onConfirm={handleCloseJob}
+            />
+
+            <ConfirmDialog
+                open={!!deleteTarget}
+                onOpenChange={(open) => {
+                    if (!open) setDeleteTarget(null);
+                }}
+                title="Delete this job post?"
+                description={`"${deleteTarget?.title ?? ""}" will be permanently removed. This only works for posts with no applications — otherwise close it instead.`}
+                confirmLabel="Delete permanently"
+                variant="danger"
+                loading={actionLoading}
+                onConfirm={handleDeleteJob}
+            />
         </CompanyPageContainer>
     );
 }
 
 
 
-function JobCard({
-    job,
-    onScheduleInterview,
-    onShareAsOffer,
-}: {
+type JobActionProps = {
     job: JobView;
     onScheduleInterview: () => void;
     onShareAsOffer: () => void;
-}) {
+    onEdit: () => void;
+    onClose: () => void;
+    onDelete: () => void;
+};
+
+function JobActionsMenuItems({
+    job,
+    onScheduleInterview,
+    onShareAsOffer,
+    onEdit,
+    onClose,
+    onDelete,
+}: JobActionProps) {
+    return (
+        <>
+            <DropdownMenuItem
+                className="cursor-pointer gap-2 rounded-[14px] px-3 py-2.5 text-sm font-bold text-[#6C5DD3] focus:bg-indigo-50 focus:text-[#5b4eb8] [&_svg]:text-[#6C5DD3]"
+                onClick={onScheduleInterview}
+            >
+                <Calendar className="h-4 w-4" />
+                Set up interview date
+            </DropdownMenuItem>
+            <DropdownMenuItem
+                className="cursor-pointer gap-2 rounded-[14px] px-3 py-2.5 text-sm font-bold text-slate-700 focus:bg-indigo-50 focus:text-[#5b4eb8]"
+                onClick={onShareAsOffer}
+            >
+                <Send className="h-4 w-4 text-[#6C5DD3]" />
+                Share as an offer
+            </DropdownMenuItem>
+            <DropdownMenuItem
+                className="cursor-pointer gap-2 rounded-[14px] px-3 py-2.5 text-sm font-bold text-slate-700 focus:bg-indigo-50 focus:text-[#5b4eb8]"
+                onClick={onEdit}
+            >
+                <Pencil className="h-4 w-4 text-[#6C5DD3]" />
+                Edit job post
+            </DropdownMenuItem>
+            {job.status !== "Closed" && (
+                <DropdownMenuItem
+                    className="cursor-pointer gap-2 rounded-[14px] px-3 py-2.5 text-sm font-bold text-amber-700 focus:bg-amber-50 focus:text-amber-800"
+                    onClick={onClose}
+                >
+                    <XCircle className="h-4 w-4" />
+                    Close job post
+                </DropdownMenuItem>
+            )}
+            {job.applicants === 0 && (
+                <DropdownMenuItem
+                    className="cursor-pointer gap-2 rounded-[14px] px-3 py-2.5 text-sm font-bold text-red-600 focus:bg-red-50 focus:text-red-700"
+                    onClick={onDelete}
+                >
+                    <Trash2 className="h-4 w-4" />
+                    Delete job post
+                </DropdownMenuItem>
+            )}
+        </>
+    );
+}
+
+function JobCard(props: JobActionProps) {
+    const { job, onShareAsOffer } = props;
     const daysLeft = calendarDaysUntilDeadline(job.deadline);
     const due = job.status === "Due" || isJobPostDue(job.deadline);
     const closesToday = !due && daysLeft === 0;
@@ -578,20 +708,7 @@ function JobCard({
                             </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="min-w-[220px] rounded-xl border-indigo-100 p-1.5">
-                            <DropdownMenuItem
-                                className="cursor-pointer gap-2 rounded-[14px] px-3 py-2.5 text-sm font-bold text-[#6C5DD3] focus:bg-indigo-50 focus:text-[#5b4eb8] [&_svg]:text-[#6C5DD3]"
-                                onClick={onScheduleInterview}
-                            >
-                                <Calendar className="h-4 w-4" />
-                                Set up interview date
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                                className="cursor-pointer gap-2 rounded-[14px] px-3 py-2.5 text-sm font-bold text-slate-700 focus:bg-indigo-50 focus:text-[#5b4eb8]"
-                                onClick={onShareAsOffer}
-                            >
-                                <Send className="h-4 w-4 text-[#6C5DD3]" />
-                                Share as an offer
-                            </DropdownMenuItem>
+                            <JobActionsMenuItems {...props} />
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
@@ -728,15 +845,8 @@ function JobCard({
     );
 }
 
-function JobListRow({
-    job,
-    onScheduleInterview,
-    onShareAsOffer,
-}: {
-    job: JobView;
-    onScheduleInterview: () => void;
-    onShareAsOffer: () => void;
-}) {
+function JobListRow(props: JobActionProps) {
+    const { job, onShareAsOffer } = props;
     const daysLeft = calendarDaysUntilDeadline(job.deadline);
     const due = job.status === "Due" || isJobPostDue(job.deadline);
     const closesToday = !due && daysLeft === 0;
@@ -838,20 +948,7 @@ function JobListRow({
                         </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="min-w-[220px] rounded-xl border-indigo-100 p-1.5">
-                        <DropdownMenuItem
-                            className="cursor-pointer gap-2 rounded-[14px] px-3 py-2.5 text-sm font-bold text-[#6C5DD3] focus:bg-indigo-50 focus:text-[#5b4eb8] [&_svg]:text-[#6C5DD3]"
-                            onClick={onScheduleInterview}
-                        >
-                            <Calendar className="h-4 w-4" />
-                            Set up interview date
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            className="cursor-pointer gap-2 rounded-[14px] px-3 py-2.5 text-sm font-bold text-slate-700 focus:bg-indigo-50 focus:text-[#5b4eb8]"
-                            onClick={onShareAsOffer}
-                        >
-                            <Send className="h-4 w-4 text-[#6C5DD3]" />
-                            Share as an offer
-                        </DropdownMenuItem>
+                        <JobActionsMenuItems {...props} />
                     </DropdownMenuContent>
                 </DropdownMenu>
                 <Button

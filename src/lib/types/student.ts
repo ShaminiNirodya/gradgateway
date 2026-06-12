@@ -18,6 +18,7 @@ export interface StudentRegistration {
 }
 
 export interface StudentProfile {
+  studentProfileId: string;
   email: string;
   firebaseUid: string;
   fullName: string;

@@ -25,7 +25,7 @@ import { useStudentProfile } from "@/lib/hooks/useStudentProfile";
 import { AuthService } from "@/lib/services/auth.service";
 import { DashboardService } from "@/lib/services/dashboard.service";
 import { ProjectService } from "@/lib/services/project.service";
-import { StudentService } from "@/lib/services/student.service";
+import { StudentService, type StudentSkillItem } from "@/lib/services/student.service";
 import { ApplicationItem, OpportunityItem } from "@/lib/types/dashboard";
 import { useUnreadConversations } from "@/components/shared/UnreadConversationsProvider";
 import { ProjectItem } from "@/lib/types/project";
@@ -46,21 +46,46 @@ export default function StudentDashboard() {
   const { unreadCount: newMessagesCount } = useUnreadConversations();
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [availability, setAvailability] = useState("Available Now");
-  const [skills, setSkills] = useState<string[]>([]);
+  const [mySkills, setMySkills] = useState<StudentSkillItem[]>([]);
+  const [derivedSkills, setDerivedSkills] = useState<string[]>([]);
   const AVAILABLE_SKILLS = [
     "React", "Node.js", "Python", "Java", "TypeScript",
     "Machine Learning", "UI/UX Design", "Flutter", "DevOps",
     "Spring Boot", "PostgreSQL", "MongoDB", "AWS", "Docker"
   ];
 
-  const handleAddSkill = (skill: string) => {
-    if (!skills.includes(skill)) {
-      setSkills([...skills, skill]);
+  const skillNames = useMemo(
+    () =>
+      new Set([
+        ...mySkills.map((s) => s.name.toLowerCase()),
+        ...derivedSkills.map((s) => s.toLowerCase()),
+      ]),
+    [mySkills, derivedSkills]
+  );
+
+  const handleAddSkill = async (skill: string) => {
+    if (skillNames.has(skill.toLowerCase())) return;
+    try {
+      const token = await AuthService.getIdToken();
+      if (!token) return;
+      const added = await StudentService.addSkill(token, skill);
+      setMySkills((prev) => [...prev, added].sort((a, b) => a.name.localeCompare(b.name)));
+    } catch (error) {
+      console.error("Failed to add skill:", error);
     }
   };
 
-  const removeSkill = (skillToRemove: string) => {
-    setSkills(skills.filter(s => s !== skillToRemove));
+  const removeSkill = async (studentSkillId: string) => {
+    const previous = mySkills;
+    setMySkills((prev) => prev.filter((s) => s.id !== studentSkillId));
+    try {
+      const token = await AuthService.getIdToken();
+      if (!token) throw new Error("Not signed in");
+      await StudentService.removeSkill(token, studentSkillId);
+    } catch (error) {
+      console.error("Failed to remove skill:", error);
+      setMySkills(previous);
+    }
   };
 
   const handleAvailabilityChange = async (newAvailability: string) => {
@@ -92,29 +117,32 @@ export default function StudentDashboard() {
 
         if (!token) return;
 
-        const [myApps, myProjects] = await Promise.all([
+        const [myApps, myProjects, savedSkills] = await Promise.all([
           DashboardService.getMyApplications(token),
           ProjectService.getMyProjects(token),
+          StudentService.getMySkills(token).catch(() => [] as StudentSkillItem[]),
         ]);
 
         setApplications(myApps);
         setProjects(myProjects);
+        setMySkills(savedSkills);
 
-        const derivedSkills = Array.from(
-          new Set(
-            myProjects
-              .flatMap((project) => (project.techStack || "").split(","))
-              .map((skill) => skill.trim())
-              .filter(Boolean)
+        setDerivedSkills(
+          Array.from(
+            new Set(
+              myProjects
+                .flatMap((project) => (project.techStack || "").split(","))
+                .map((skill) => skill.trim())
+                .filter(Boolean)
+            )
           )
         );
-
-        setSkills(derivedSkills);
       } catch {
         setOpportunities([]);
         setApplications([]);
         setProjects([]);
-        setSkills([]);
+        setMySkills([]);
+        setDerivedSkills([]);
       }
     };
 
@@ -378,12 +406,12 @@ export default function StudentDashboard() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="max-h-60 overflow-y-auto rounded-xl border-slate-200 bg-white">
-              {AVAILABLE_SKILLS.filter((s) => !skills.includes(s)).map((skill) => (
-                <DropdownMenuItem key={skill} onClick={() => handleAddSkill(skill)}>
+              {AVAILABLE_SKILLS.filter((s) => !skillNames.has(s.toLowerCase())).map((skill) => (
+                <DropdownMenuItem key={skill} onClick={() => void handleAddSkill(skill)}>
                   {skill}
                 </DropdownMenuItem>
               ))}
-              {AVAILABLE_SKILLS.filter((s) => !skills.includes(s)).length === 0 && (
+              {AVAILABLE_SKILLS.filter((s) => !skillNames.has(s.toLowerCase())).length === 0 && (
                 <div className="p-2 text-xs text-slate-400">All skills added</div>
               )}
             </DropdownMenuContent>
@@ -391,20 +419,31 @@ export default function StudentDashboard() {
         </div>
 
         <div className="flex flex-wrap gap-2 p-6">
-          {skills.map((skill) => (
-            <div key={skill} className="group relative">
+          {mySkills.map((skill) => (
+            <div key={skill.id} className="group relative">
               <Badge className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:border-violet-100 hover:bg-violet-50/50">
-                {skill}
+                {skill.name}
                 <X
                   className="h-3 w-3 cursor-pointer text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-500"
-                  onClick={() => removeSkill(skill)}
+                  onClick={() => void removeSkill(skill.id)}
                 />
               </Badge>
             </div>
           ))}
-          {!skills.length && (
+          {derivedSkills
+            .filter((s) => !mySkills.some((m) => m.name.toLowerCase() === s.toLowerCase()))
+            .map((skill) => (
+              <Badge
+                key={`project-${skill}`}
+                title="From your project tech stacks"
+                className="rounded-xl border border-violet-100 bg-violet-50/60 px-4 py-2 text-sm font-bold text-violet-700 shadow-sm"
+              >
+                {skill}
+              </Badge>
+            ))}
+          {!mySkills.length && !derivedSkills.length && (
             <p className="text-sm text-slate-400">
-              No skills found yet. Add projects with tech stack to populate this list.
+              No skills yet. Add skills here, or create projects — tech stacks appear automatically.
             </p>
           )}
         </div>

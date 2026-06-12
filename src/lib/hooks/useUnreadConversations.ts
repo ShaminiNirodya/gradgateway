@@ -7,6 +7,8 @@ import { AuthService } from "@/lib/services/auth.service";
 import { DashboardService } from "@/lib/services/dashboard.service";
 import { signalRService } from "@/lib/services/signalr.service";
 
+type SignalRMessage = { senderName?: string | null };
+
 function isMessagesRoute(pathname: string | null): boolean {
   if (!pathname) return false;
   return pathname.includes("/messages");
@@ -64,10 +66,12 @@ export function useUnreadConversationsState() {
   }, [refreshUnreadCount]);
 
   useEffect(() => {
-    const unsubscribeMessage = signalRService.onMessage((newMessage) => {
+    const unsubscribeMessage = signalRService.onMessage((raw) => {
+      const newMessage = raw as SignalRMessage;
+      const myEmail = user?.email?.toLowerCase();
       const isFromMe =
-        Boolean(user?.email) &&
-        newMessage?.senderName?.toLowerCase() === user?.email?.toLowerCase();
+        Boolean(myEmail) &&
+        newMessage.senderName?.toLowerCase() === myEmail;
 
       if (isFromMe) return;
 

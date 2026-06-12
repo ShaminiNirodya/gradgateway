@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
   LifeBuoy,
+  BarChart3,
 } from "lucide-react";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { useRouter } from "next/navigation";
@@ -28,6 +29,7 @@ const navItems = [
   { name: "Applications", href: "/dashboard/company/applications", icon: ClipboardList },
   { name: "Job Posts", href: "/dashboard/company/jobs", icon: Briefcase },
   { name: "Messages", href: "/dashboard/company/messages", icon: MessageSquare },
+  { name: "Analytics", href: "/dashboard/company/analytics", icon: BarChart3 },
   { name: "Settings", href: "/dashboard/company/settings", icon: Settings },
 ];
 

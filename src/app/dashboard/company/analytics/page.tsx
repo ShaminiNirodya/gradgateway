@@ -16,6 +16,8 @@ export default function CompanyAnalyticsPage() {
   const { show } = useToast();
   const [applications, setApplications] = useState<ApplicationItem[]>([]);
   const [opportunities, setOpportunities] = useState<OpportunityItem[]>([]);
+  const [timeSeries, setTimeSeries] = useState<{ label: string; value: number }[]>([]);
+  const [weeklySeries, setWeeklySeries] = useState<{ label: string; value: number }[]>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -23,16 +25,21 @@ export default function CompanyAnalyticsPage() {
         const token = await AuthService.getIdToken();
         if (!token) return;
 
-        const [apps, jobs] = await Promise.all([
+        const [apps, jobs, analytics] = await Promise.all([
           DashboardService.getCompanyApplications(token),
           DashboardService.getCompanyOpportunities(token),
+          DashboardService.getCompanyAnalytics(token),
         ]);
 
         setApplications(apps);
         setOpportunities(jobs);
+        setTimeSeries(analytics.applicationsByDay.map((p) => ({ label: p.label, value: p.value })));
+        setWeeklySeries(analytics.applicationsByWeek.map((p) => ({ label: p.label, value: p.value })));
       } catch {
         setApplications([]);
         setOpportunities([]);
+        setTimeSeries([]);
+        setWeeklySeries([]);
       }
     };
 
@@ -70,7 +77,7 @@ export default function CompanyAnalyticsPage() {
     { stage: "Hired", count: hired },
   ];
 
-  const engagement = useMemo(() => {
+  const fallbackEngagement = useMemo(() => {
     const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const base = labels.map((label) => ({ label, value: 0 }));
 
@@ -82,6 +89,8 @@ export default function CompanyAnalyticsPage() {
 
     return base;
   }, [applications]);
+
+  const engagement = timeSeries.length > 0 ? timeSeries : fallbackEngagement;
 
   const topSkills = useMemo(() => {
     const map = new Map<string, number>();
@@ -114,7 +123,7 @@ export default function CompanyAnalyticsPage() {
     ];
   }, [opportunities]);
 
-  const roi = useMemo(() => {
+  const fallbackRoi = useMemo(() => {
     const quarters = ["Q1", "Q2", "Q3", "Q4"];
     const byQuarter = new Map<string, number>(quarters.map((q) => [q, 0]));
 
@@ -127,6 +136,8 @@ export default function CompanyAnalyticsPage() {
     return quarters.map((quarter) => ({ label: quarter, value: byQuarter.get(quarter) || 0 }));
   }, [applications]);
 
+  const roi = weeklySeries.length > 0 ? weeklySeries : fallbackRoi;
+
   const exportCSV = () => {
     // Create comprehensive CSV with all metrics
     const sections = [
@@ -136,19 +147,19 @@ export default function CompanyAnalyticsPage() {
       "",
       "Funnel Stages",
       "Stage,Count",
-      ...funnel.map(f => `"${f.label}","${f.value}"`),
+      ...funnel.map(f => `"${f.stage}","${f.count}"`),
       "",
       "Engagement Timeline",
       "Month,Applications",
       ...engagement.map(e => `"${e.label}","${e.value}"`),
       "",
       "Top Skills",
-      "Skill,Frequency",
-      ...topSkills.map(s => `"${s.label}","${s.value}"`),
+      "Skill",
+      ...topSkills.map(s => `"${s}"`),
       "",
       "Sourcing Channels",
-      "Source,Count",
-      ...sourcing.map(s => `"${s.label}","${s.value}"`),
+      "Source,Score",
+      ...sourcing.map(s => `"${s.channel}","${Math.round(s.score * 100)}%"`),
       "",
       "ROI by Quarter",
       "Quarter,Hires",

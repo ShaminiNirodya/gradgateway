@@ -127,6 +127,7 @@ export default function NewProjectPage() {
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedTechs, setSelectedTechs] = useState<string[]>([]);
+    const [category, setCategory] = useState("fullstack");
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [githubUrl, setGithubUrl] = useState("");
@@ -207,9 +208,17 @@ export default function NewProjectPage() {
                 }
             }
 
+            const categoryLabels: Record<string, string> = {
+                frontend: "Front End",
+                backend: "Back End",
+                fullstack: "Full Stack",
+                mobile: "Mobile App",
+                datascience: "Data Science",
+                uiux: "UI/UX Design",
+            };
             const projectData = {
                 title: title,
-                description: description,
+                description: `${description.trim()}\n\nCategory: ${categoryLabels[category] ?? category}`,
                 techStack: selectedTechs.join(", "),
                 repositoryUrl: githubUrl || null,
                 demoUrl: demoUrl || null,
@@ -299,7 +308,12 @@ export default function NewProjectPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="category">Category</Label>
-                            <select className="flex h-12 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-slate-600">
+                            <select
+                                id="category"
+                                value={category}
+                                onChange={(e) => setCategory(e.target.value)}
+                                className="flex h-12 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-slate-600"
+                            >
                                 <option value="frontend">Front End</option>
                                 <option value="backend">Back End</option>
                                 <option value="fullstack">Full Stack</option>

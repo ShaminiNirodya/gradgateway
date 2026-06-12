@@ -4,6 +4,7 @@ import { AccountBlockedGate } from "@/components/features/auth/AccountBlockedGat
 import { UnreadConversationsProvider } from "@/components/shared/UnreadConversationsProvider";
 import { NotificationsProvider } from "@/components/shared/NotificationsProvider";
 import { SignalRConnectionProvider } from "@/components/shared/SignalRConnectionProvider";
+import { MaintenanceGate } from "@/components/shared/PlatformGates";
 
 export default function CompanyLayout({
   children,
@@ -11,6 +12,7 @@ export default function CompanyLayout({
   children: React.ReactNode;
 }) {
   return (
+    <MaintenanceGate>
     <ProtectedRoute allowedRoles={["Company"]}>
       <SignalRConnectionProvider>
       <NotificationsProvider>
@@ -32,5 +34,6 @@ export default function CompanyLayout({
       </NotificationsProvider>
       </SignalRConnectionProvider>
     </ProtectedRoute>
+    </MaintenanceGate>
   );
 }

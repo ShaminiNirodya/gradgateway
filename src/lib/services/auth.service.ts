@@ -3,6 +3,7 @@ import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   sendPasswordResetEmail,
+  sendEmailVerification,
   EmailAuthProvider,
   reauthenticateWithCredential,
   updatePassword
@@ -194,6 +195,20 @@ export class AuthService {
       // Create user in Firebase
       const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
       const token = await userCredential.user.getIdToken();
+
+      // Fire-and-forget: Firebase sends the verification email; registration continues regardless.
+      sendEmailVerification(userCredential.user, {
+        url: `${window.location.origin}/verify-email`,
+      }).then(() => {
+        EmailLogService.track(token, {
+          toEmail: normalizedEmail,
+          templateType: 'EmailVerification',
+          purpose: 'Verify email after registration',
+          provider: 'FirebaseAuth',
+          status: 'Sent',
+          sentAt: new Date().toISOString(),
+        }).catch(() => undefined);
+      }).catch(() => undefined);
 
       return await this.syncFirebaseUserWithBackend(
         token,
