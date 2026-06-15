@@ -198,6 +198,13 @@ function InterviewCalendar({ interviews, now }: { interviews: StudentInterviewIt
   const calendarDays = useMemo(() => getCalendarDays(viewMonth), [viewMonth]);
   const monthLabel = viewMonth.toLocaleDateString("en-LK", { month: "long", year: "numeric" });
   const selectedInterviews = interviewsByDay.get(selectedKey) ?? [];
+  const nextInterview = useMemo(() => {
+    return (
+      interviews
+        .filter((i) => new Date(i.scheduledAt).getTime() >= now && i.status !== "Cancelled")
+        .sort((a, b) => +new Date(a.scheduledAt) - +new Date(b.scheduledAt))[0] ?? null
+    );
+  }, [interviews, now]);
 
   const goToMonth = (offset: number) => {
     setViewMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
@@ -206,6 +213,31 @@ function InterviewCalendar({ interviews, now }: { interviews: StudentInterviewIt
   return (
     <div className="space-y-4">
       <div className="overflow-visible rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-6">
+        {nextInterview ? (
+          <div className="mb-4 rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 to-violet-50/60 px-4 py-3">
+            <p className="text-xs font-bold uppercase tracking-wider text-indigo-600">Next interview</p>
+            <p className="mt-1 text-base font-extrabold text-slate-800">
+              {new Date(nextInterview.scheduledAt).toLocaleDateString("en-LK", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </p>
+            <p className="mt-0.5 text-sm font-medium text-slate-600">
+              {nextInterview.jobTitle} · {nextInterview.companyName}
+              <span className="text-slate-400">
+                {" "}
+                · {formatDateTime(nextInterview.scheduledAt).time}
+              </span>
+            </p>
+          </div>
+        ) : (
+          <div className="mb-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-slate-500">
+            No upcoming interviews scheduled.
+          </div>
+        )}
+
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-extrabold text-slate-800">{monthLabel}</h2>
           <div className="flex items-center gap-2">
@@ -264,15 +296,16 @@ function InterviewCalendar({ interviews, now }: { interviews: StudentInterviewIt
                     inMonth
                       ? "border-slate-100 bg-slate-50/50 hover:border-indigo-200 hover:bg-indigo-50/40"
                       : "border-transparent bg-transparent",
-                    isSelected && inMonth && "border-indigo-300 bg-indigo-50 ring-1 ring-indigo-200/60",
-                    isToday && "ring-2 ring-[#6C5DD3]/30",
+                    isSelected && inMonth && !isToday && "border-indigo-300 bg-indigo-50 ring-1 ring-indigo-200/60",
+                    isSelected && inMonth && isToday && "border-emerald-300 bg-emerald-50/50 ring-1 ring-emerald-200/60",
+                    isToday && "ring-2 ring-emerald-400/40",
                     dayInterviews.length > 0 && inMonth && "hover:z-20"
                   )}
                 >
                   <span
                     className={cn(
                       "flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold sm:h-7 sm:w-7 sm:text-sm",
-                      isToday ? "bg-[#6C5DD3] text-white" : "text-slate-700"
+                      isToday ? "bg-emerald-500 text-white" : "text-slate-700"
                     )}
                   >
                     {date.getDate()}

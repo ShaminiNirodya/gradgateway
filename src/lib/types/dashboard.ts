@@ -39,6 +39,8 @@ export interface ConversationItem {
   lastMessage: string;
   lastMessageAt: string;
   hasUnread?: boolean;
+  kind?: string;
+  supportTargetRole?: string | null;
 }
 
 export interface NotificationItem {

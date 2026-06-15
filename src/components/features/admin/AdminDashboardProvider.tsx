@@ -31,6 +31,7 @@ function normalizeDashboard(raw: Partial<AdminDashboard>): AdminDashboard {
     expiredJobPosts: raw.expiredJobPosts ?? 0,
     openSupportInquiries: raw.openSupportInquiries ?? 0,
     totalSupportInquiries: raw.totalSupportInquiries ?? 0,
+    pendingTestimonials: raw.pendingTestimonials ?? 0,
   };
 }
 
@@ -60,8 +61,16 @@ export function AdminDashboardProvider({ children }: { children: ReactNode }) {
         setData(null);
         return;
       }
-      const dashboard = await AdminService.getDashboard(token);
-      setData(normalizeDashboard(dashboard));
+      const [dashboard, pendingTestimonials] = await Promise.all([
+        AdminService.getDashboard(token),
+        AdminService.getTestimonials(token, { status: "Pending" }).catch(() => []),
+      ]);
+      setData(
+        normalizeDashboard({
+          ...dashboard,
+          pendingTestimonials: pendingTestimonials.length,
+        })
+      );
       setRefreshedAt(new Date());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load dashboard.");
@@ -73,6 +82,14 @@ export function AdminDashboardProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    const onFocus = () => {
+      void refresh();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [refresh]);
 
   return (

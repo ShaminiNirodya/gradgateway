@@ -23,14 +23,14 @@ import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import {
     ALL_UNIVERSITIES,
-    ALL_DEGREES,
     getDegreesForUniversity,
     universityOffersDegree,
     normalizeDegreeName,
 } from "@/lib/constants/university-degrees";
 import {
     type FieldOfMajorId,
-    getDegreesForFieldOfMajor,
+    getDegreesForFieldAtUniversity,
+    getFieldsOfMajorForUniversity,
     getFieldOfMajorById,
     getFieldOfMajorByLabel,
     inferFieldOfMajorFromDegree,
@@ -91,14 +91,45 @@ export default function StudentSettingsPage() {
     const cvInputRef = useRef<HTMLInputElement>(null);
 
     // Dynamic filtering based on selections
+    const availableFields = useMemo(
+        () => getFieldsOfMajorForUniversity(university),
+        [university]
+    );
+
     const availableDegrees = useMemo(() => {
-        let degrees = university ? getDegreesForUniversity(university) : ALL_DEGREES;
+        if (!university) return [];
         if (fieldOfMajorId) {
-            const fieldSet = new Set(getDegreesForFieldOfMajor(fieldOfMajorId));
-            degrees = degrees.filter((d) => fieldSet.has(d));
+            return getDegreesForFieldAtUniversity(fieldOfMajorId, university);
         }
-        return degrees;
+        return getDegreesForUniversity(university);
     }, [university, fieldOfMajorId]);
+
+    const applyUniversityChange = (nextUniversity: string) => {
+        setUniversity(nextUniversity);
+        setUniversitySearch("");
+        setIsUniversityDropdownOpen(false);
+
+        if (!nextUniversity) {
+            setFieldOfMajorId("");
+            setDegree("");
+            return;
+        }
+
+        const fieldsForUni = getFieldsOfMajorForUniversity(nextUniversity);
+        if (fieldOfMajorId && !fieldsForUni.some((f) => f.id === fieldOfMajorId)) {
+            setFieldOfMajorId("");
+        }
+
+        const nextDegrees = fieldOfMajorId
+            ? getDegreesForFieldAtUniversity(fieldOfMajorId, nextUniversity)
+            : getDegreesForUniversity(nextUniversity);
+        if (degree && !nextDegrees.includes(degree)) {
+            setDegree("");
+        }
+    };
+
+    const canSelectFieldOfMajor = !!university;
+    const canSelectDegree = !!university;
 
     const degreeNotOfferedAtUniversity = useMemo(() => {
         if (!university || !degree) {
@@ -106,8 +137,6 @@ export default function StudentSettingsPage() {
         }
         return !universityOffersDegree(university, degree);
     }, [university, degree]);
-
-    const canSelectDegree = !!university;
 
     const applyDegreeChoice = (degreeOption: string) => {
         setDegree(degreeOption);
@@ -522,6 +551,86 @@ export default function StudentSettingsPage() {
                                 <Label>Last Name</Label>
                                 <Input value={lastName} onChange={(e) => setLastName(e.target.value)} className="rounded-xl" />
                             </div>
+
+                            <div className="md:col-span-2 rounded-xl border border-indigo-100 bg-indigo-50/60 px-3 py-2.5 text-xs font-medium leading-relaxed text-indigo-800">
+                                <span className="font-bold">Tip:</span> Select your university first, then either pick a{" "}
+                                <span className="font-semibold">field of major</span> to narrow degrees, or choose your{" "}
+                                <span className="font-semibold">degree</span> directly and we&apos;ll set the major for you.
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>University</Label>
+                                <ClearableFilterField
+                                    showClear={!!university}
+                                    onClear={() => {
+                                        setUniversity("");
+                                        setFieldOfMajorId("");
+                                        setDegree("");
+                                    }}
+                                    clearLabel="university"
+                                >
+                                    <DropdownMenu open={isUniversityDropdownOpen} onOpenChange={setIsUniversityDropdownOpen}>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className={cn(
+                                                    "w-full h-10 min-w-0 overflow-hidden justify-start text-left font-normal rounded-xl border-slate-200 hover:bg-slate-50",
+                                                    university && CLEARABLE_FIELD_PADDING
+                                                )}
+                                            >
+                                            <span className="truncate block w-full">
+                                                {university || "Select your university..."}
+                                            </span>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" className="bg-white w-[400px] rounded-xl shadow-xl border-slate-100 p-0">
+                                        <div className="sticky top-0 bg-white border-b border-slate-100 p-2">
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Search universities..."
+                                                    value={universitySearch}
+                                                    onChange={(e) => setUniversitySearch(e.target.value)}
+                                                    onKeyDown={(e) => e.stopPropagation()}
+                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                    className="pl-9 h-9 rounded-lg border-slate-200 focus:border-[#6C5DD3] focus:ring-[#6C5DD3]"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="max-h-60 overflow-y-auto">
+                                            {ALL_UNIVERSITIES
+                                                .filter(u => u.toLowerCase().includes(universitySearch.toLowerCase()))
+                                                .map((uni) => (
+                                                    <DropdownMenuItem
+                                                        key={uni}
+                                                        onClick={() => applyUniversityChange(uni)}
+                                                        className="font-medium text-slate-600 focus:bg-indigo-50 focus:text-[#6C5DD3] cursor-pointer py-2.5 px-3"
+                                                    >
+                                                        {uni}
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            {ALL_UNIVERSITIES
+                                                .filter(u => u.toLowerCase().includes(universitySearch.toLowerCase()))
+                                                .length === 0 && (
+                                                <div className="p-4 text-sm text-slate-400 text-center">
+                                                    No universities found
+                                                </div>
+                                            )}
+                                        </div>
+                                    </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </ClearableFilterField>
+                                {degreeNotOfferedAtUniversity && (
+                                    <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                        <span className="font-medium">{degree}</span> is not offered at{" "}
+                                        <span className="font-medium">{university}</span>. Please select a matching
+                                        degree from the Major / Degree field.
+                                    </p>
+                                )}
+                            </div>
+
                             <div className="space-y-2">
                                 <Label>Field of Major</Label>
                                 <ClearableFilterField
@@ -541,13 +650,25 @@ export default function StudentSettingsPage() {
                                                 setDegree("");
                                             }
                                         }}
+                                        fields={availableFields}
+                                        disabled={!canSelectFieldOfMajor}
+                                        placeholder={
+                                            canSelectFieldOfMajor
+                                                ? "Select field of major (optional)"
+                                                : "Select university first"
+                                        }
                                         triggerClassName={cn(
                                             "w-full rounded-xl h-10",
                                             fieldOfMajorId && CLEARABLE_SELECT_PADDING
                                         )}
                                     />
                                 </ClearableFilterField>
-                                <FieldOfMajorSubcategoriesNotice fieldId={fieldOfMajorId} />
+                                {university && availableFields.length === 0 && (
+                                    <p className="text-xs font-semibold text-amber-600">
+                                        No degree programs are listed for this university yet.
+                                    </p>
+                                )}
+                                <FieldOfMajorSubcategoriesNotice fieldId={fieldOfMajorId} university={university} />
                             </div>
                             <div className="space-y-2">
                                 <Label>Major / Degree</Label>
@@ -669,86 +790,6 @@ export default function StudentSettingsPage() {
                             <div className="space-y-2">
                                 <Label>Current GPA</Label>
                                 <Input value={gpa} onChange={(e) => setGpa(e.target.value)} className="rounded-xl" placeholder="e.g. 3.8" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>University</Label>
-                                <ClearableFilterField
-                                    showClear={!!university}
-                                    onClear={() => setUniversity("")}
-                                    clearLabel="university"
-                                >
-                                    <DropdownMenu open={isUniversityDropdownOpen} onOpenChange={setIsUniversityDropdownOpen}>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                className={cn(
-                                                    "w-full h-10 min-w-0 overflow-hidden justify-start text-left font-normal rounded-xl border-slate-200 hover:bg-slate-50",
-                                                    university && CLEARABLE_FIELD_PADDING
-                                                )}
-                                            >
-                                            <span className="truncate block w-full">
-                                                {university || "Select your university..."}
-                                            </span>
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start" className="bg-white w-[400px] rounded-xl shadow-xl border-slate-100 p-0">
-                                        <div className="sticky top-0 bg-white border-b border-slate-100 p-2">
-                                            <div className="relative">
-                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                                <Input
-                                                    type="text"
-                                                    placeholder="Search universities..."
-                                                    value={universitySearch}
-                                                    onChange={(e) => setUniversitySearch(e.target.value)}
-                                                    onKeyDown={(e) => e.stopPropagation()}
-                                                    onMouseDown={(e) => e.stopPropagation()}
-                                                    className="pl-9 h-9 rounded-lg border-slate-200 focus:border-[#6C5DD3] focus:ring-[#6C5DD3]"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="max-h-60 overflow-y-auto">
-                                            {ALL_UNIVERSITIES
-                                                .filter(u => u.toLowerCase().includes(universitySearch.toLowerCase()))
-                                                .map((uni) => (
-                                                    <DropdownMenuItem
-                                                        key={uni}
-                                                        onClick={() => {
-                                                            setUniversity(uni);
-                                                            setUniversitySearch("");
-                                                            setIsUniversityDropdownOpen(false);
-                                                            const nextDegrees = fieldOfMajorId
-                                                                ? getDegreesForUniversity(uni).filter((d) =>
-                                                                      getDegreesForFieldOfMajor(fieldOfMajorId).includes(d)
-                                                                  )
-                                                                : getDegreesForUniversity(uni);
-                                                            if (degree && !nextDegrees.includes(degree)) {
-                                                                setDegree("");
-                                                            }
-                                                        }}
-                                                        className="font-medium text-slate-600 focus:bg-indigo-50 focus:text-[#6C5DD3] cursor-pointer py-2.5 px-3"
-                                                    >
-                                                        {uni}
-                                                    </DropdownMenuItem>
-                                                ))}
-                                            {ALL_UNIVERSITIES
-                                                .filter(u => u.toLowerCase().includes(universitySearch.toLowerCase()))
-                                                .length === 0 && (
-                                                <div className="p-4 text-sm text-slate-400 text-center">
-                                                    No universities found
-                                                </div>
-                                            )}
-                                        </div>
-                                    </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </ClearableFilterField>
-                                {degreeNotOfferedAtUniversity && (
-                                    <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                                        <span className="font-medium">{degree}</span> is not offered at{" "}
-                                        <span className="font-medium">{university}</span>. Please select a matching
-                                        degree from the Major / Degree field.
-                                    </p>
-                                )}
                             </div>
                             <div className="space-y-2">
                                 <Label>Graduation Year</Label>

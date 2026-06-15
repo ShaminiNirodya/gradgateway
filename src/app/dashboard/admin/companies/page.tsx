@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AdminMessageUserButton } from "@/components/features/admin/AdminMessageUserButton";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 
@@ -317,7 +318,9 @@ function CompanyListRow({
         <StatusPill active={company.userIsActive} />
       </td>
       <td className="px-5 py-4 text-right">
-        {company.userIsActive ? (
+        <div className="flex justify-end gap-2">
+          <AdminMessageUserButton companyProfileId={company.id} />
+          {company.userIsActive ? (
           <Button size="sm" variant="destructive" className="rounded-lg" onClick={onRemove}>
             Block
           </Button>
@@ -326,6 +329,7 @@ function CompanyListRow({
             Unblock
           </Button>
         )}
+        </div>
       </td>
     </tr>
   );

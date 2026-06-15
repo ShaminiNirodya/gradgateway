@@ -600,9 +600,15 @@ export class DashboardService {
   }
 }
 
-function normalizeConversationItem(row: ConversationItem & { HasUnread?: boolean }): ConversationItem {
+function normalizeConversationItem(row: ConversationItem & {
+  HasUnread?: boolean;
+  Kind?: string;
+  SupportTargetRole?: string | null;
+}): ConversationItem {
   return {
     ...row,
     hasUnread: Boolean(row.hasUnread ?? row.HasUnread),
+    kind: row.kind ?? row.Kind ?? 'StudentCompany',
+    supportTargetRole: row.supportTargetRole ?? row.SupportTargetRole ?? null,
   };
 }

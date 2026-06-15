@@ -39,10 +39,7 @@ export default function Footer() {
           <div>
             <h4 className="font-bold text-white mb-6">Resources</h4>
             <ul className="space-y-4 text-sm text-slate-400">
-              <li><FooterLink href="/blog">Success Stories</FooterLink></li>
-              <li><FooterLink href="/help">Help Center</FooterLink></li>
               <li><FooterLink href="/faq">FAQ</FooterLink></li>
-              <li><FooterLink href="/guides">Student Guides</FooterLink></li>
             </ul>
           </div>
 

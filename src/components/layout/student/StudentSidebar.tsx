@@ -13,6 +13,7 @@ import {
   LifeBuoy,
   CalendarDays,
   BarChart3,
+  MessageSquareQuote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/contexts/AuthContext";
@@ -32,6 +33,7 @@ const navItems = [
   { name: "Applications", href: "/dashboard/student/applications", icon: Briefcase },
   { name: "Interviews", href: "/dashboard/student/interviews", icon: CalendarDays },
   { name: "Analytics", href: "/dashboard/student/analytics", icon: BarChart3 },
+  { name: "Share experience", href: "/dashboard/student/share-experience", icon: MessageSquareQuote },
   { name: "Settings", href: "/dashboard/student/settings", icon: Settings },
 ];
 

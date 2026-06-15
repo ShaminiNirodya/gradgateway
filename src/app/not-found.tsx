@@ -13,7 +13,7 @@ export default function NotFound() {
           <Link href="/" className="px-3 py-2 bg-slate-100 rounded-xl text-sm font-bold">Home</Link>
           <Link href="/about" className="px-3 py-2 bg-slate-100 rounded-xl text-sm font-bold">About Us</Link>
           <Link href="/faq" className="px-3 py-2 bg-slate-100 rounded-xl text-sm font-bold">FAQ</Link>
-          <Link href="/help" className="px-3 py-2 bg-slate-100 rounded-xl text-sm font-bold">Help Center</Link>
+          <Link href="/contact" className="px-3 py-2 bg-slate-100 rounded-xl text-sm font-bold">Contact support</Link>
         </div>
         <div className="flex items-center justify-center gap-2">
           <Link href="/" className="px-4 py-3 rounded-xl bg-[#6C5DD3] text-white font-bold">Return to Home</Link>

@@ -11,13 +11,15 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { User, Mail, Phone, BadgeCheck } from "lucide-react";
 import { motion } from "framer-motion";
+import RegistrationStepHeader from "@/components/features/auth/RegistrationStepHeader";
 
 interface Step2Props {
   onNext: (data: RecruiterInfoData) => void;
   onBack: () => void;
+  defaultValues?: Partial<RecruiterInfoData>;
 }
 
-export default function Step2Recruiter({ onNext, onBack }: Step2Props) {
+export default function Step2Recruiter({ onNext, onBack, defaultValues }: Step2Props) {
   const {
     register,
     handleSubmit,
@@ -25,10 +27,10 @@ export default function Step2Recruiter({ onNext, onBack }: Step2Props) {
   } = useForm<RecruiterInfoData>({
     resolver: zodResolver(recruiterInfoSchema),
     defaultValues: {
-      recruiterName: "",
-      recruiterEmail: "",
-      recruiterPhone: "+94",
-      position: "",
+      recruiterName: defaultValues?.recruiterName ?? "",
+      recruiterEmail: defaultValues?.recruiterEmail ?? "",
+      recruiterPhone: defaultValues?.recruiterPhone ?? "+94",
+      position: defaultValues?.position ?? "",
     },
   });
 
@@ -40,6 +42,12 @@ export default function Step2Recruiter({ onNext, onBack }: Step2Props) {
       onSubmit={handleSubmit(onNext)}
       className="space-y-6"
     >
+      <RegistrationStepHeader
+        accent="company"
+        title="Recruiter contact"
+        description="Tell candidates who they'll hear from when they apply or receive an offer."
+      />
+
       <div className="space-y-5">
         {/* Recruiter Name */}
         <div className="space-y-2">

@@ -82,6 +82,10 @@ export const API_ENDPOINTS = {
   PLATFORM_STATS: `${API_URL}/api/platformstats`,
   PLATFORM: {
     SETTINGS: `${API_URL}/api/platform/settings`,
+    TESTIMONIALS: `${API_URL}/api/platform/testimonials`,
+  },
+  TESTIMONIALS: {
+    SUBMIT: `${API_URL}/api/testimonials/submit`,
   },
   SUPPORT_INQUIRIES: `${API_URL}/api/supportinquiries`,
   ADMIN: {
@@ -95,5 +99,9 @@ export const API_ENDPOINTS = {
     INQUIRY_DELETE: (inquiryId: string) => `${API_URL}/api/admin/inquiries/${inquiryId}`,
     SETTINGS: `${API_URL}/api/admin/settings`,
     EMAIL_LOGS: `${API_URL}/api/admin/email-logs`,
+    ANALYTICS: `${API_URL}/api/admin/analytics`,
+    TESTIMONIALS: `${API_URL}/api/admin/testimonials`,
+    TESTIMONIAL: (id: string) => `${API_URL}/api/admin/testimonials/${id}`,
+    TESTIMONIAL_STATUS: (id: string) => `${API_URL}/api/admin/testimonials/${id}/status`,
   },
 } as const;

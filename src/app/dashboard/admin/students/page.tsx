@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { GraduationCap, RefreshCw, Search } from "lucide-react";
+import { AdminMessageUserButton } from "@/components/features/admin/AdminMessageUserButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AuthService } from "@/lib/services/auth.service";
@@ -196,7 +197,9 @@ export default function AdminStudentsPage() {
                       <StatusPill active={s.isActive} />
                     </td>
                     <td className="px-5 py-4 text-right">
-                      {s.isActive ? (
+                      <div className="flex justify-end gap-2">
+                        <AdminMessageUserButton studentProfileId={s.studentProfileId} />
+                        {s.isActive ? (
                         <Button
                           size="sm"
                           variant="destructive"
@@ -215,6 +218,7 @@ export default function AdminStudentsPage() {
                           Unblock
                         </Button>
                       )}
+                      </div>
                     </td>
                   </tr>
                 ))}

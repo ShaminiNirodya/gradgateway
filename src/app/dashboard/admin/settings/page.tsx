@@ -164,7 +164,7 @@ export default function AdminSettingsPage() {
             </li>
             <li>
               <span className="font-semibold text-slate-800">Block account</span> — done from
-              Students, Companies, or All users. Blocking hides access and visibility; accounts are
+              Students or Companies. Blocking hides access and visibility; accounts are
               not deleted and can be unblocked later.
             </li>
           </ul>

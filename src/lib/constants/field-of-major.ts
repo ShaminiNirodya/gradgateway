@@ -1,4 +1,4 @@
-import { normalizeDegreeName } from "@/lib/constants/university-degrees";
+import { normalizeDegreeName, getDegreesForUniversity } from "@/lib/constants/university-degrees";
 
 /** Six specialization areas — canonical degree strings match university-degrees.ts */
 export type FieldOfMajorId =
@@ -129,6 +129,27 @@ export function getSubCategoriesForFieldOfMajor(fieldId: FieldOfMajorId | string
 
 export function getDegreesForFieldOfMajor(fieldId: FieldOfMajorId | string): string[] {
   return getFieldOfMajorById(fieldId)?.degrees ?? [];
+}
+
+/** Fields that have at least one degree offered at the given university */
+export function getFieldsOfMajorForUniversity(university: string): FieldOfMajorOption[] {
+  if (!university) return [];
+  const uniDegrees = new Set(getDegreesForUniversity(university).map(normalizeDegreeName));
+  return FIELDS_OF_MAJOR.filter((field) =>
+    field.degrees.some((degree) => uniDegrees.has(normalizeDegreeName(degree)))
+  );
+}
+
+/** Degrees for a field that are actually offered at the given university */
+export function getDegreesForFieldAtUniversity(
+  fieldId: FieldOfMajorId | string,
+  university: string
+): string[] {
+  if (!university || !fieldId) return [];
+  const fieldDegrees = new Set(getDegreesForFieldOfMajor(fieldId).map(normalizeDegreeName));
+  return getDegreesForUniversity(university).filter((degree) =>
+    fieldDegrees.has(normalizeDegreeName(degree))
+  );
 }
 
 export function inferFieldOfMajorFromDegree(degree: string): FieldOfMajorId | "" {

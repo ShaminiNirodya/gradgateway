@@ -13,7 +13,15 @@ export class SupportService {
     const response = await fetch(API_ENDPOINTS.SUPPORT_INQUIRIES, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        name: payload.name,
+        email: payload.email,
+        phone: payload.phone || null,
+        type: payload.type,
+        message: payload.message,
+        attachmentName: payload.attachmentName || null,
+        submitterRole: payload.submitterRole ?? 'Public',
+      }),
     });
 
     if (!response.ok) {

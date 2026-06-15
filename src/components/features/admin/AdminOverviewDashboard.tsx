@@ -100,7 +100,7 @@ export function AdminOverviewDashboard({
           )}
           {data.suspendedUsers > 0 && (
             <Link
-              href="/dashboard/admin/users?status=suspended"
+              href="/dashboard/admin/students"
               className="flex flex-1 items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition hover:shadow-md"
             >
               <div className="flex items-center gap-3">
@@ -112,7 +112,7 @@ export function AdminOverviewDashboard({
                     {data.suspendedUsers} blocked account
                     {data.suspendedUsers === 1 ? "" : "s"}
                   </p>
-                  <p className="text-xs text-slate-500">Review or unblock from user management</p>
+                  <p className="text-xs text-slate-500">Review or unblock from Students or Companies</p>
                 </div>
               </div>
               <ArrowRight className="h-4 w-4 shrink-0 text-slate-400" />
@@ -141,7 +141,7 @@ export function AdminOverviewDashboard({
           accent="purple"
         />
         <KpiCard
-          href="/dashboard/admin/users"
+          href="/dashboard/admin/analytics"
           icon={UserPlus}
           label="Signups (7 days)"
           value={data.signupsLast7Days}
@@ -161,14 +161,23 @@ export function AdminOverviewDashboard({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Hiring snapshot */}
         <div className="rounded-[20px] border border-slate-100 bg-white p-6 shadow-sm lg:col-span-1">
-          <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#6C5DD3]/10 text-[#6C5DD3]">
-              <TrendingUp className="h-5 w-5" />
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#6C5DD3]/10 text-[#6C5DD3]">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="font-bold text-slate-800">Hiring snapshot</h2>
+                <p className="text-xs text-slate-500">Applications to hired</p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-bold text-slate-800">Hiring snapshot</h2>
-              <p className="text-xs text-slate-500">Applications to hired</p>
-            </div>
+            <Link
+              href="/dashboard/admin/analytics"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[#6C5DD3] hover:underline"
+            >
+              Full analytics
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           </div>
           <div className="mb-4 flex items-end justify-between">
             <div>
@@ -259,13 +268,6 @@ export function AdminOverviewDashboard({
             title="Companies"
             description="View employers and block or unblock access"
             stat={`${data.totalCompanies} profiles · ${data.activeJobPosts} live jobs`}
-          />
-          <ActionCard
-            href="/dashboard/admin/users"
-            icon={Users}
-            title="All users"
-            description="Search every account including admins"
-            stat={`${data.activeUsers} active · ${data.suspendedUsers} blocked`}
           />
           <ActionCard
             href="/dashboard/admin/settings"

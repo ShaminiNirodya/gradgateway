@@ -10,16 +10,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Lock, ShieldCheck } from "lucide-react";
+import RegistrationStepHeader from "@/components/features/auth/RegistrationStepHeader";
+import { Lock, ShieldCheck, Loader2 } from "lucide-react";
 
 interface Step3Props {
   onComplete: (data: CompanySecurityData) => void;
   onBack: () => void;
+  defaultValues?: Partial<CompanySecurityData>;
+  isSubmitting?: boolean;
 }
 
-export default function Step3Security({ onComplete, onBack }: Step3Props) {
+export default function Step3Security({ onComplete, onBack, defaultValues, isSubmitting }: Step3Props) {
   const { register, handleSubmit, formState: { errors } } = useForm<CompanySecurityData>({
     resolver: zodResolver(companySecuritySchema),
+    defaultValues,
   });
 
   return (
@@ -30,6 +34,12 @@ export default function Step3Security({ onComplete, onBack }: Step3Props) {
       onSubmit={handleSubmit(onComplete)}
       className="space-y-6"
     >
+      <RegistrationStepHeader
+        accent="company"
+        title="Secure your account"
+        description="Create login credentials for your company's hiring dashboard."
+      />
+
       <div className="space-y-5">
         <div className="space-y-2">
           <Label className="text-slate-600 font-bold ml-1">Password</Label>
@@ -63,27 +73,36 @@ export default function Step3Security({ onComplete, onBack }: Step3Props) {
           )}
         </div>
 
-        <div className="bg-blue-50 border-none rounded-2xl p-5">
-          <p className="text-sm text-blue-600 font-medium leading-relaxed">
-            Your company account will be created immediately after registration.
+        <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+          <p className="text-sm font-medium leading-relaxed text-blue-700">
+            Your company account is created immediately after registration. You can start posting jobs right away.
           </p>
         </div>
       </div>
 
-      <div className="flex gap-4 pt-6">
+      <div className="flex gap-4 pt-4">
         <Button
           type="button"
           variant="ghost"
           onClick={onBack}
-          className="w-1/3 h-14 rounded-2xl text-slate-500 font-bold hover:bg-slate-100 hover:text-slate-700"
+          disabled={isSubmitting}
+          className="h-14 w-1/3 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-700"
         >
           Back
         </Button>
         <Button
           type="submit"
-          className="w-2/3 h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold shadow-lg shadow-blue-200"
+          disabled={isSubmitting}
+          className="h-14 w-2/3 rounded-2xl bg-blue-600 text-lg font-bold text-white shadow-lg shadow-blue-200 hover:bg-blue-700"
         >
-          Create Account
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Creating account...
+            </>
+          ) : (
+            "Create account"
+          )}
         </Button>
       </div>
     </motion.form>

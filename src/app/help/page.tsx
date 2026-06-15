@@ -1,5 +1,5 @@
-import { HelpSupportContent } from "@/components/features/support/HelpSupportContent";
+import { redirect } from "next/navigation";
 
-export default function HelpCenterPage() {
-  return <HelpSupportContent audience="All" />;
+export default function HelpRedirectPage() {
+  redirect("/contact");
 }

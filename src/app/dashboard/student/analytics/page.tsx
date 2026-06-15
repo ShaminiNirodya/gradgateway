@@ -1,14 +1,22 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
-import { LineChart, BarChart } from "@/components/ui/simple-chart";
+import { BarChart } from "@/components/ui/simple-chart";
+import { AnalyticsKpiCard, AnalyticsSection } from "@/components/features/analytics/AnalyticsCards";
 import { AuthService } from "@/lib/services/auth.service";
 import { DashboardService } from "@/lib/services/dashboard.service";
 import { ProjectService } from "@/lib/services/project.service";
 import { ApplicationItem, ConversationItem, OpportunityItem } from "@/lib/types/dashboard";
 import { ProjectItem } from "@/lib/types/project";
+import {
+  APPLICATION_STATUS_OPTIONS,
+  normalizeApplicationStatus,
+} from "@/lib/constants/application-status";
+import { StudentPageContainer } from "@/components/layout/student/StudentPageContainer";
+import { StudentPageHero } from "@/components/layout/student/StudentPageHero";
 
 export default function StudentAnalyticsPage() {
   const [opportunities, setOpportunities] = useState<OpportunityItem[]>([]);
@@ -24,9 +32,6 @@ export default function StudentAnalyticsPage() {
 
         if (!token) {
           setOpportunities(await openingsPromise);
-          setApplications([]);
-          setConversations([]);
-          setProjects([]);
           return;
         }
 
@@ -49,31 +54,37 @@ export default function StudentAnalyticsPage() {
       }
     };
 
-    load();
+    void load();
   }, []);
 
-  const kpis = useMemo(
-    () => [
-      { label: "Open Opportunities", value: opportunities.length.toString() },
-      { label: "My Applications", value: applications.length.toString() },
-      { label: "Active Conversations", value: conversations.length.toString() },
-      { label: "My Projects", value: projects.length.toString() },
-    ],
-    [opportunities.length, applications.length, conversations.length, projects.length]
+  const activeApplications = useMemo(
+    () =>
+      applications.filter(
+        (app) => !["Rejected", "Hired"].includes(normalizeApplicationStatus(app.status))
+      ).length,
+    [applications]
   );
 
-  const weeklyApplications = useMemo(() => {
-    const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    const base = labels.map((label) => ({ label, value: 0 }));
+  const hiredCount = useMemo(
+    () => applications.filter((app) => normalizeApplicationStatus(app.status) === "Hired").length,
+    [applications]
+  );
 
-    applications.forEach((application) => {
-      const d = new Date(application.appliedAt);
-      const jsDay = d.getDay();
-      const index = jsDay === 0 ? 6 : jsDay - 1;
-      base[index].value += 1;
-    });
+  const responseRate = useMemo(() => {
+    if (applications.length === 0) return 0;
+    const responded = applications.filter(
+      (app) => !["New"].includes(normalizeApplicationStatus(app.status))
+    ).length;
+    return Math.round((responded / applications.length) * 100);
+  }, [applications]);
 
-    return base;
+  const pipeline = useMemo(() => {
+    return APPLICATION_STATUS_OPTIONS.map((option) => ({
+      label: option.label,
+      value: applications.filter(
+        (app) => normalizeApplicationStatus(app.status) === option.filterKey
+      ).length,
+    }));
   }, [applications]);
 
   const skillDemand = useMemo(() => {
@@ -101,87 +112,140 @@ export default function StudentAnalyticsPage() {
     [conversations]
   );
 
+  const exportCsv = () => {
+    const sections = [
+      "Student Analytics Export",
+      `Generated,${new Date().toISOString()}`,
+      "",
+      "KPI,Value",
+      `Open opportunities,${opportunities.length}`,
+      `Active applications,${activeApplications}`,
+      `Hired outcomes,${hiredCount}`,
+      `Recruiter response rate,${responseRate}%`,
+      "",
+      "Application pipeline,Count",
+      ...pipeline.map((row) => `"${row.label}",${row.value}`),
+      "",
+      "Skills in demand,Job count",
+      ...skillDemand.map((row) => `"${row.label}",${row.value}`),
+    ];
+
+    const blob = new Blob([sections.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `student-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
-    <div className="space-y-8 pb-10">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-800">Analytics Dashboard</h1>
-          <p className="text-sm text-slate-500">Live metrics from your GradGateway data.</p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="rounded-xl"
-          onClick={() => {
-            // Create comprehensive CSV with all data
-            const sections = [
-              "Applications Summary",
-              "Job Title,Company,Status,Applied Date",
-              ...applications.map(app => `"${app.jobTitle}","${app.companyName}","${app.status}","${new Date(app.appliedAt).toLocaleDateString()}"`),
-              "",
-              "Projects Summary",
-              "Title,Tech Stack,Created Date",
-              ...projects.map(proj => `"${proj.title}","${proj.techStack}","${new Date(proj.createdAt).toLocaleDateString()}"`),
-              "",
-              "Opportunities Viewed",
-              "Title,Company,Type,Location",
-              ...opportunities.slice(0, 20).map(opp => `"${opp.title}","${opp.companyName}","${opp.opportunityType}","${opp.location}"`),
-              "",
-              "Conversation Activity",
-              "Contact,Last Message",
-              ...conversations.slice(0, 20).map(conv => `"${conv.otherPartyName}","${conv.lastMessage || 'No messages'}"`),
-            ];
+    <StudentPageContainer className="space-y-8 pb-10">
+      <StudentPageHero
+        eyebrow="Insights"
+        title="Your job search analytics"
+        description="Track how your applications, skills, and recruiter conversations are progressing on GradGateway."
+        actions={
+          <Button variant="outline" size="sm" className="rounded-xl" onClick={exportCsv}>
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+        }
+      />
 
-            const csvContent = sections.join("\n");
-            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `student-analytics-${new Date().toISOString().slice(0,10)}.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
-          }}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <AnalyticsKpiCard
+          label="Open opportunities"
+          value={opportunities.length.toString()}
+          hint="Live job posts you can still apply to right now."
+        />
+        <AnalyticsKpiCard
+          label="Active applications"
+          value={activeApplications.toString()}
+          hint="Applications still in progress — not rejected or hired yet."
+        />
+        <AnalyticsKpiCard
+          label="Recruiter response rate"
+          value={`${responseRate}%`}
+          hint="Share of applications that moved beyond the initial submitted stage."
+        />
+        <AnalyticsKpiCard
+          label="Hired outcomes"
+          value={hiredCount.toString()}
+          hint="Applications that reached a hired result on the platform."
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <AnalyticsSection
+          title="Application pipeline"
+          description="Where your applications sit today across the hiring stages."
+          className="lg:col-span-2"
         >
-          <Download className="w-4 h-4 mr-2" /> Export CSV
-        </Button>
+          <BarChart
+            data={pipeline}
+            height={260}
+            emptyLabel="Apply to openings to start building your pipeline."
+          />
+        </AnalyticsSection>
+
+        <AnalyticsSection
+          title="Portfolio projects"
+          description="Published projects recruiters can review when you apply or message."
+        >
+          <p className="text-4xl font-bold text-slate-800">{projects.length}</p>
+          <p className="mt-2 text-sm text-slate-500">
+            {projects.length === 0
+              ? "Add a project to strengthen your profile and applications."
+              : `${projects.length} project${projects.length === 1 ? "" : "s"} visible on your profile.`}
+          </p>
+          <Button asChild variant="outline" size="sm" className="mt-4 rounded-xl">
+            <Link href="/dashboard/student/projects">Manage projects</Link>
+          </Button>
+        </AnalyticsSection>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((kpi) => (
-          <div key={kpi.label} className="bg-white rounded-[18px] p-4 shadow-sm border border-slate-100">
-            <p className="text-xs text-slate-500">{kpi.label}</p>
-            <h3 className="text-2xl font-bold text-slate-800">{kpi.value}</h3>
-          </div>
-        ))}
-      </div>
+      <AnalyticsSection
+        title="Skills employers want"
+        description="Most requested skills across the openings currently visible to you."
+      >
+        <BarChart
+          data={skillDemand}
+          height={260}
+          color="#6C5DD3"
+          emptyLabel="Browse openings to see which skills companies are asking for."
+        />
+      </AnalyticsSection>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-[18px] p-6 shadow-sm border border-slate-100">
-          <h3 className="font-bold text-slate-800 mb-6">Applications by Weekday</h3>
-          <LineChart data={weeklyApplications} width={700} height={300} className="w-full" />
-        </div>
-
-        <div className="bg-white rounded-[18px] p-6 shadow-sm border border-slate-100">
-          <h3 className="font-bold text-slate-800 mb-6">Top Skill Demand</h3>
-          <BarChart data={skillDemand} width={300} height={220} className="w-full" />
-        </div>
-      </div>
-
-      <div className="bg-white rounded-[18px] p-6 shadow-sm border border-slate-100">
-        <h3 className="font-bold text-slate-800 mb-4">Recent Conversations</h3>
+      <AnalyticsSection
+        title="Recent recruiter conversations"
+        description="Latest message threads with companies — follow up where activity is highest."
+      >
         <div className="space-y-3">
           {recentConversations.map((conversation) => (
-            <div key={conversation.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50">
-              <div>
+            <Link
+              key={conversation.id}
+              href={`/dashboard/student/messages?conversationId=${conversation.id}`}
+              className="flex items-center justify-between rounded-xl p-3 transition hover:bg-slate-50"
+            >
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-slate-800">{conversation.otherPartyName}</p>
-                <p className="text-xs text-slate-500 line-clamp-1">{conversation.lastMessage || "No message content"}</p>
+                <p className="truncate text-xs text-slate-500">
+                  {conversation.lastMessage || "No messages yet"}
+                </p>
               </div>
-              <span className="text-xs text-slate-400">{new Date(conversation.lastMessageAt).toLocaleDateString("en-LK")}</span>
-            </div>
+              <span className="shrink-0 text-xs text-slate-400">
+                {new Date(conversation.lastMessageAt).toLocaleDateString("en-LK")}
+              </span>
+            </Link>
           ))}
-          {!recentConversations.length && <p className="text-sm text-slate-500">No conversation data available.</p>}
+          {!recentConversations.length && (
+            <p className="text-sm text-slate-500">
+              Start messaging recruiters from applications or openings to see activity here.
+            </p>
+          )}
         </div>
-      </div>
-    </div>
+      </AnalyticsSection>
+    </StudentPageContainer>
   );
 }

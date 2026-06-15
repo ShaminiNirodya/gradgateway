@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { API_ENDPOINTS } from "@/lib/config";
 import { cn } from "@/lib/utils";
+import { TestimonialService } from "@/lib/services/testimonial.service";
+import type { PublicTestimonial } from "@/lib/types/testimonial";
 
 const heroImages = [
   {
@@ -100,27 +102,6 @@ const steps = [
   },
 ];
 
-const testimonials = [
-  {
-    quote:
-      "Having my projects and applications in one place made follow-ups with companies much easier.",
-    name: "Undergraduate, Colombo",
-    role: "Computer Science",
-  },
-  {
-    quote:
-      "We shortlist faster because we see portfolios, CVs, and message history without switching tools.",
-    name: "Tech recruiter",
-    role: "Hiring partner",
-  },
-  {
-    quote:
-      "The application pipeline and offer flow in messages saved our intern hiring season.",
-    name: "HR coordinator",
-    role: "Software company",
-  },
-];
-
 function formatNumber(num: number): string {
   if (num === 0) return "0";
   if (num >= 1000) return `${Math.floor(num / 1000)}k+`;
@@ -136,6 +117,8 @@ export default function Home() {
     hiringRate: 0,
   });
   const [statsLoaded, setStatsLoaded] = useState(false);
+  const [testimonials, setTestimonials] = useState<PublicTestimonial[]>([]);
+  const [testimonialsLoaded, setTestimonialsLoaded] = useState(false);
 
   const goToSlide = useCallback((index: number) => {
     setCurrentImageIndex(index);
@@ -155,6 +138,18 @@ export default function Home() {
       }
     };
     void loadStats();
+
+    const loadTestimonials = async () => {
+      try {
+        const items = await TestimonialService.getPublished(6);
+        setTestimonials(items);
+      } catch {
+        // keep section empty on failure
+      } finally {
+        setTestimonialsLoaded(true);
+      }
+    };
+    void loadTestimonials();
 
     const interval = setInterval(() => {
       setCurrentImageIndex((prev) => (prev + 1) % heroImages.length);
@@ -445,22 +440,28 @@ export default function Home() {
             title="Trusted on both sides of the hire"
             subtitle="Students and recruiters use GradGateway for clarity, speed, and fewer missed follow-ups."
           />
-          <div className="grid gap-6 md:grid-cols-3">
-            {testimonials.map((t) => (
-              <blockquote
-                key={t.quote}
-                className="flex h-full flex-col rounded-[1.75rem] border border-slate-200/80 bg-white p-8 shadow-sm transition-shadow hover:shadow-md"
-              >
-                <p className="flex-1 text-base font-medium leading-relaxed text-slate-600">
-                  &ldquo;{t.quote}&rdquo;
-                </p>
-                <footer className="mt-6 border-t border-slate-100 pt-4">
-                  <p className="font-bold text-slate-900">{t.name}</p>
-                  <p className="text-sm text-slate-500">{t.role}</p>
-                </footer>
-              </blockquote>
-            ))}
-          </div>
+          {testimonialsLoaded && testimonials.length === 0 ? (
+            <p className="mx-auto mb-8 max-w-xl text-center text-slate-500">
+              Community stories will appear here soon.
+            </p>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-3">
+              {testimonials.map((t) => (
+                <blockquote
+                  key={t.id}
+                  className="flex h-full flex-col rounded-[1.75rem] border border-slate-200/80 bg-white p-8 shadow-sm transition-shadow hover:shadow-md"
+                >
+                  <p className="flex-1 text-base font-medium leading-relaxed text-slate-600">
+                    &ldquo;{t.quote}&rdquo;
+                  </p>
+                  <footer className="mt-6 border-t border-slate-100 pt-4">
+                    <p className="font-bold text-slate-900">{t.authorName}</p>
+                    <p className="text-sm text-slate-500">{t.authorRole}</p>
+                  </footer>
+                </blockquote>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

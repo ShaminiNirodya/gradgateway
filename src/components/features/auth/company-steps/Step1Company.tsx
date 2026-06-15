@@ -9,7 +9,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Building2, Mail, Phone, Globe, Briefcase, Camera } from "lucide-react";
+import { Building2, Mail, Phone, Globe, Briefcase } from "lucide-react";
+import RegistrationStepHeader from "@/components/features/auth/RegistrationStepHeader";
+import PhotoUploadField from "@/components/features/auth/PhotoUploadField";
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -94,9 +96,11 @@ export default function Step1Company({ onNext, defaultValues }: Step1Props) {
   };
 
   const onSubmit = (data: CompanyInfoData) => {
-    // Pass both form data and the file object
     onNext({ ...data, logoFile: logoFile || undefined });
   };
+
+  const inputClass =
+    "h-14 rounded-2xl border-slate-200/80 bg-slate-50/80 pl-12 font-medium text-slate-700 transition-all focus:border-blue-600 focus:bg-white focus:ring-2 focus:ring-blue-500/15";
 
   return (
     <motion.form
@@ -106,117 +110,79 @@ export default function Step1Company({ onNext, defaultValues }: Step1Props) {
       onSubmit={handleSubmit(onSubmit)}
       className="space-y-6"
     >
-      {/* Company Logo Uploader */}
-      <div className="flex flex-col items-center justify-center mb-8">
-        <button type="button" onClick={onPickFile} className="relative group cursor-pointer outline-none">
-          <div className="w-28 h-28 rounded-2xl bg-slate-50 border-4 border-white shadow-lg overflow-hidden flex items-center justify-center group-hover:bg-slate-100 transition-colors">
-            {preview ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={preview} alt="Company logo preview" className="w-full h-full object-cover" />
-            ) : (
-              <Camera className="w-10 h-10 text-slate-300 group-hover:text-blue-600 transition-colors" />
-            )}
-          </div>
-          <div className="absolute bottom-0 right-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white border-2 border-white shadow-sm">
-            <div className="text-lg leading-none mb-0.5">+</div>
-          </div>
-        </button>
-        <input ref={fileInputRef} type="file" accept="image/*" onChange={onFileChange} className="hidden" />
-        <input type="hidden" {...register("logoDataUrl")} />
-        <span className="text-sm font-bold text-slate-500 mt-3">Upload Company Logo</span>
-      </div>
+      <RegistrationStepHeader
+        accent="company"
+        title="Company profile"
+        description="Share your organization details so students can trust who they're applying to."
+      />
+
+      <PhotoUploadField
+        preview={preview}
+        label="Upload company logo"
+        shape="square"
+        accent="company"
+        onPick={onPickFile}
+      />
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={onFileChange} className="hidden" />
+      <input type="hidden" {...register("logoDataUrl")} />
 
       <div className="space-y-5">
-        {/* Company Name */}
         <div className="space-y-2">
-          <Label className="text-slate-600 font-bold ml-1">Company Name</Label>
+          <Label className="ml-1 font-bold text-slate-600">Company Name</Label>
           <div className="relative">
-            <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-            <Input
-              {...register("companyName")}
-              className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-blue-600 focus:ring-0 transition-all font-medium text-slate-700"
-              placeholder="e.g. TechForge (Pvt) Ltd"
-            />
+            <Building2 className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <Input {...register("companyName")} className={inputClass} placeholder="e.g. TechForge (Pvt) Ltd" />
           </div>
           {errors.companyName && (
-            <p className="text-xs text-red-500 font-bold ml-2">
-              {errors.companyName.message}
-            </p>
+            <p className="ml-2 text-xs font-bold text-red-500">{errors.companyName.message}</p>
           )}
         </div>
 
-        {/* Company Email */}
         <div className="space-y-2">
-          <Label className="text-slate-600 font-bold ml-1">Company Email</Label>
+          <Label className="ml-1 font-bold text-slate-600">Company Email</Label>
           <div className="relative">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-            <Input
-              {...register("companyEmail")}
-              type="email"
-              className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-blue-600 focus:ring-0 transition-all font-medium text-slate-700"
-              placeholder="recruitment@company.com"
-            />
+            <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <Input {...register("companyEmail")} type="email" className={inputClass} placeholder="recruitment@company.com" />
           </div>
           {errors.companyEmail && (
-            <p className="text-xs text-red-500 font-bold ml-2">
-              {errors.companyEmail.message}
-            </p>
+            <p className="ml-2 text-xs font-bold text-red-500">{errors.companyEmail.message}</p>
           )}
         </div>
 
-        {/* Phone */}
         <div className="space-y-2">
-          <Label className="text-slate-600 font-bold ml-1">Contact Number</Label>
+          <Label className="ml-1 font-bold text-slate-600">Contact Number</Label>
           <div className="relative">
-            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-            <Input
-              {...register("phone")}
-              className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-blue-600 focus:ring-0 transition-all font-medium text-slate-700"
-              placeholder="+94 11 234 5678"
-            />
+            <Phone className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <Input {...register("phone")} className={inputClass} placeholder="+94 11 234 5678" />
           </div>
-          {errors.phone && (
-            <p className="text-xs text-red-500 font-bold ml-2">
-              {errors.phone.message}
-            </p>
-          )}
+          {errors.phone && <p className="ml-2 text-xs font-bold text-red-500">{errors.phone.message}</p>}
         </div>
 
-        {/* Website */}
         <div className="space-y-2">
-          <Label className="text-slate-600 font-bold ml-1">Website</Label>
+          <Label className="ml-1 font-bold text-slate-600">Website</Label>
           <div className="relative">
-            <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-            <Input
-              {...register("website")}
-              className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-blue-600 focus:ring-0 transition-all font-medium text-slate-700"
-              placeholder="https://company.lk"
-            />
+            <Globe className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <Input {...register("website")} className={inputClass} placeholder="https://company.lk" />
           </div>
-          {errors.website && (
-            <p className="text-xs text-red-500 font-bold ml-2">
-              {errors.website.message}
-            </p>
-          )}
+          {errors.website && <p className="ml-2 text-xs font-bold text-red-500">{errors.website.message}</p>}
         </div>
 
-        {/* Industry */}
         <div className="space-y-2">
-          <Label className="text-slate-600 font-bold ml-1">Industry</Label>
+          <Label className="ml-1 font-bold text-slate-600">Industry</Label>
           <Controller
             name="industry"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-blue-600 data-[state=open]:border-blue-600">
+              <Select onValueChange={field.onChange} value={field.value}>
+                <SelectTrigger className="h-14 rounded-2xl border-slate-200/80 bg-slate-50/80 focus:border-blue-600 focus:ring-2 focus:ring-blue-500/15 data-[state=open]:border-blue-600">
                   <div className="flex items-center gap-3 text-slate-700">
-                    <Briefcase className="w-5 h-5 text-blue-600" />
-                    <SelectValue placeholder="Select Industry" />
+                    <Briefcase className="h-5 w-5 text-blue-600" />
+                    <SelectValue placeholder="Select industry" />
                   </div>
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-none shadow-xl">
                   {INDUSTRIES.map((i) => (
-                    <SelectItem key={i} value={i} className="rounded-lg my-1 cursor-pointer">
+                    <SelectItem key={i} value={i} className="my-1 cursor-pointer rounded-lg">
                       {i}
                     </SelectItem>
                   ))}
@@ -224,20 +190,16 @@ export default function Step1Company({ onNext, defaultValues }: Step1Props) {
               </Select>
             )}
           />
-          {errors.industry && (
-            <p className="text-xs text-red-500 font-bold ml-2">
-              {errors.industry.message}
-            </p>
-          )}
+          {errors.industry && <p className="ml-2 text-xs font-bold text-red-500">{errors.industry.message}</p>}
         </div>
       </div>
 
-      <div className="pt-6">
+      <div className="pt-4">
         <Button
           type="submit"
-          className="w-full h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold shadow-lg shadow-blue-200 transition-all hover:-translate-y-1"
+          className="h-14 w-full rounded-2xl bg-blue-600 text-lg font-bold text-white shadow-lg shadow-blue-200/60 transition-all hover:-translate-y-0.5 hover:bg-blue-700"
         >
-          Continue
+          Continue to contact details
         </Button>
       </div>
     </motion.form>

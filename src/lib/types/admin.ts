@@ -16,6 +16,7 @@ export interface AdminDashboard {
   expiredJobPosts: number;
   openSupportInquiries: number;
   totalSupportInquiries: number;
+  pendingTestimonials: number;
 }
 
 export interface SupportInquiryListItem {
@@ -61,6 +62,23 @@ export interface AdminPlatformSettings {
   allowRegistration: boolean;
   maintenanceMode: boolean;
   updatedAt: string;
+}
+
+export interface AdminAnalytics {
+  totalStudents: number;
+  totalCompanies: number;
+  totalApplications: number;
+  hiredApplications: number;
+  activeJobPosts: number;
+  signupsLast7Days: number;
+  openSupportInquiries: number;
+  pendingTestimonials: number;
+  publishedTestimonials: number;
+  hiringRate: number;
+  signupsByWeek: { label: string; value: number; date: string }[];
+  applicationsByWeek: { label: string; value: number; date: string }[];
+  applicationsByStatus: { label: string; value: number }[];
+  topIndustries: { label: string; value: number }[];
 }
 
 export interface PublicPlatformSettings {

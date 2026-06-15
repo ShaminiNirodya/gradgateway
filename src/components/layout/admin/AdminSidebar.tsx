@@ -5,13 +5,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutGrid,
-  Users,
   GraduationCap,
   Building2,
   Settings,
   LogOut,
   MessageSquare,
+  MessagesSquare,
   MailCheck,
+  Quote,
+  BarChart3,
 } from "lucide-react";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { useState } from "react";
@@ -21,11 +23,13 @@ import { useAdminDashboard } from "@/components/features/admin/AdminDashboardPro
 import { darkSidebar } from "@/components/layout/sidebar-dark-theme";
 
 const navItems = [
-  { name: "Overview", href: "/dashboard/admin", icon: LayoutGrid, badgeKey: null as null | "inquiries" },
+  { name: "Overview", href: "/dashboard/admin", icon: LayoutGrid, badgeKey: null as null | "inquiries" | "testimonials" },
+  { name: "Analytics", href: "/dashboard/admin/analytics", icon: BarChart3, badgeKey: null },
   { name: "Inquiries", href: "/dashboard/admin/inquiries", icon: MessageSquare, badgeKey: "inquiries" as const },
+  { name: "Messages", href: "/dashboard/admin/messages", icon: MessagesSquare, badgeKey: null },
+  { name: "Testimonials", href: "/dashboard/admin/testimonials", icon: Quote, badgeKey: "testimonials" as const },
   { name: "Students", href: "/dashboard/admin/students", icon: GraduationCap, badgeKey: null },
   { name: "Companies", href: "/dashboard/admin/companies", icon: Building2, badgeKey: null },
-  { name: "All users", href: "/dashboard/admin/users", icon: Users, badgeKey: null },
   { name: "Email logs", href: "/dashboard/admin/email-logs", icon: MailCheck, badgeKey: null },
   { name: "Settings", href: "/dashboard/admin/settings", icon: Settings, badgeKey: null },
 ];
@@ -37,6 +41,13 @@ export default function AdminSidebar() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const { data } = useAdminDashboard();
   const openInquiries = data?.openSupportInquiries ?? 0;
+  const pendingTestimonials = data?.pendingTestimonials ?? 0;
+
+  const getBadgeCount = (badgeKey: (typeof navItems)[number]["badgeKey"]) => {
+    if (badgeKey === "inquiries") return openInquiries;
+    if (badgeKey === "testimonials") return pendingTestimonials;
+    return 0;
+  };
 
   const handleLogout = async () => {
     try {
@@ -74,14 +85,14 @@ export default function AdminSidebar() {
             >
               <item.icon className="h-5 w-5 shrink-0" />
               <span className="flex-1">{item.name}</span>
-              {item.badgeKey === "inquiries" && openInquiries > 0 && (
+              {item.badgeKey && getBadgeCount(item.badgeKey) > 0 && (
                 <span
                   className={cn(
                     "min-w-[1.25rem] rounded-full px-1.5 py-0.5 text-center text-[10px] font-bold",
                     isActive ? "bg-white/20 text-white" : darkSidebar.inquiryBadge
                   )}
                 >
-                  {openInquiries}
+                  {getBadgeCount(item.badgeKey)}
                 </span>
               )}
             </Link>
