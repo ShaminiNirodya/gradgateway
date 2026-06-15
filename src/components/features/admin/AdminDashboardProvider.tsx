@@ -11,6 +11,10 @@ import {
 import { AuthService } from "@/lib/services/auth.service";
 import { AdminService } from "@/lib/services/admin.service";
 import { AdminDashboard } from "@/lib/types/admin";
+import {
+  countUnseenTestimonials,
+  markTestimonialsAsSeen,
+} from "@/lib/utils/admin-testimonials-badge";
 
 function normalizeDashboard(raw: Partial<AdminDashboard>): AdminDashboard {
   return {
@@ -40,7 +44,9 @@ type AdminDashboardContextValue = {
   loading: boolean;
   error: string | null;
   refreshedAt: Date | null;
+  newTestimonialsCount: number;
   refresh: () => Promise<void>;
+  markTestimonialsSeen: () => void;
 };
 
 const AdminDashboardContext = createContext<AdminDashboardContextValue | null>(null);
@@ -50,6 +56,7 @@ export function AdminDashboardProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshedAt, setRefreshedAt] = useState<Date | null>(null);
+  const [newTestimonialsCount, setNewTestimonialsCount] = useState(0);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -65,6 +72,7 @@ export function AdminDashboardProvider({ children }: { children: ReactNode }) {
         AdminService.getDashboard(token),
         AdminService.getTestimonials(token, { status: "Pending" }).catch(() => []),
       ]);
+      setNewTestimonialsCount(countUnseenTestimonials(pendingTestimonials));
       setData(
         normalizeDashboard({
           ...dashboard,
@@ -80,6 +88,11 @@ export function AdminDashboardProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const markTestimonialsSeen = useCallback(() => {
+    markTestimonialsAsSeen();
+    setNewTestimonialsCount(0);
+  }, []);
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
@@ -93,7 +106,9 @@ export function AdminDashboardProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   return (
-    <AdminDashboardContext.Provider value={{ data, loading, error, refreshedAt, refresh }}>
+    <AdminDashboardContext.Provider
+      value={{ data, loading, error, refreshedAt, newTestimonialsCount, refresh, markTestimonialsSeen }}
+    >
       {children}
     </AdminDashboardContext.Provider>
   );

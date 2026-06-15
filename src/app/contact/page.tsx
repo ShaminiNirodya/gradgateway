@@ -27,6 +27,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
 import { contactSchema, type ContactFormData, inquiryTypes } from "@/lib/validators/contact";
 import { SupportService } from "@/lib/services/support.service";
+import { PlatformContentService } from "@/lib/services/platform-content.service";
+import { contactFaqs } from "@/lib/content/platform-content-fallback";
 import {
   Select,
   SelectContent,
@@ -443,24 +445,23 @@ function InfoCard({
 }
 
 function FAQAccordion({ query }: { query: string }) {
-  const data = [
-    {
-      q: "Do I need a GradGateway account to contact you?",
-      a: "No. The contact form is open to everyone. Your inquiry is sent to the admin team even if you have not registered yet.",
-    },
-    {
-      q: "How quickly will I receive a response?",
-      a: "We typically respond within 24–48 business hours. Choose Support as the inquiry type for urgent issues.",
-    },
-    {
-      q: "What should I include in my message?",
-      a: "Tell us who you are, what you need, and include links or context that help us understand your request.",
-    },
-    {
-      q: "Can universities or career centers reach out?",
-      a: "Yes. Select Campus / University or Partnership and describe how you would like to collaborate.",
-    },
-  ];
+  const [data, setData] = useState(() => contactFaqs.map((item) => ({ q: item.q, a: item.a })));
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const items = await PlatformContentService.getPublished({
+          contentType: "Faq",
+          section: "Contact",
+        });
+        if (items.length > 0) {
+          setData(items.map((item) => ({ q: item.title, a: item.body })));
+        }
+      } catch {
+        // keep fallback
+      }
+    })();
+  }, []);
 
   const [open, setOpen] = useState<number | null>(0);
   const filtered = data.filter(

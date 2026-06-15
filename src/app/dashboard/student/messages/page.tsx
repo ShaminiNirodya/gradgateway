@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Paperclip, Video, MoreVertical, X, Copy, ExternalLink, MessageSquare, Search } from "lucide-react";
+import { Paperclip, MoreVertical, X, ExternalLink, MessageSquare, Search, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   conversationHighlightElementId,
@@ -19,6 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { AuthService } from "@/lib/services/auth.service";
 import { DashboardService } from "@/lib/services/dashboard.service";
 import { StorageService } from "@/lib/services/storage.service";
@@ -143,6 +144,32 @@ function parseOfferMessage(content: string): OfferMessagePayload | null {
   return null;
 }
 
+function hasOfferBeenResponded(
+  offerIndex: number,
+  messages: MessageItem[],
+  userEmail?: string | null
+): boolean {
+  const email = userEmail?.toLowerCase();
+  if (!email) return false;
+
+  let nextOfferIndex = messages.length;
+  for (let i = offerIndex + 1; i < messages.length; i++) {
+    const laterOffer = parseOfferMessage(messages[i].content);
+    if (laterOffer && messages[i].senderName?.toLowerCase() !== email) {
+      nextOfferIndex = i;
+      break;
+    }
+  }
+
+  for (let i = offerIndex + 1; i < nextOfferIndex; i++) {
+    if (messages[i].senderName?.toLowerCase() === email) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function conversationPreviewText(raw: string): string {
   const interview = parseInterviewInvitation(raw);
   if (interview) return `Interview Invitation: ${interview.role}`;
@@ -201,8 +228,8 @@ export default function StudentMessagesPage() {
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [sendingAttachment, setSendingAttachment] = useState(false);
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
-  const [showVideoModal, setShowVideoModal] = useState(false);
-  const [videoCallActive, setVideoCallActive] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletingChat, setDeletingChat] = useState(false);
   const isCompany = userData?.role === "Company";
   const selectedConversationIdRef = useRef<string | null>(null);
   const lastActiveRefreshAtRef = useRef<number>(0);
@@ -216,46 +243,6 @@ export default function StudentMessagesPage() {
   useEffect(() => {
     selectedConversationIdRef.current = selectedConversationId;
   }, [selectedConversationId]);
-
-  // Generate unique meeting ID based on conversation
-  const generateMeetingId = useCallback((conversationId: string | null) => {
-    if (!conversationId) return null;
-    return `gradgateway-${conversationId.substring(0, 8)}`;
-  }, []);
-
-  // Generate Google Meet URL
-  const getMeetingUrl = useCallback((conversationId: string | null) => {
-    if (!conversationId) return null;
-    const meetingId = generateMeetingId(conversationId);
-    return `https://meet.google.com/${meetingId}`;
-  }, [generateMeetingId]);
-
-  // Handle video call button click
-  const handleVideoCall = useCallback(() => {
-    if (!isCompany) {
-      show({ title: "Not available", description: "Only companies can start a video call", variant: "error" });
-      return;
-    }
-    if (!selectedConversationId) {
-      show({ title: "No conversation selected", description: "Select a conversation first.", variant: "error" });
-      return;
-    }
-    setVideoCallActive(true);
-    setShowVideoModal(true);
-  }, [selectedConversationId, isCompany, show]);
-
-  // Copy meeting link to clipboard
-  const copyMeetingLink = useCallback(async () => {
-    const meetUrl = getMeetingUrl(selectedConversationId);
-    if (!meetUrl) return;
-
-    try {
-      await navigator.clipboard.writeText(meetUrl);
-      show({ title: "Copied", description: "Meeting link copied to clipboard", variant: "success" });
-    } catch {
-      show({ title: "Error", description: "Failed to copy link", variant: "error" });
-    }
-  }, [selectedConversationId, getMeetingUrl, show]);
 
   const loadConversations = useCallback(async () => {
     try {
@@ -324,6 +311,35 @@ export default function StudentMessagesPage() {
       setSelectedConversationId(null);
     }
   }, [conversationIdParam, opportunityIdParam, studentProfileIdParam]);
+
+  const handleDeleteChat = useCallback(async () => {
+    if (!selectedConversationId) return;
+    setDeletingChat(true);
+    try {
+      const token = await AuthService.getIdToken();
+      if (!token) return;
+      await DashboardService.deleteConversation(token, selectedConversationId);
+      setDeleteConfirmOpen(false);
+      setSelectedConversationId(null);
+      setMessages([]);
+      DashboardService.clearMessagesCache();
+      await loadConversations();
+      void refreshUnreadCount();
+      show({
+        title: "Chat deleted",
+        description: "This conversation was removed from your inbox.",
+        variant: "success",
+      });
+    } catch (e) {
+      show({
+        title: "Delete failed",
+        description: e instanceof Error ? e.message : "Could not delete this chat.",
+        variant: "error",
+      });
+    } finally {
+      setDeletingChat(false);
+    }
+  }, [selectedConversationId, loadConversations, refreshUnreadCount, show]);
 
   useEffect(() => {
     if (highlightParam !== "1" || !conversationIdParam || !conversations.length) return;
@@ -662,12 +678,6 @@ export default function StudentMessagesPage() {
     }
   };
 
-  const meetingUrl = getMeetingUrl(selectedConversationId);
-  const openMeeting = () => {
-    if (!meetingUrl) return;
-    window.open(meetingUrl, "_blank");
-  };
-
   const inboxUnread = sortedConversations.filter((c) => conversationShowsUnread(c)).length;
 
   return (
@@ -774,22 +784,18 @@ export default function StudentMessagesPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="icon-sm"
-                  onClick={handleVideoCall}
-                  title={isCompany ? "Start video call" : "Only companies can start calls"}
-                  disabled={!isCompany}
-                >
-                  <Video className={`w-4 h-4 ${isCompany ? "text-slate-500 hover:text-indigo-600" : "text-slate-300"}`} />
-                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon-sm"><MoreVertical className="w-4 h-4 text-slate-500" /></Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="bg-white rounded-xl shadow-xl border-slate-100">
-                    <DropdownMenuItem className="rounded-lg">Mute Notifications</DropdownMenuItem>
-                    <DropdownMenuItem className="rounded-lg">Archive Conversation</DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="rounded-lg text-red-600 focus:bg-red-50 focus:text-red-600"
+                      onClick={() => setDeleteConfirmOpen(true)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete chat
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -804,7 +810,7 @@ export default function StudentMessagesPage() {
               ) : messages.length === 0 ? (
                 <div className="text-sm text-slate-400">No messages yet. Start the conversation.</div>
               ) : (
-                messages.map((message) => {
+                messages.map((message, messageIndex) => {
                   const fromMe = message.senderName === user?.email;
                   const interview = parseInterviewInvitation(message.content);
                   const offer = parseOfferMessage(message.content);
@@ -931,7 +937,11 @@ export default function StudentMessagesPage() {
                           <OfferMessage
                             from={fromMe ? "me" : "them"}
                             offer={offer}
-                            showActions={!isCompany && !fromMe}
+                            showActions={
+                              !isCompany &&
+                              !fromMe &&
+                              !hasOfferBeenResponded(messageIndex, messages, user?.email)
+                            }
                             onRespond={sendOfferResponse}
                           />
                         </ChatMessageRow>
@@ -1040,86 +1050,16 @@ export default function StudentMessagesPage() {
       </main>
       </div>
 
-      {/* Video Call Modal */}
-      {showVideoModal && selectedConversationId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-lg font-bold text-slate-800">Video Interview with {selectedConversation?.otherPartyName}</h2>
-              <button onClick={() => setShowVideoModal(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              {videoCallActive ? (
-                <>
-                  <div className="bg-slate-100 rounded-lg p-8 text-center space-y-4">
-                    <div className="text-sm text-slate-600">
-                      <p className="font-semibold mb-2">Meeting Link:</p>
-                      <div className="bg-white rounded-lg p-3 flex items-center justify-between gap-2">
-                        <code className="text-xs text-slate-700 truncate">{meetingUrl}</code>
-                        <button
-                          onClick={copyMeetingLink}
-                          className="text-indigo-600 hover:text-indigo-700 p-1"
-                          title="Copy link"
-                        >
-                          <Copy className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <p className="text-sm text-slate-600">
-                      {isCompany
-                        ? "Your meeting link has been generated. Share it with the candidate or join directly."
-                        : "You can now join the meeting using the link above."}
-                    </p>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      asChild
-                      className="flex-1"
-                      onClick={openMeeting}
-                    >
-                      <a href={meetingUrl || "#"} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="w-4 h-4 mr-2" /> Join Meeting Now
-                      </a>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={copyMeetingLink}
-                    >
-                      <Copy className="w-4 h-4 mr-2" /> Copy Link
-                    </Button>
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      setVideoCallActive(false);
-                      setShowVideoModal(false);
-                    }}
-                  >
-                    Close
-                  </Button>
-                </>
-              ) : (
-                <div className="text-center space-y-4">
-                  <p className="text-slate-600">Ready to start a video interview?</p>
-                  <Button
-                    onClick={() => setVideoCallActive(true)}
-                    className="w-full"
-                  >
-                    <Video className="w-4 h-4 mr-2" /> Start Interview
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        title="Delete this chat?"
+        description="All messages in this conversation will be permanently removed from your inbox. The other party will no longer see this thread either."
+        confirmLabel="Delete chat"
+        destructive
+        loading={deletingChat}
+        onCancel={() => setDeleteConfirmOpen(false)}
+        onConfirm={() => void handleDeleteChat()}
+      />
     </StudentPageContainer>
   );
 }
@@ -1293,11 +1233,15 @@ function OfferMessage({
   const [replyMode, setReplyMode] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [responded, setResponded] = useState(false);
+
+  const actionsAvailable = showActions && !responded;
 
   const handleQuickReply = async (text: string) => {
     setSubmitting(true);
     try {
       await onRespond(text, offer.applicationId);
+      setResponded(true);
       setReplyMode(false);
       setReplyText("");
     } catch {
@@ -1338,7 +1282,7 @@ function OfferMessage({
       <p className={`text-sm mt-3 whitespace-pre-wrap ${isMe ? "text-indigo-50" : "text-slate-700"}`}>{offer.message}</p>
       {offer.note ? <p className={`text-xs mt-3 ${isMe ? "text-indigo-100" : "text-slate-500"}`}>{offer.note}</p> : null}
 
-      {showActions ? (
+      {actionsAvailable ? (
         <div className="mt-4 pt-4 border-t border-amber-200/80 space-y-3">
           {!replyMode ? (
             <div className="flex flex-wrap gap-2">
@@ -1346,7 +1290,7 @@ function OfferMessage({
                 type="button"
                 size="sm"
                 disabled={submitting}
-                className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-9"
+                className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-9 disabled:opacity-50 disabled:pointer-events-none"
                 onClick={() => handleQuickReply(OFFER_REPLY_INTERVIEW)}
               >
                 Open for an interview
@@ -1356,7 +1300,7 @@ function OfferMessage({
                 size="sm"
                 variant="outline"
                 disabled={submitting}
-                className="rounded-lg border-red-200 text-red-700 hover:bg-red-50 text-xs h-9"
+                className="rounded-lg border-red-200 text-red-700 hover:bg-red-50 text-xs h-9 disabled:opacity-50 disabled:pointer-events-none"
                 onClick={() => handleQuickReply(OFFER_REPLY_REJECTED)}
               >
                 Reject
@@ -1366,7 +1310,7 @@ function OfferMessage({
                 size="sm"
                 variant="outline"
                 disabled={submitting}
-                className="rounded-lg border-amber-300 text-slate-700 hover:bg-amber-100 text-xs h-9"
+                className="rounded-lg border-amber-300 text-slate-700 hover:bg-amber-100 text-xs h-9 disabled:opacity-50 disabled:pointer-events-none"
                 onClick={() => setReplyMode(true)}
               >
                 Reply

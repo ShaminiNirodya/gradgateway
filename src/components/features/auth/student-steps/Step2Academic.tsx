@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { academicInfoSchema, AcademicInfoData } from "@/lib/validators/student-register";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +31,7 @@ import {
   fromControlledSelectValue,
   toControlledSelectValue,
 } from "@/lib/utils/controlled-select";
+import { GPA_OPTIONS, GRADUATION_YEARS } from "@/lib/constants/academic-options";
 
 interface Step2Props {
   onNext: (data: AcademicInfoData) => void;
@@ -40,7 +40,7 @@ interface Step2Props {
 }
 
 export default function Step2Academic({ onNext, onBack, defaultValues }: Step2Props) {
-  const { control, register, handleSubmit, watch, setValue, formState: { errors } } = useForm<AcademicInfoData>({
+  const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<AcademicInfoData>({
     resolver: zodResolver(academicInfoSchema),
     defaultValues,
   });
@@ -259,17 +259,69 @@ export default function Step2Academic({ onNext, onBack, defaultValues }: Step2Pr
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label className="text-slate-600 font-bold ml-1">GPA</Label>
-            <div className="relative">
-              <Award className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-              <Input {...register("gpa")} type="number" step="0.01" className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 font-medium" placeholder="3.8" />
-            </div>
+            <Controller
+              name="gpa"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  value={toControlledSelectValue(field.value)}
+                  onValueChange={(val) => field.onChange(fromControlledSelectValue(val))}
+                >
+                  <SelectTrigger className={selectTriggerClass}>
+                    <Award className="h-5 w-5 shrink-0 text-[#6C5DD3]" />
+                    <SelectValue placeholder="Select GPA" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60 rounded-xl border-none shadow-xl">
+                    <SelectItem value={SELECT_UNSET} disabled className="hidden">
+                      Select GPA
+                    </SelectItem>
+                    {GPA_OPTIONS.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="cursor-pointer rounded-lg my-1"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.gpa && <p className="text-xs text-red-500 font-bold ml-2">{errors.gpa.message}</p>}
           </div>
           <div className="space-y-2">
             <Label className="text-slate-600 font-bold ml-1">Grad Year</Label>
-            <div className="relative">
-              <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-              <Input {...register("gradYear")} type="number" className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 font-medium" placeholder="2026" />
-            </div>
+            <Controller
+              name="gradYear"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  value={toControlledSelectValue(field.value)}
+                  onValueChange={(val) => field.onChange(fromControlledSelectValue(val))}
+                >
+                  <SelectTrigger className={selectTriggerClass}>
+                    <Calendar className="h-5 w-5 shrink-0 text-[#6C5DD3]" />
+                    <SelectValue placeholder="Select year" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60 rounded-xl border-none shadow-xl">
+                    <SelectItem value={SELECT_UNSET} disabled className="hidden">
+                      Select year
+                    </SelectItem>
+                    {GRADUATION_YEARS.map((year) => (
+                      <SelectItem
+                        key={year}
+                        value={String(year)}
+                        className="cursor-pointer rounded-lg my-1"
+                      >
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.gradYear && <p className="text-xs text-red-500 font-bold ml-2">{errors.gradYear.message}</p>}
           </div>
         </div>
       </div>

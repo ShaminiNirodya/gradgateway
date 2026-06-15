@@ -307,6 +307,20 @@ export class DashboardService {
     return data;
   }
 
+  static async deleteConversation(token: string, conversationId: string): Promise<void> {
+    const response = await fetch(API_ENDPOINTS.CONVERSATIONS.DELETE(conversationId), {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    await getJsonOrThrow(response, 'Failed to delete conversation');
+    this.conversationsCache = null;
+    this.clearMessagesCache(conversationId);
+  }
+
   static clearConversationsCache() {
     this.conversationsCache = null;
   }

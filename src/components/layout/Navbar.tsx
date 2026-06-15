@@ -1,6 +1,7 @@
 'use client';
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { GradGatewayLogo } from "@/components/brand/GradGatewayLogo";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
@@ -8,8 +9,17 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export default function Navbar() {
+  const pathname = usePathname();
+  const isHome = pathname === "/";
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+
+  const navLinks = [
+    { href: isHome ? "#features" : "/#features", label: "Features" },
+    { href: isHome ? "#how-it-works" : "/#how-it-works", label: "How It Works" },
+    { href: "/about", label: "About Us" },
+    { href: "/contact", label: "Contact" },
+  ];
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -17,13 +27,6 @@ export default function Navbar() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-  const navLinks = [
-    { href: "/#features", label: "Features" },
-    { href: "/#how-it-works", label: "How It Works" },
-    { href: "/about", label: "About Us" },
-    { href: "/contact", label: "Contact" },
-  ];
 
   return (
     <nav

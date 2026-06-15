@@ -62,6 +62,7 @@ export const API_ENDPOINTS = {
     START: `${API_URL}/api/conversations/start`,
     ME: `${API_URL}/api/conversations/me`,
     MESSAGES: (id: string) => `${API_URL}/api/conversations/${id}/messages`,
+    DELETE: (id: string) => `${API_URL}/api/conversations/${id}`,
   },
   PROJECTS: {
     BY_ID: (id: string) => `${API_URL}/api/projects/${id}`,
@@ -83,6 +84,7 @@ export const API_ENDPOINTS = {
   PLATFORM: {
     SETTINGS: `${API_URL}/api/platform/settings`,
     TESTIMONIALS: `${API_URL}/api/platform/testimonials`,
+    CONTENT: `${API_URL}/api/platform/content`,
   },
   TESTIMONIALS: {
     SUBMIT: `${API_URL}/api/testimonials/submit`,
@@ -97,11 +99,13 @@ export const API_ENDPOINTS = {
     INQUIRIES: `${API_URL}/api/admin/inquiries`,
     INQUIRY_REVIEWED: (inquiryId: string) => `${API_URL}/api/admin/inquiries/${inquiryId}/reviewed`,
     INQUIRY_DELETE: (inquiryId: string) => `${API_URL}/api/admin/inquiries/${inquiryId}`,
-    SETTINGS: `${API_URL}/api/admin/settings`,
     EMAIL_LOGS: `${API_URL}/api/admin/email-logs`,
     ANALYTICS: `${API_URL}/api/admin/analytics`,
     TESTIMONIALS: `${API_URL}/api/admin/testimonials`,
     TESTIMONIAL: (id: string) => `${API_URL}/api/admin/testimonials/${id}`,
     TESTIMONIAL_STATUS: (id: string) => `${API_URL}/api/admin/testimonials/${id}/status`,
+    CONTENT: `${API_URL}/api/admin/content`,
+    CONTENT_ITEM: (id: string) => `${API_URL}/api/admin/content/${id}`,
+    SETTINGS: `${API_URL}/api/admin/settings`,
   },
 } as const;

@@ -69,7 +69,7 @@ export function getCompanyStatusActionOptions(app: {
     return COMPANY_OFFER_STATUS_ACTION_OPTIONS;
   }
 
-  return [...APPLICATION_STATUS_OPTIONS];
+  return APPLICATION_STATUS_OPTIONS.filter((option) => option.filterKey !== "New");
 }
 
 export function isDirectJobOfferApplication(

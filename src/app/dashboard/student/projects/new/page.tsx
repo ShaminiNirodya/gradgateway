@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthService } from "@/lib/services/auth.service";
 import { StorageService } from "@/lib/services/storage.service";
@@ -17,7 +17,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
+import { SkillsPicker } from "@/components/shared/SkillsPicker";
 
 const AVAILABLE_ROLES = [
     // Leadership Roles
@@ -54,72 +54,6 @@ const AVAILABLE_ROLES = [
     "Release Manager", "Build Engineer", "Technical Consultant"
 ].sort();
 
-const AVAILABLE_TECHS = [
-    // Frontend Frameworks & Libraries
-    "React", "Vue.js", "Angular", "Svelte", "Next.js", "Nuxt.js", "Gatsby", "Remix",
-    "Solid.js", "Preact", "Alpine.js", "Lit", "Ember.js", "Backbone.js", "jQuery",
-    
-    // Backend Frameworks
-    "Node.js", "Express.js", "NestJS", "Fastify", "Koa", "Hapi", "Adonis.js",
-    "Django", "Flask", "FastAPI", "Pyramid", "Tornado",
-    "Spring Boot", "Spring MVC", "Micronaut", "Quarkus",
-    "Ruby on Rails", "Sinatra", "Laravel", "Symfony", "CodeIgniter",
-    "ASP.NET Core", "ASP.NET MVC", ".NET",
-    "Gin", "Echo", "Fiber",
-    "Actix", "Rocket",
-    
-    // Mobile Development
-    "Flutter", "React Native", "Ionic", "Xamarin", "SwiftUI",
-    "Android", "iOS", "Cordova", "Capacitor", "NativeScript",
-    
-    // Databases
-    "PostgreSQL", "MySQL", "MongoDB", "SQLite", "Redis", "Cassandra",
-    "MariaDB", "Oracle", "SQL Server", "CouchDB", "Neo4j", "DynamoDB",
-    "Firebase", "Supabase", "Firestore", "Realm", "IndexedDB",
-    
-    // Cloud & DevOps
-    "AWS", "Azure", "Google Cloud", "Digital Ocean", "Heroku", "Vercel", "Netlify",
-    "Docker", "Kubernetes", "Jenkins", "GitLab CI", "GitHub Actions", "CircleCI",
-    "Terraform", "Ansible", "Puppet", "Chef", "Vagrant",
-    
-    // Programming Languages
-    "JavaScript", "TypeScript", "Python", "Java", "C++", "C", "C#", "Go",
-    "Rust", "PHP", "Ruby", "Scala", "Kotlin", "Swift", "Dart", "R",
-    "Perl", "Haskell", "Elixir", "Clojure", "Erlang", "Lua", "Julia",
-    
-    // CSS Frameworks & Tools
-    "Tailwind CSS", "Bootstrap", "Material-UI", "Chakra UI", "Ant Design",
-    "Bulma", "Foundation", "Semantic UI", "Styled Components", "Emotion",
-    "SASS", "SCSS", "LESS", "PostCSS", "CSS Modules",
-    
-    // Testing
-    "Jest", "Mocha", "Chai", "Jasmine", "Karma", "Cypress", "Playwright",
-    "Selenium", "Puppeteer", "Testing Library", "Vitest", "PyTest", "JUnit",
-    
-    // State Management
-    "Redux", "MobX", "Zustand", "Recoil", "Jotai", "XState", "Context API",
-    "Vuex", "Pinia", "NgRx",
-    
-    // Build Tools
-    "Webpack", "Vite", "Rollup", "Parcel", "esbuild", "Turbopack", "Gulp", "Grunt",
-    
-    // Version Control
-    "Git", "GitHub", "GitLab", "Bitbucket", "SVN",
-    
-    // AI/ML & Data Science
-    "Machine Learning", "TensorFlow", "PyTorch", "Keras", "Scikit-learn",
-    "Pandas", "NumPy", "OpenCV", "NLTK", "Hugging Face",
-    
-    // Design Tools
-    "Figma", "Adobe XD", "Sketch", "InVision", "UI/UX Design", "Photoshop", "Illustrator",
-    
-    // Other Tools & Technologies
-    "GraphQL", "REST API", "WebSockets", "gRPC", "RabbitMQ", "Kafka",
-    "Elasticsearch", "Solr", "Nginx", "Apache", "JWT", "OAuth",
-    "Stripe", "PayPal", "Twilio", "SendGrid", "Socket.io",
-    "Three.js", "D3.js", "Chart.js", "Recharts", "Plotly"
-].sort();
-
 export default function NewProjectPage() {
     const router = useRouter();
     const { show } = useToast();
@@ -132,20 +66,16 @@ export default function NewProjectPage() {
     const [description, setDescription] = useState("");
     const [githubUrl, setGithubUrl] = useState("");
     const [demoUrl, setDemoUrl] = useState("");
-    const [techSearch, setTechSearch] = useState("");
     const [role, setRole] = useState("");
     const [roleSearch, setRoleSearch] = useState("");
-    const [isTechDropdownOpen, setIsTechDropdownOpen] = useState(false);
     const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
 
-    const handleAddTech = (tech: string) => {
-        if (!selectedTechs.includes(tech)) {
-            setSelectedTechs([...selectedTechs, tech]);
-        }
-    };
+    const selectedTechSet = useMemo(() => new Set(selectedTechs), [selectedTechs]);
 
-    const removeTech = (techToRemove: string) => {
-        setSelectedTechs(selectedTechs.filter(t => t !== techToRemove));
+    const toggleTech = (tech: string) => {
+        setSelectedTechs((prev) =>
+            prev.includes(tech) ? prev.filter((t) => t !== tech) : [...prev, tech]
+        );
     };
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -389,72 +319,15 @@ export default function NewProjectPage() {
                         />
                     </div>
 
-                    <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                            <Label htmlFor="tech">Tech Stack</Label>
-                            <DropdownMenu open={isTechDropdownOpen} onOpenChange={setIsTechDropdownOpen}>
-                                <DropdownMenuTrigger asChild>
-                                    <Button type="button" size="sm" variant="outline" className="h-8 border-[#6C5DD3] text-[#6C5DD3] hover:bg-[#6C5DD3] hover:text-white rounded-lg">
-                                        <Plus className="w-3.5 h-3.5 mr-1" /> Add Tech
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="bg-white min-w-[280px] rounded-xl shadow-xl border-slate-100 p-0">
-                                    <div className="sticky top-0 bg-white border-b border-slate-100 p-2">
-                                        <div className="relative">
-                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                            <Input
-                                                type="text"
-                                                placeholder="Search technologies..."
-                                                value={techSearch}
-                                                onChange={(e) => setTechSearch(e.target.value)}
-                                                onKeyDown={(e) => e.stopPropagation()}
-                                                onMouseDown={(e) => e.stopPropagation()}
-                                                className="pl-9 h-9 rounded-lg border-slate-200 focus:border-[#6C5DD3] focus:ring-[#6C5DD3]"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="max-h-60 overflow-y-auto">
-                                        {AVAILABLE_TECHS
-                                            .filter(t => !selectedTechs.includes(t))
-                                            .filter(t => t.toLowerCase().includes(techSearch.toLowerCase()))
-                                            .map((tech) => (
-                                                <DropdownMenuItem 
-                                                    key={tech} 
-                                                    onClick={() => {
-                                                        handleAddTech(tech);
-                                                        setTechSearch("");
-                                                    }} 
-                                                    className="font-medium text-slate-600 focus:bg-indigo-50 focus:text-[#6C5DD3] cursor-pointer py-2.5 px-3"
-                                                >
-                                                    {tech}
-                                                </DropdownMenuItem>
-                                            ))}
-                                        {AVAILABLE_TECHS
-                                            .filter(t => !selectedTechs.includes(t))
-                                            .filter(t => t.toLowerCase().includes(techSearch.toLowerCase()))
-                                            .length === 0 && (
-                                            <div className="p-4 text-sm text-slate-400 text-center">
-                                                {techSearch ? "No technologies found" : "All techs added"}
-                                            </div>
-                                        )}
-                                    </div>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
-
-                        <div className="min-h-[60px] p-4 bg-slate-50 border border-slate-100 rounded-xl flex flex-wrap gap-2">
-                            {selectedTechs.length > 0 ? (
-                                selectedTechs.map((tech) => (
-                                    <Badge key={tech} variant="secondary" className="bg-white text-slate-700 border-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 hover:bg-slate-50 group">
-                                        <span className="font-bold text-xs">{tech}</span>
-                                        <X className="w-3.5 h-3.5 cursor-pointer text-slate-400 group-hover:text-red-500 transition-colors" onClick={() => removeTech(tech)} />
-                                    </Badge>
-                                ))
-                            ) : (
-                                <p className="text-sm text-slate-400 italic">No technologies selected. Start by adding some.</p>
-                            )}
-                        </div>
-                    </div>
+                    <SkillsPicker
+                        variant="tags"
+                        label="Tech Stack"
+                        addButtonLabel="Add Tech"
+                        selected={selectedTechSet}
+                        onToggle={toggleTech}
+                        menuAlign="end"
+                        emptyMessage="No technologies selected. Start by adding some."
+                    />
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">

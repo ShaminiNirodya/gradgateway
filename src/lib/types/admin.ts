@@ -58,12 +58,6 @@ export interface AdminCompanyListItem {
   userIsActive: boolean;
 }
 
-export interface AdminPlatformSettings {
-  allowRegistration: boolean;
-  maintenanceMode: boolean;
-  updatedAt: string;
-}
-
 export interface AdminAnalytics {
   totalStudents: number;
   totalCompanies: number;
@@ -84,6 +78,10 @@ export interface AdminAnalytics {
 export interface PublicPlatformSettings {
   allowRegistration: boolean;
   maintenanceMode: boolean;
+}
+
+export interface AdminPlatformSettings extends PublicPlatformSettings {
+  updatedAt: string;
 }
 
 export interface AdminEmailLogItem {

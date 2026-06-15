@@ -15,6 +15,7 @@ export interface StudentRegistration {
   availability?: string;
   certifications?: string[];
   awards?: string[];
+  hackathonsCompetitions?: string[];
 }
 
 export interface StudentProfile {
@@ -35,4 +36,5 @@ export interface StudentProfile {
   availability: string;
   certifications: string[];
   awards: string[];
+  hackathonsCompetitions: string[];
 }

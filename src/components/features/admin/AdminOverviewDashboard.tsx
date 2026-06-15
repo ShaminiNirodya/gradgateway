@@ -11,7 +11,6 @@ import {
   LayoutDashboard,
   MessageSquare,
   RefreshCw,
-  Settings,
   TrendingUp,
   UserCheck,
   UserMinus,
@@ -268,13 +267,6 @@ export function AdminOverviewDashboard({
             title="Companies"
             description="View employers and block or unblock access"
             stat={`${data.totalCompanies} profiles · ${data.activeJobPosts} live jobs`}
-          />
-          <ActionCard
-            href="/dashboard/admin/settings"
-            icon={Settings}
-            title="Platform settings"
-            description="Registration, maintenance mode, and toggles"
-            stat={`${data.adminAccounts} admin account${data.adminAccounts === 1 ? "" : "s"}`}
           />
         </div>
       </div>

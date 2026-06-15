@@ -43,6 +43,12 @@ import {
   fromControlledSelectValue,
   toControlledSelectValue,
 } from "@/lib/utils/controlled-select";
+import {
+  GPA_OPTIONS,
+  GRADUATION_YEARS,
+  normalizeGpaOption,
+  normalizeGraduationYear,
+} from "@/lib/constants/academic-options";
 import { FieldOfMajorSubcategoriesNotice } from "@/components/shared/FieldOfMajorSubcategoriesNotice";
 import {
     ClearableFilterField,
@@ -54,8 +60,6 @@ import { StudentPageContainer } from "@/components/layout/student/StudentPageCon
 import { StudentPageHero } from "@/components/layout/student/StudentPageHero";
 
 // Dynamic filtering will be applied via useMemo hooks below
-
-const GRADUATION_YEARS = Array.from({ length: 16 }, (_, i) => 2020 + i);
 
 export default function StudentSettingsPage() {
     const { userData, resetPassword, changePassword } = useAuth();
@@ -72,12 +76,12 @@ export default function StudentSettingsPage() {
     const [gpa, setGpa] = useState("");
     const [certificationsText, setCertificationsText] = useState("");
     const [awardsText, setAwardsText] = useState("");
+    const [hackathonsCompetitionsText, setHackathonsCompetitionsText] = useState("");
     const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
     const [currentPassword, setCurrentPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmNewPassword, setConfirmNewPassword] = useState("");
     const [isChangingPassword, setIsChangingPassword] = useState(false);
-    const [isSendingReset, setIsSendingReset] = useState(false);
     const [degreeSearch, setDegreeSearch] = useState("");
     const [isDegreeDropdownOpen, setIsDegreeDropdownOpen] = useState(false);
     const [universitySearch, setUniversitySearch] = useState("");
@@ -165,11 +169,12 @@ export default function StudentSettingsPage() {
                 inferFieldOfMajorFromDegree(profile.degree || "") ||
                 ""
         );
-        setGradYear(String(profile.gradYear || ""));
+        setGradYear(normalizeGraduationYear(profile.gradYear));
         setCurrentYear(profile.currentYear || 1);
-        setGpa(String(profile.gpa ?? ""));
+        setGpa(normalizeGpaOption(profile.gpa));
         setCertificationsText((profile.certifications || []).join("\n"));
         setAwardsText((profile.awards || []).join("\n"));
+        setHackathonsCompetitionsText((profile.hackathonsCompetitions || []).join("\n"));
         setPhotoDataUrl(profile.photoDataUrl || "");
         setCvUrl(profile.cvUrl || "");
         setCvFileName(profile.cvUrl ? "CV on file" : "");
@@ -210,6 +215,7 @@ export default function StudentSettingsPage() {
             gpa,
             certifications: certificationsText.split(/\r?\n/).map((v) => v.trim()).filter(Boolean),
             awards: awardsText.split(/\r?\n/).map((v) => v.trim()).filter(Boolean),
+            hackathonsCompetitions: hackathonsCompetitionsText.split(/\r?\n/).map((v) => v.trim()).filter(Boolean),
         });
 
         await refresh();
@@ -354,6 +360,7 @@ export default function StudentSettingsPage() {
                 gpa,
                 certifications: certificationsText.split(/\r?\n/).map((v) => v.trim()).filter(Boolean),
                 awards: awardsText.split(/\r?\n/).map((v) => v.trim()).filter(Boolean),
+                hackathonsCompetitions: hackathonsCompetitionsText.split(/\r?\n/).map((v) => v.trim()).filter(Boolean),
             });
 
             await refresh();
@@ -362,24 +369,6 @@ export default function StudentSettingsPage() {
             show({ title: "Save failed", description: error?.message || "Unable to save profile.", variant: "error" });
         } finally {
             setIsSaving(false);
-        }
-    };
-
-    const handleSendResetLink = async () => {
-        const email = userData?.email || auth.currentUser?.email;
-        if (!email) {
-            show({ title: "Unable to reset password", description: "Your account email is not available.", variant: "error" });
-            return;
-        }
-
-        try {
-            setIsSendingReset(true);
-            await resetPassword(email);
-            show({ title: "Reset email sent", description: `Password reset instructions were sent to ${email}.`, variant: "success" });
-        } catch (error: any) {
-            show({ title: "Reset failed", description: error?.message || "Could not send reset email.", variant: "error" });
-        } finally {
-            setIsSendingReset(false);
         }
     };
 
@@ -789,7 +778,40 @@ export default function StudentSettingsPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label>Current GPA</Label>
-                                <Input value={gpa} onChange={(e) => setGpa(e.target.value)} className="rounded-xl" placeholder="e.g. 3.8" />
+                                <ClearableFilterField
+                                    showClear={!!gpa}
+                                    onClear={() => setGpa("")}
+                                    clearLabel="GPA"
+                                    variant="select"
+                                >
+                                    <Select
+                                        value={toControlledSelectValue(gpa)}
+                                        onValueChange={(val) => setGpa(fromControlledSelectValue(val))}
+                                    >
+                                        <SelectTrigger
+                                            className={cn(
+                                                "w-full rounded-xl h-10",
+                                                gpa && CLEARABLE_SELECT_PADDING
+                                            )}
+                                        >
+                                            <SelectValue placeholder="Select GPA" />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-xl max-h-60">
+                                            <SelectItem value={SELECT_UNSET} disabled className="hidden">
+                                                Select GPA
+                                            </SelectItem>
+                                            {GPA_OPTIONS.map((option) => (
+                                                <SelectItem
+                                                    key={option.value}
+                                                    value={option.value}
+                                                    className="rounded-lg cursor-pointer"
+                                                >
+                                                    {option.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </ClearableFilterField>
                             </div>
                             <div className="space-y-2">
                                 <Label>Graduation Year</Label>
@@ -842,6 +864,15 @@ export default function StudentSettingsPage() {
                                     placeholder="Dean's List - University of Colombo (2024)"
                                 />
                             </div>
+                            <div className="space-y-2 md:col-span-2">
+                                <Label>Hackathons &amp; Competitions (one per line)</Label>
+                                <textarea
+                                    className="flex min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C5DD3]"
+                                    value={hackathonsCompetitionsText}
+                                    onChange={(e) => setHackathonsCompetitionsText(e.target.value)}
+                                    placeholder={"TechFest 2025 - 1st Place (Team Lead)\nIEEE Xtreme 24.0 - Top 10 in Sri Lanka"}
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -864,7 +895,7 @@ export default function StudentSettingsPage() {
                             </div>
                             <div>
                                 <h3 className="text-lg font-extrabold text-slate-900">Account Security</h3>
-                                <p className="text-sm text-slate-500">Change your password or request a reset link.</p>
+                                <p className="text-sm text-slate-500">Change your password.</p>
                             </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -875,15 +906,6 @@ export default function StudentSettingsPage() {
                                 onClick={() => setShowChangePasswordModal(true)}
                             >
                                 Change Password
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                className="rounded-xl"
-                                type="button"
-                                onClick={handleSendResetLink}
-                                disabled={isSendingReset}
-                            >
-                                {isSendingReset ? "Sending..." : "Send Reset Link"}
                             </Button>
                         </div>
                     </div>

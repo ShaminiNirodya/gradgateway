@@ -6,24 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2, CreditCard, Shield } from "lucide-react";
+import { Building2, Shield } from "lucide-react";
 import { CompanyPageContainer } from "@/components/layout/company/CompanyPageContainer";
 import { CompanyPageHeader } from "@/components/layout/company/CompanyPageHeader";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { AuthService } from "@/lib/services/auth.service";
 import { CompanyService } from "@/lib/services/company.service";
-import { DashboardService } from "@/lib/services/dashboard.service";
 import { CompanyProfile } from "@/lib/types/company";
 import { auth } from "@/lib/firebase";
 
 const COMPANY_SIZE_OPTIONS = ["1-10 employees", "11-50 employees", "51-200 employees", "201-500 employees", "500+ employees"];
-
-type UsageStats = {
-    activeJobs: number;
-    totalApplications: number;
-    conversations: number;
-};
 
 const emptyProfile: CompanyProfile = {
     email: "",
@@ -52,12 +45,6 @@ export default function CompanySettingsPage() {
     const [newPassword, setNewPassword] = useState("");
     const [confirmNewPassword, setConfirmNewPassword] = useState("");
     const [isChangingPassword, setIsChangingPassword] = useState(false);
-    const [isSendingReset, setIsSendingReset] = useState(false);
-    const [usage, setUsage] = useState<UsageStats>({
-        activeJobs: 0,
-        totalApplications: 0,
-        conversations: 0,
-    });
 
     useEffect(() => {
         const load = async () => {
@@ -68,19 +55,8 @@ export default function CompanySettingsPage() {
                     return;
                 }
 
-                const [company, opportunities, applications, conversations] = await Promise.all([
-                    CompanyService.getCurrentCompany(token),
-                    DashboardService.getCompanyOpportunities(token),
-                    DashboardService.getCompanyApplications(token),
-                    DashboardService.getMyConversations(token),
-                ]);
-
+                const company = await CompanyService.getCurrentCompany(token);
                 setProfile(company);
-                setUsage({
-                    activeJobs: opportunities.filter((job) => job.isActive).length,
-                    totalApplications: applications.length,
-                    conversations: conversations.length,
-                });
             } catch {
                 setProfile((prev) => ({
                     ...prev,
@@ -103,36 +79,6 @@ export default function CompanySettingsPage() {
             .map((word) => word[0]?.toUpperCase())
             .join("");
     }, [profile.companyName]);
-
-    const handleSendResetLink = async () => {
-        const email = user?.email || auth.currentUser?.email;
-        if (!email) {
-            show({
-                title: "Unable to reset password",
-                description: "Your account email is not available.",
-                variant: "error",
-            });
-            return;
-        }
-
-        try {
-            setIsSendingReset(true);
-            await resetPassword(email);
-            show({
-                title: "Reset email sent",
-                description: `Password reset instructions were sent to ${email}.`,
-                variant: "success",
-            });
-        } catch (error: any) {
-            show({
-                title: "Reset failed",
-                description: error?.message || "Could not send reset email.",
-                variant: "error",
-            });
-        } finally {
-            setIsSendingReset(false);
-        }
-    };
 
     const handleConfirmPasswordChange = async () => {
         if (!currentPassword || !newPassword || !confirmNewPassword) {
@@ -232,7 +178,7 @@ export default function CompanySettingsPage() {
             <CompanyPageHeader
                 eyebrow="Account"
                 title="Company Settings"
-                subtitle="Manage your organization profile, security, and billing."
+                subtitle="Manage your organization profile and security."
                 showSearch={false}
                 showNotifications={false}
             />
@@ -252,10 +198,6 @@ export default function CompanySettingsPage() {
                     <TabsTrigger value="security" className="rounded-lg data-[state=active]:bg-[#6C5DD3] data-[state=active]:text-white">
                         <Shield className="w-4 h-4 mr-2" />
                         Security
-                    </TabsTrigger>
-                    <TabsTrigger value="billing" className="rounded-lg data-[state=active]:bg-[#6C5DD3] data-[state=active]:text-white">
-                        <CreditCard className="w-4 h-4 mr-2" />
-                        Billing
                     </TabsTrigger>
                 </TabsList>
 
@@ -340,7 +282,7 @@ export default function CompanySettingsPage() {
                             <div>
                                 <h3 className="text-lg font-extrabold text-slate-900">Account Security</h3>
                                 <p className="text-sm text-slate-500">
-                                    Change your sign-in password or request a reset link sent to your account email.
+                                    Change your sign-in password.
                                 </p>
                             </div>
                         </div>
@@ -361,68 +303,11 @@ export default function CompanySettingsPage() {
                             >
                                 Change Password
                             </Button>
-                            <Button
-                                variant="ghost"
-                                className="rounded-xl"
-                                type="button"
-                                onClick={handleSendResetLink}
-                                disabled={isSendingReset}
-                            >
-                                {isSendingReset ? "Sending..." : "Send Reset Link"}
-                            </Button>
                         </div>
 
                         <p className="mt-4 text-xs text-slate-400">
-                            Use a strong password you do not reuse on other sites. Reset links expire after a short time.
+                            Use a strong password you do not reuse on other sites.
                         </p>
-                    </div>
-                </TabsContent>
-
-                {/* Billing Settings */}
-                <TabsContent value="billing" className="mt-6 space-y-6">
-                    <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-                        <div className="flex items-start justify-between gap-4">
-                            <div className="flex items-start gap-3">
-                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                                    <CreditCard className="h-5 w-5" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-extrabold text-slate-900">Current Plan</h3>
-                                    <p className="text-sm text-slate-500">
-                                        You are on the <span className="font-bold text-[#6C5DD3]">Pro Plan</span>
-                                    </p>
-                                </div>
-                            </div>
-                            <span className="shrink-0 rounded-full bg-[#6C5DD3]/10 px-3 py-1 text-xs font-bold text-[#6C5DD3]">
-                                Active
-                            </span>
-                        </div>
-
-                        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-                            <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
-                                <p className="text-xs text-slate-500 mb-1">Job Posts</p>
-                                <p className="text-xl font-bold text-slate-900">{usage.activeJobs} / 10</p>
-                                <div className="w-full bg-slate-200 h-1 mt-2 rounded-full overflow-hidden">
-                                    <div className="bg-[#6C5DD3] h-full" style={{ width: `${Math.min(100, Math.round((usage.activeJobs / 10) * 100))}%` }}></div>
-                                </div>
-                            </div>
-                            <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
-                                <p className="text-xs text-slate-500 mb-1">Applications Received</p>
-                                <p className="text-xl font-bold text-slate-900">{usage.totalApplications} / 500</p>
-                                <div className="w-full bg-slate-200 h-1 mt-2 rounded-full overflow-hidden">
-                                    <div className="bg-[#6C5DD3] h-full" style={{ width: `${Math.min(100, Math.round((usage.totalApplications / 500) * 100))}%` }}></div>
-                                </div>
-                            </div>
-                            <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
-                                <p className="text-xs text-slate-500 mb-1">Conversations</p>
-                                <p className="text-xl font-bold text-slate-900">{usage.conversations}</p>
-                            </div>
-                        </div>
-
-                        <div className="mt-8 pt-6 border-t border-slate-100 flex gap-3">
-                            <Button variant="outline" className="rounded-xl">View Invoices</Button>
-                            <Button className="rounded-xl bg-[#6C5DD3] hover:bg-[#5b4eb8]">Upgrade Plan</Button>
-                        </div>
                     </div>
                 </TabsContent>
             </Tabs>

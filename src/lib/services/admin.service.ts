@@ -14,6 +14,12 @@ import {
   AdminUpdateTestimonialPayload,
   TestimonialListItem,
 } from '@/lib/types/testimonial';
+import {
+  mapPlatformContentItem,
+  type PlatformContentFormValues,
+  type PlatformContentItem,
+  toApiPayload,
+} from '@/lib/types/platform-content';
 import { unwrapPagedItems, type PagedResult } from '@/lib/types/paged';
 
 async function getJsonOrThrow<T>(response: Response, fallbackMessage: string): Promise<T> {
@@ -214,25 +220,6 @@ export class AdminService {
     return unwrapPagedItems(data);
   }
 
-  static async getSettings(token: string): Promise<AdminPlatformSettings> {
-    const response = await fetch(API_ENDPOINTS.ADMIN.SETTINGS, {
-      headers: authHeaders(token),
-    });
-    return getJsonOrThrow(response, 'Failed to load platform settings');
-  }
-
-  static async updateSettings(
-    token: string,
-    settings: Omit<AdminPlatformSettings, 'updatedAt'>
-  ): Promise<AdminPlatformSettings> {
-    const response = await fetch(API_ENDPOINTS.ADMIN.SETTINGS, {
-      method: 'PUT',
-      headers: authHeaders(token),
-      body: JSON.stringify(settings),
-    });
-    return getJsonOrThrow(response, 'Failed to save platform settings');
-  }
-
   static async getPublicSettings(): Promise<PublicPlatformSettings> {
     const response = await fetch(API_ENDPOINTS.PLATFORM.SETTINGS, {
       next: { revalidate: 60 },
@@ -241,6 +228,35 @@ export class AdminService {
       return { allowRegistration: true, maintenanceMode: false };
     }
     return response.json();
+  }
+
+  static async getSettings(token: string): Promise<AdminPlatformSettings> {
+    const response = await fetch(API_ENDPOINTS.ADMIN.SETTINGS, {
+      headers: authHeaders(token),
+    });
+    const data = await getJsonOrThrow<Record<string, unknown>>(response, 'Failed to load settings');
+    return {
+      allowRegistration: Boolean(data.allowRegistration ?? data.AllowRegistration ?? true),
+      maintenanceMode: Boolean(data.maintenanceMode ?? data.MaintenanceMode ?? false),
+      updatedAt: String(data.updatedAt ?? data.UpdatedAt ?? ''),
+    };
+  }
+
+  static async updateSettings(
+    token: string,
+    payload: Pick<AdminPlatformSettings, 'allowRegistration' | 'maintenanceMode'>
+  ): Promise<AdminPlatformSettings> {
+    const response = await fetch(API_ENDPOINTS.ADMIN.SETTINGS, {
+      method: 'PUT',
+      headers: authHeaders(token),
+      body: JSON.stringify(payload),
+    });
+    const data = await getJsonOrThrow<Record<string, unknown>>(response, 'Failed to update settings');
+    return {
+      allowRegistration: Boolean(data.allowRegistration ?? data.AllowRegistration ?? true),
+      maintenanceMode: Boolean(data.maintenanceMode ?? data.MaintenanceMode ?? false),
+      updatedAt: String(data.updatedAt ?? data.UpdatedAt ?? ''),
+    };
   }
 
   static async getTestimonials(
@@ -306,5 +322,58 @@ export class AdminService {
       headers: authHeaders(token),
     });
     await getJsonOrThrow(response, 'Failed to delete testimonial');
+  }
+
+  static async getContent(
+    token: string,
+    params?: { contentType?: string; section?: string; status?: string }
+  ): Promise<PlatformContentItem[]> {
+    const qs = new URLSearchParams();
+    if (params?.contentType) qs.set('contentType', params.contentType);
+    if (params?.section) qs.set('section', params.section);
+    if (params?.status) qs.set('status', params.status);
+
+    const url = qs.toString()
+      ? `${API_ENDPOINTS.ADMIN.CONTENT}?${qs}`
+      : API_ENDPOINTS.ADMIN.CONTENT;
+
+    const response = await fetch(url, { headers: authHeaders(token) });
+    const data = await getJsonOrThrow<Record<string, unknown>[]>(response, 'Failed to load content');
+    return data.map((item) => mapPlatformContentItem(item));
+  }
+
+  static async createContent(
+    token: string,
+    values: PlatformContentFormValues
+  ): Promise<PlatformContentItem> {
+    const response = await fetch(API_ENDPOINTS.ADMIN.CONTENT, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify(toApiPayload(values)),
+    });
+    const data = await getJsonOrThrow<Record<string, unknown>>(response, 'Failed to create content');
+    return mapPlatformContentItem(data);
+  }
+
+  static async updateContent(
+    token: string,
+    id: string,
+    values: PlatformContentFormValues
+  ): Promise<PlatformContentItem> {
+    const response = await fetch(API_ENDPOINTS.ADMIN.CONTENT_ITEM(id), {
+      method: 'PUT',
+      headers: authHeaders(token),
+      body: JSON.stringify(toApiPayload(values)),
+    });
+    const data = await getJsonOrThrow<Record<string, unknown>>(response, 'Failed to update content');
+    return mapPlatformContentItem(data);
+  }
+
+  static async deleteContent(token: string, id: string): Promise<void> {
+    const response = await fetch(API_ENDPOINTS.ADMIN.CONTENT_ITEM(id), {
+      method: 'DELETE',
+      headers: authHeaders(token),
+    });
+    await getJsonOrThrow(response, 'Failed to delete content');
   }
 }

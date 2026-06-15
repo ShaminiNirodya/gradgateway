@@ -9,7 +9,6 @@ import {
   Eye,
   Calendar,
   Briefcase,
-  CalendarClock,
   UserCheck,
   Tags,
   ExternalLink,
@@ -22,14 +21,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { AuthService } from "@/lib/services/auth.service";
 import { DashboardService } from "@/lib/services/dashboard.service";
 import { ApplicationItem } from "@/lib/types/dashboard";
-import ScheduleInterviewDialog from "@/components/features/company/ScheduleInterviewDialog";
 import { useToast } from "@/components/ui/toast";
 import {
   applicationStatusBadgeClass,
@@ -73,8 +70,6 @@ export default function ApplicationManagement() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ApplicationStatusFilterKey | null>(null);
   const [applications, setApplications] = useState<ApplicationItem[]>([]);
-  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
-  const [selectedOpportunity, setSelectedOpportunity] = useState<{ id: string; title: string } | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -104,8 +99,13 @@ export default function ApplicationManagement() {
 
   useEffect(() => {
     if (!filterParam) return;
-    if (filterParam === OFFERS_APPLICATION_FILTER_OPTION.filterKey) {
-      setStatusFilter(OFFERS_APPLICATION_FILTER_OPTION.filterKey);
+    const validKeys = [
+      ...OPENING_APPLICATION_FILTER_OPTIONS.map((o) => o.filterKey),
+      OFFERS_APPLICATION_FILTER_OPTION.filterKey,
+      HIRED_APPLICATION_FILTER_OPTION.filterKey,
+    ];
+    if (validKeys.includes(filterParam as ApplicationStatusFilterKey)) {
+      setStatusFilter(filterParam as ApplicationStatusFilterKey);
     }
   }, [filterParam]);
 
@@ -211,27 +211,6 @@ export default function ApplicationManagement() {
     }
   };
 
-  const handleScheduleInterview = (application: ApplicationItem) => {
-    if (!application.opportunityId) {
-      show({
-        title: "Cannot schedule interview",
-        description: "This application is not linked to a job post.",
-        variant: "warning",
-      });
-      return;
-    }
-    setSelectedOpportunity({ id: application.opportunityId, title: application.jobTitle });
-    setScheduleDialogOpen(true);
-  };
-
-  const handleInterviewScheduled = (result: { messagesSent: number; shortlistedCount: number }) => {
-    show({
-      title: "Interviews scheduled successfully",
-      description: `Notification sent to ${result.messagesSent} shortlisted candidate(s)`,
-      variant: "success",
-    });
-  };
-
   const hiredApplications = useMemo(
     () =>
       applications.filter((a) => normalizeApplicationStatus(a.status) === "Hired"),
@@ -277,7 +256,7 @@ export default function ApplicationManagement() {
     ? `Applications from ${studentFilterLabel}`
     : jobIdParam
       ? `Filtered to one job posting`
-      : "Review candidates, update status, and schedule interviews";
+      : "Review candidates and update application status";
 
   return (
     <CompanyPageContainer>
@@ -458,15 +437,6 @@ export default function ApplicationManagement() {
                     <Button size="sm" className="rounded-xl bg-[#6C5DD3] hover:bg-[#5b4eb8]">Actions</Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="bg-white">
-                    {normalizeApplicationStatus(application.status) === "Shortlisted" && (
-                      <>
-                        <DropdownMenuItem onClick={() => handleScheduleInterview(application)}>
-                          <CalendarClock className="w-4 h-4 mr-2" />
-                          Schedule Interview
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                      </>
-                    )}
                     {getCompanyStatusActionOptions(application).map((option) => (
                       <DropdownMenuItem
                         key={option.filterKey}
@@ -526,15 +496,6 @@ export default function ApplicationManagement() {
                           <Button variant="ghost" size="sm">Actions</Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="bg-white">
-                          {normalizeApplicationStatus(application.status) === "Shortlisted" && (
-                            <>
-                              <DropdownMenuItem onClick={() => handleScheduleInterview(application)}>
-                                <CalendarClock className="w-4 h-4 mr-2" />
-                                Schedule Interview
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                            </>
-                          )}
                           {getCompanyStatusActionOptions(application).map((option) => (
                             <DropdownMenuItem
                               key={option.filterKey}
@@ -554,15 +515,6 @@ export default function ApplicationManagement() {
         </div>
       )}
 
-      {selectedOpportunity && (
-        <ScheduleInterviewDialog
-          open={scheduleDialogOpen}
-          onOpenChange={setScheduleDialogOpen}
-          opportunityId={selectedOpportunity.id}
-          jobTitle={selectedOpportunity.title}
-          onScheduled={handleInterviewScheduled}
-        />
-      )}
     </CompanyPageContainer>
   );
 }

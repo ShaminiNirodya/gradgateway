@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { MessageSquare, RefreshCw, Search, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,9 +26,30 @@ type MessageItem = {
   sentAt: string;
 };
 
+function dedupeConversations(list: ConversationItem[]): ConversationItem[] {
+  const byParty = new Map<string, ConversationItem>();
+
+  for (const conversation of list) {
+    const key = `${(conversation.supportTargetRole ?? conversation.kind ?? "User").toLowerCase()}::${conversation.otherPartyName.trim().toLowerCase()}`;
+    const existing = byParty.get(key);
+    if (
+      !existing ||
+      new Date(conversation.lastMessageAt).getTime() > new Date(existing.lastMessageAt).getTime()
+    ) {
+      byParty.set(key, conversation);
+    }
+  }
+
+  return [...byParty.values()].sort(
+    (a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+  );
+}
+
 export function AdminMessagesPanel() {
   const { show } = useToast();
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const deepLinkHandledRef = useRef<string | null>(null);
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -52,8 +73,9 @@ export function AdminMessagesPanel() {
       if (!token) return;
       DashboardService.clearConversationsCache();
       const list = await DashboardService.getMyConversations(token);
-      setConversations(list);
-      return list;
+      const deduped = dedupeConversations(list);
+      setConversations(deduped);
+      return deduped;
     } catch (e) {
       show({
         title: "Load failed",
@@ -96,14 +118,23 @@ export function AdminMessagesPanel() {
       try {
         const token = await AuthService.getIdToken();
         if (!token) return;
+
         const created = await DashboardService.startConversation(token, payload);
-        setConversations((prev) => {
-          const existing = prev.find((c) => c.id === created.id);
-          if (existing) return prev;
-          return [created, ...prev];
-        });
-        setSelectedId(created.id);
-        await loadMessages(created.id);
+        DashboardService.clearConversationsCache();
+        const refreshed = dedupeConversations(await DashboardService.getMyConversations(token));
+        setConversations(refreshed);
+
+        const selected =
+          refreshed.find((c) => c.id === created.id) ??
+          refreshed.find(
+            (c) =>
+              c.otherPartyName.trim().toLowerCase() === created.otherPartyName.trim().toLowerCase() &&
+              (c.supportTargetRole ?? "") === (created.supportTargetRole ?? "")
+          ) ??
+          created;
+
+        setSelectedId(selected.id);
+        await loadMessages(selected.id);
       } catch (e) {
         show({
           title: "Could not start chat",
@@ -123,13 +154,28 @@ export function AdminMessagesPanel() {
     const studentProfileId = searchParams.get("studentProfileId");
     const companyProfileId = searchParams.get("companyProfileId");
 
-    if (studentProfileId || companyProfileId) {
-      void startWithProfile({
+    if (!studentProfileId && !companyProfileId) {
+      return;
+    }
+
+    const deepLinkKey = studentProfileId
+      ? `student:${studentProfileId}`
+      : `company:${companyProfileId}`;
+
+    if (deepLinkHandledRef.current === deepLinkKey) {
+      return;
+    }
+
+    deepLinkHandledRef.current = deepLinkKey;
+
+    void (async () => {
+      await startWithProfile({
         studentProfileId: studentProfileId ?? undefined,
         companyProfileId: companyProfileId ?? undefined,
       });
-    }
-  }, [searchParams, startWithProfile]);
+      router.replace("/dashboard/admin/messages", { scroll: false });
+    })();
+  }, [searchParams, startWithProfile, router]);
 
   useEffect(() => {
     if (!selectedId && conversations.length > 0) {

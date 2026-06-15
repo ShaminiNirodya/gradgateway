@@ -7,13 +7,14 @@ import {
   LayoutGrid,
   GraduationCap,
   Building2,
-  Settings,
   LogOut,
   MessageSquare,
   MessagesSquare,
   MailCheck,
   Quote,
   BarChart3,
+  BookOpen,
+  Settings,
 } from "lucide-react";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { useState } from "react";
@@ -28,10 +29,11 @@ const navItems = [
   { name: "Inquiries", href: "/dashboard/admin/inquiries", icon: MessageSquare, badgeKey: "inquiries" as const },
   { name: "Messages", href: "/dashboard/admin/messages", icon: MessagesSquare, badgeKey: null },
   { name: "Testimonials", href: "/dashboard/admin/testimonials", icon: Quote, badgeKey: "testimonials" as const },
+  { name: "Site content", href: "/dashboard/admin/content", icon: BookOpen, badgeKey: null },
+  { name: "Settings", href: "/dashboard/admin/settings", icon: Settings, badgeKey: null },
   { name: "Students", href: "/dashboard/admin/students", icon: GraduationCap, badgeKey: null },
   { name: "Companies", href: "/dashboard/admin/companies", icon: Building2, badgeKey: null },
   { name: "Email logs", href: "/dashboard/admin/email-logs", icon: MailCheck, badgeKey: null },
-  { name: "Settings", href: "/dashboard/admin/settings", icon: Settings, badgeKey: null },
 ];
 
 export default function AdminSidebar() {
@@ -39,13 +41,12 @@ export default function AdminSidebar() {
   const { signOut } = useAuth();
   const router = useRouter();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const { data } = useAdminDashboard();
+  const { data, newTestimonialsCount } = useAdminDashboard();
   const openInquiries = data?.openSupportInquiries ?? 0;
-  const pendingTestimonials = data?.pendingTestimonials ?? 0;
 
   const getBadgeCount = (badgeKey: (typeof navItems)[number]["badgeKey"]) => {
     if (badgeKey === "inquiries") return openInquiries;
-    if (badgeKey === "testimonials") return pendingTestimonials;
+    if (badgeKey === "testimonials") return newTestimonialsCount;
     return 0;
   };
 

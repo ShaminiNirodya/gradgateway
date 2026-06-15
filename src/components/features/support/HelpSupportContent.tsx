@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
   ChevronDown,
@@ -16,8 +16,24 @@ import {
 import { Input } from "@/components/ui/input";
 import { SupportInquiryForm } from "@/components/features/support/SupportInquiryForm";
 import { PopularArticles } from "@/components/features/support/PopularArticles";
-import { getArticlesForAudience, type HelpAudience } from "@/lib/content/help-articles";
+import type { HelpAudience } from "@/lib/content/help-articles";
+import {
+  getArticlesForAudience as getInsightArticlesForAudience,
+  getGuidesForAudience,
+  getHelpFaqsForAudience,
+  type ContentArticle,
+} from "@/lib/content/platform-content-fallback";
+import { PlatformContentService } from "@/lib/services/platform-content.service";
+import { toGuideArticle } from "@/lib/types/platform-content";
 import { cn } from "@/lib/utils";
+
+function mapHelpFaqs(audience: HelpAudience) {
+  return getHelpFaqsForAudience(audience).map((item) => ({
+    q: item.q,
+    a: item.a,
+    audiences: (item.audiences ?? ["All"]) as HelpAudience[],
+  }));
+}
 
 type HelpSupportContentProps = {
   audience?: HelpAudience;
@@ -83,11 +99,82 @@ function getHeroCopy(audience: HelpAudience) {
 
 export function HelpSupportContent({ audience = "All" }: HelpSupportContentProps) {
   const [search, setSearch] = useState("");
-  const articles = useMemo(() => getArticlesForAudience(audience), [audience]);
+  const [guideItems, setGuideItems] = useState(() => getGuidesForAudience(audience));
+  const [faqItems, setFaqItems] = useState(() => mapHelpFaqs(audience));
+  const [insightArticles, setInsightArticles] = useState<ContentArticle[]>(() =>
+    getInsightArticlesForAudience(audience)
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    void (async () => {
+      try {
+        const [guides, faqs, articles] = await Promise.all([
+          PlatformContentService.getPublished({
+            contentType: "Guide",
+            section: "HelpCenter",
+            audience,
+          }),
+          PlatformContentService.getPublished({
+            contentType: "Faq",
+            section: "HelpCenter",
+            audience,
+          }),
+          PlatformContentService.getPublished({
+            contentType: "Article",
+            section: "HelpCenter",
+            audience,
+          }),
+        ]);
+
+        if (!active) return;
+
+        setGuideItems(
+          guides.length > 0 ? guides.map(toGuideArticle) : getGuidesForAudience(audience)
+        );
+
+        setFaqItems(
+          faqs.length > 0
+            ? faqs.map((item) => ({
+                q: item.title,
+                a: item.body,
+                audiences: item.audiences as HelpAudience[],
+              }))
+            : mapHelpFaqs(audience)
+        );
+
+        setInsightArticles(
+          articles.length > 0
+            ? articles.map((item) => ({
+                id: item.slug ?? item.id,
+                title: item.title,
+                summary: item.summary ?? "",
+                body: item.body,
+                audiences: item.audiences as HelpAudience[],
+                category: item.category ?? undefined,
+              }))
+            : getInsightArticlesForAudience(audience)
+        );
+      } catch {
+        if (active) {
+          setGuideItems(getGuidesForAudience(audience));
+          setFaqItems(mapHelpFaqs(audience));
+          setInsightArticles(getInsightArticlesForAudience(audience));
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [audience]);
+
+  const articles = useMemo(() => guideItems, [guideItems]);
   const categories = useMemo(() => getCategories(audience), [audience]);
   const hero = getHeroCopy(audience);
 
-  const filteredArticles = useMemo(() => {
+  const filteredGuides = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return articles;
     return articles.filter(
@@ -97,6 +184,17 @@ export function HelpSupportContent({ audience = "All" }: HelpSupportContentProps
         a.steps.some((s) => s.toLowerCase().includes(q))
     );
   }, [articles, search]);
+
+  const filteredInsightArticles = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return insightArticles;
+    return insightArticles.filter(
+      (a) =>
+        a.title.toLowerCase().includes(q) ||
+        a.summary.toLowerCase().includes(q) ||
+        a.body.toLowerCase().includes(q)
+    );
+  }, [insightArticles, search]);
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 pb-10">
@@ -175,13 +273,13 @@ export function HelpSupportContent({ audience = "All" }: HelpSupportContentProps
               <BookOpen className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="font-bold text-slate-800">Popular Articles</h2>
-              <p className="text-xs text-slate-500">Step-by-step guides for common tasks</p>
+              <h2 className="font-bold text-slate-800">Step-by-step guides</h2>
+              <p className="text-xs text-slate-500">Walkthroughs for common tasks</p>
             </div>
           </div>
-          <PopularArticles articles={filteredArticles} audience={audience} />
-          {search && filteredArticles.length === 0 && (
-            <p className="py-6 text-center text-sm text-slate-500">No articles match your search.</p>
+          <PopularArticles articles={filteredGuides} audience={audience} />
+          {search && filteredGuides.length === 0 && (
+            <p className="py-6 text-center text-sm text-slate-500">No guides match your search.</p>
           )}
         </div>
 
@@ -205,6 +303,37 @@ export function HelpSupportContent({ audience = "All" }: HelpSupportContentProps
         </div>
       </div>
 
+      {filteredInsightArticles.length > 0 && (
+        <div className="rounded-[20px] border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="font-bold text-slate-800">Articles & tips</h2>
+              <p className="text-xs text-slate-500">Short reads to help you get more from GradGateway</p>
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {filteredInsightArticles.map((article) => (
+              <article
+                key={article.id}
+                className="rounded-xl border border-slate-100 bg-slate-50/60 p-4"
+              >
+                {article.category && (
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-[#6C5DD3]">
+                    {article.category}
+                  </p>
+                )}
+                <h3 className="mt-1 font-bold text-slate-800">{article.title}</h3>
+                <p className="mt-1 text-sm font-medium text-slate-600">{article.summary}</p>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">{article.body}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* FAQ */}
       <div className="rounded-[20px] border border-slate-100 bg-white p-6 shadow-sm">
         <div className="mb-5 flex items-center gap-3">
@@ -216,35 +345,30 @@ export function HelpSupportContent({ audience = "All" }: HelpSupportContentProps
             <p className="text-xs text-slate-500">Quick answers before you reach out</p>
           </div>
         </div>
-        <FAQAccordion audience={audience} search={search} />
+        <FAQAccordion audience={audience} search={search} items={faqItems} />
       </div>
     </div>
   );
 }
 
-function FAQAccordion({ audience, search }: { audience: HelpAudience; search: string }) {
-  const allItems = [
-    {
-      audiences: ["Student", "All"] as HelpAudience[],
-      q: "How do I get started as a student?",
-      a: "Create an account, complete your profile, browse opportunities, and apply to roles that match your skills.",
-    },
-    {
-      audiences: ["Company", "All"] as HelpAudience[],
-      q: "How do companies post jobs?",
-      a: "Register as a company, complete your profile, then create opportunities from your dashboard.",
-    },
-    {
-      audiences: ["Student", "Company", "All"] as HelpAudience[],
-      q: "How long until support replies?",
-      a: "We aim to respond within 24–48 hours on business days. Urgent issues can be marked in your message.",
-    },
-    {
-      audiences: ["Student", "Company", "All"] as HelpAudience[],
-      q: "Where does my support message go?",
-      a: "Every request from this page is saved to the platform database and shown in the admin Help & inquiries section.",
-    },
-  ];
+function FAQAccordion({
+  audience,
+  search,
+  items: dynamicItems,
+}: {
+  audience: HelpAudience;
+  search: string;
+  items: { q: string; a: string; audiences: HelpAudience[] }[];
+}) {
+  const fallbackFaqs = mapHelpFaqs(audience);
+
+  const allItems =
+    dynamicItems.length > 0
+      ? dynamicItems
+      : fallbackFaqs.map((item) => ({
+          ...item,
+          audiences: item.audiences,
+        }));
 
   const items = (
     audience === "All"

@@ -278,7 +278,8 @@ function CompanyCard({
         Joined {new Date(company.createdAt).toLocaleDateString()}
       </p>
 
-      <div className="mt-5 border-t border-slate-50 pt-4">
+      <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-50 pt-4">
+        <AdminMessageUserButton companyProfileId={company.id} />
         {company.userIsActive ? (
           <Button size="sm" variant="destructive" className="rounded-xl" onClick={onRemove}>
             Block company

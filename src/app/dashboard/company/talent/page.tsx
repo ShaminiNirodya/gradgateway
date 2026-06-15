@@ -18,6 +18,13 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -45,22 +52,15 @@ import {
   resolveFieldOfMajorLabel,
   type FieldOfMajorId,
 } from "@/lib/constants/field-of-major";
-
-// Universities and degrees are now imported from university-degrees.ts
-
-// All available skills/technologies (not just the ones students selected)
-const ALL_SKILLS = [
-  "React", "Vue.js", "Angular", "Svelte", "Next.js", "Node.js", "Express.js",
-  "Python", "Django", "Flask", "Java", "Spring Boot", "C++", "C#", ".NET",
-  "Go", "Rust", "PHP", "Laravel", "Ruby", "Rails", "TypeScript", "JavaScript",
-  "Flutter", "React Native", "Swift", "Kotlin", "Android", "iOS",
-  "PostgreSQL", "MySQL", "MongoDB", "Redis", "Firebase", "AWS", "Azure",
-  "Google Cloud", "Docker", "Kubernetes", "DevOps", "CI/CD", "Git",
-  "Machine Learning", "Data Science", "AI", "TensorFlow", "PyTorch",
-  "UI/UX Design", "Figma", "Adobe XD", "Photoshop", "Tailwind CSS",
-  "Bootstrap", "Material-UI", "GraphQL", "REST API", "Microservices",
-  "Agile", "Scrum", "Leadership", "Communication", "Problem Solving"
-].sort();
+import { SkillsPicker } from "@/components/shared/SkillsPicker";
+import {
+  GRADUATION_YEARS,
+} from "@/lib/constants/academic-options";
+import {
+  SELECT_UNSET,
+  fromControlledSelectValue,
+  toControlledSelectValue,
+} from "@/lib/utils/controlled-select";
 
 type Candidate = {
   id: string;
@@ -84,8 +84,7 @@ export default function TalentSearchPage() {
   const [selectedUniversities, setSelectedUniversities] = useState<Set<string>>(new Set());
   const [selectedFieldsOfMajor, setSelectedFieldsOfMajor] = useState<Set<FieldOfMajorId>>(new Set());
   const [selectedDegrees, setSelectedDegrees] = useState<Set<string>>(new Set());
-  const [yearFrom, setYearFrom] = useState<string>("");
-  const [yearTo, setYearTo] = useState<string>("");
+  const [graduationYear, setGraduationYear] = useState<string>("");
   const [gpaFrom, setGpaFrom] = useState<string>("");
   const [gpaTo, setGpaTo] = useState<string>("");
   const [skills, setSkills] = useState<Set<string>>(new Set());
@@ -96,11 +95,9 @@ export default function TalentSearchPage() {
   const pageSize = 6;
   const [universitySearch, setUniversitySearch] = useState("");
   const [degreeSearch, setDegreeSearch] = useState("");
-  const [skillSearch, setSkillSearch] = useState("");
   const [isUniversityDropdownOpen, setIsUniversityDropdownOpen] = useState(false);
   const [isFieldOfMajorDropdownOpen, setIsFieldOfMajorDropdownOpen] = useState(false);
   const [isDegreeDropdownOpen, setIsDegreeDropdownOpen] = useState(false);
-  const [isSkillDropdownOpen, setIsSkillDropdownOpen] = useState(false);
 
   useEffect(() => {
     const qParam = searchParams.get("q");
@@ -189,9 +186,6 @@ export default function TalentSearchPage() {
     load();
   }, []);
 
-  // Use predefined skills list
-  const allSkills = ALL_SKILLS;
-
   const filtered = useMemo(() => {
     let list = candidates.filter((candidate) => {
       const matchesQuery =
@@ -203,8 +197,12 @@ export default function TalentSearchPage() {
       const matchesUniversity = selectedUniversities.size === 0 || selectedUniversities.has(candidate.university);
       const matchesFieldOfMajor = candidateMatchesFieldsOfMajor(candidate.degree, selectedFieldsOfMajor);
       const matchesDegree = selectedDegrees.size === 0 || selectedDegrees.has(candidate.degree);
-      const matchesYear = (!yearFrom || candidate.classOf >= Number(yearFrom)) && (!yearTo || candidate.classOf <= Number(yearTo));
-      const matchesGpa = (!gpaFrom || candidate.gpa >= Number(gpaFrom)) && (!gpaTo || candidate.gpa <= Number(gpaTo));
+      const matchesYear = !graduationYear || candidate.classOf === Number(graduationYear);
+      const minGpa = gpaFrom.trim() === "" ? null : Number(gpaFrom);
+      const maxGpa = gpaTo.trim() === "" ? null : Number(gpaTo);
+      const matchesGpa =
+        (minGpa == null || (!Number.isNaN(minGpa) && candidate.gpa >= minGpa)) &&
+        (maxGpa == null || (!Number.isNaN(maxGpa) && candidate.gpa <= maxGpa));
       const matchesSkill = skills.size === 0 || candidate.skills.some((skill) => skills.has(skill));
       const matchesAvailability = availability.size === 0 || availability.has(candidate.status);
 
@@ -218,7 +216,7 @@ export default function TalentSearchPage() {
     });
 
     return list;
-  }, [availability, candidates, gpaFrom, gpaTo, query, selectedUniversities, selectedFieldsOfMajor, selectedDegrees, skills, sortKey, yearFrom, yearTo]);
+  }, [availability, candidates, gpaFrom, gpaTo, graduationYear, query, selectedUniversities, selectedFieldsOfMajor, selectedDegrees, skills, sortKey]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
@@ -230,7 +228,7 @@ export default function TalentSearchPage() {
       selectedDegrees.size +
       skills.size +
       availability.size;
-    if (yearFrom || yearTo) count += 1;
+    if (graduationYear) count += 1;
     if (gpaFrom || gpaTo) count += 1;
     return count;
   }, [
@@ -239,8 +237,7 @@ export default function TalentSearchPage() {
     selectedDegrees,
     skills,
     availability,
-    yearFrom,
-    yearTo,
+    graduationYear,
     gpaFrom,
     gpaTo,
   ]);
@@ -249,8 +246,7 @@ export default function TalentSearchPage() {
     setSelectedUniversities(new Set());
     setSelectedFieldsOfMajor(new Set());
     setSelectedDegrees(new Set());
-    setYearFrom("");
-    setYearTo("");
+    setGraduationYear("");
     setGpaFrom("");
     setGpaTo("");
     setSkills(new Set());
@@ -472,69 +468,61 @@ export default function TalentSearchPage() {
         </Section>
 
         <Section title="Graduation Year">
-          <div className="grid grid-cols-2 gap-2">
-            <Input value={yearFrom} onChange={(event) => setYearFrom(event.target.value)} placeholder="From" className="h-9 rounded-lg border-slate-200" />
-            <Input value={yearTo} onChange={(event) => setYearTo(event.target.value)} placeholder="To" className="h-9 rounded-lg border-slate-200" />
-          </div>
+          <Select
+            value={toControlledSelectValue(graduationYear)}
+            onValueChange={(val) => setGraduationYear(fromControlledSelectValue(val))}
+          >
+            <SelectTrigger className="h-9 w-full rounded-lg border-slate-200 text-sm">
+              <SelectValue placeholder="Any year" />
+            </SelectTrigger>
+            <SelectContent className="max-h-60 rounded-xl">
+              <SelectItem value={SELECT_UNSET} className="cursor-pointer rounded-lg text-slate-500">
+                Any year
+              </SelectItem>
+              {GRADUATION_YEARS.map((year) => (
+                <SelectItem key={year} value={String(year)} className="cursor-pointer rounded-lg">
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Section>
 
         <Section title="GPA Range">
           <div className="grid grid-cols-2 gap-2">
-            <Input value={gpaFrom} onChange={(event) => setGpaFrom(event.target.value)} placeholder="Min" className="h-9 rounded-lg border-slate-200" />
-            <Input value={gpaTo} onChange={(event) => setGpaTo(event.target.value)} placeholder="Max" className="h-9 rounded-lg border-slate-200" />
+            <Input
+              type="number"
+              inputMode="decimal"
+              step="0.1"
+              min="0"
+              max="4"
+              value={gpaFrom}
+              onChange={(event) => setGpaFrom(event.target.value)}
+              placeholder="Min"
+              className="h-9 rounded-lg border-slate-200"
+            />
+            <Input
+              type="number"
+              inputMode="decimal"
+              step="0.1"
+              min="0"
+              max="4"
+              value={gpaTo}
+              onChange={(event) => setGpaTo(event.target.value)}
+              placeholder="Max"
+              className="h-9 rounded-lg border-slate-200"
+            />
           </div>
         </Section>
 
         <Section title="Skills">
-          <DropdownMenu open={isSkillDropdownOpen} onOpenChange={setIsSkillDropdownOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className={filterTriggerClass}
-              >
-                <FilterMultiSelectChips
-                  placeholder="Select skills..."
-                  items={Array.from(skills).map((skill) => ({ key: skill, label: skill }))}
-                  onRemove={(key) => toggleSet(setSkills, skills, key, false)}
-                />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[min(320px,100vw)] rounded-xl border border-slate-200 bg-white p-0 shadow-lg">
-              <div className="sticky top-0 bg-white border-b border-slate-100 p-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <Input
-                    type="text"
-                    placeholder="Search skills..."
-                    value={skillSearch}
-                    onChange={(e) => setSkillSearch(e.target.value)}
-                    onKeyDown={(e) => e.stopPropagation()}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    className="pl-9 h-9 rounded-lg border-slate-200"
-                  />
-                </div>
-              </div>
-              <div className="max-h-60 overflow-y-auto p-2">
-                {allSkills
-                  .filter(s => s.toLowerCase().includes(skillSearch.toLowerCase()))
-                  .map((skill) => (
-                    <label
-                      key={skill}
-                      className="flex cursor-pointer items-center gap-2 rounded-md p-2 text-sm hover:bg-slate-50"
-                    >
-                      <Checkbox
-                        checked={skills.has(skill)}
-                        onCheckedChange={(checked) => 
-                          toggleSet(setSkills, skills, skill, !!checked)
-                        }
-                      />
-                      <span className="text-slate-700">{skill}</span>
-                    </label>
-                  ))}
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <SkillsPicker
+            selected={skills}
+            onToggle={(skill) => toggleSet(setSkills, skills, skill, !skills.has(skill))}
+            showLabel={false}
+            placeholder="Select skills..."
+            triggerClassName={filterTriggerClass}
+          />
         </Section>
 
         <Section title="Availability">

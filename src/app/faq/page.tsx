@@ -3,48 +3,29 @@ import Footer from "@/components/layout/Footer";
 import Link from "next/link";
 import { CircleHelp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PlatformContentService } from "@/lib/services/platform-content.service";
+import { publicFaqs } from "@/lib/content/platform-content-fallback";
 
 export const metadata = {
   title: "FAQ - GradGateway",
   description: "Frequently asked questions about GradGateway.",
 };
 
-const faqs = [
-  {
-    q: "Is GradGateway free for students?",
-    a: "Yes. Creating a profile, publishing projects, applying to openings, and messaging companies is completely free for students.",
-  },
-  {
-    q: "Who can register as a student?",
-    a: "Any undergraduate or recent graduate of a Sri Lankan university. You'll add your university, degree, and graduation year when creating your profile.",
-  },
-  {
-    q: "How do companies find me?",
-    a: "Companies search the talent directory by skills, degree, university, and availability. Your skills come from your profile and the tech stacks of your published projects.",
-  },
-  {
-    q: "How do I apply for an opening?",
-    a: "Browse Openings in your dashboard, open a role, and submit your application with an optional cover letter. You can track the status under Applications.",
-  },
-  {
-    q: "What happens after a company shortlists me?",
-    a: "You'll get a notification and the company can message you directly, schedule an interview, or send a job offer — all visible in your dashboard.",
-  },
-  {
-    q: "Can companies post any kind of role?",
-    a: "Companies post internships, graduate roles, part-time and full-time positions. Our admin team monitors postings, and you can report anything suspicious via support.",
-  },
-  {
-    q: "How do I delete my account or my data?",
-    a: "Contact support through the contact page and we'll process your request in line with our privacy policy.",
-  },
-  {
-    q: "I forgot my password. What do I do?",
-    a: "Use the Forgot Password link on the login page. We'll email you a 6-digit verification code to reset your password.",
-  },
-];
+export default async function FaqPage() {
+  let faqs = publicFaqs.map((item) => ({ title: item.q, body: item.a }));
 
-export default function FaqPage() {
+  try {
+    const items = await PlatformContentService.getPublished({
+      contentType: "Faq",
+      section: "Public",
+    });
+    if (items.length > 0) {
+      faqs = items.map((item) => ({ title: item.title, body: item.body }));
+    }
+  } catch {
+    // API unavailable — seeded fallback copy above
+  }
+
   return (
     <main className="min-h-screen bg-white">
       <Navbar />
@@ -65,13 +46,13 @@ export default function FaqPage() {
         <div className="container mx-auto max-w-3xl space-y-4">
           {faqs.map((item) => (
             <details
-              key={item.q}
+              key={item.title}
               className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm open:border-indigo-200"
             >
               <summary className="cursor-pointer list-none font-bold text-slate-900 marker:hidden">
-                {item.q}
+                {item.title}
               </summary>
-              <p className="mt-3 text-sm leading-relaxed text-slate-600">{item.a}</p>
+              <p className="mt-3 text-sm leading-relaxed text-slate-600">{item.body}</p>
             </details>
           ))}
         </div>

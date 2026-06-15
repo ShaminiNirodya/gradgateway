@@ -1,15 +1,8 @@
 "use client";
-import { Search, FolderOpen, FileText, MessageSquare, Award, BadgeCheck, Info, Plus, Zap, X, CheckCircle2, UserCircle, Target, ScrollText } from "lucide-react";
+import { Search, FolderOpen, FileText, MessageSquare, Award, BadgeCheck, Info, Zap, CheckCircle2, ScrollText, Trophy } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -36,6 +29,7 @@ import {
   applicationStatusLabel,
   normalizeApplicationStatus,
 } from "@/lib/constants/application-status";
+import { SkillsPicker } from "@/components/shared/SkillsPicker";
 
 export default function StudentDashboard() {
   const router = useRouter();
@@ -48,23 +42,36 @@ export default function StudentDashboard() {
   const [availability, setAvailability] = useState("Available Now");
   const [mySkills, setMySkills] = useState<StudentSkillItem[]>([]);
   const [derivedSkills, setDerivedSkills] = useState<string[]>([]);
-  const AVAILABLE_SKILLS = [
-    "React", "Node.js", "Python", "Java", "TypeScript",
-    "Machine Learning", "UI/UX Design", "Flutter", "DevOps",
-    "Spring Boot", "PostgreSQL", "MongoDB", "AWS", "Docker"
-  ];
 
-  const skillNames = useMemo(
-    () =>
-      new Set([
-        ...mySkills.map((s) => s.name.toLowerCase()),
-        ...derivedSkills.map((s) => s.toLowerCase()),
-      ]),
-    [mySkills, derivedSkills]
+  const selectedSkillNames = useMemo(
+    () => new Set(mySkills.map((skill) => skill.name)),
+    [mySkills]
   );
 
+  const readonlySkillTags = useMemo(
+    () =>
+      derivedSkills
+        .filter((skill) => !mySkills.some((m) => m.name.toLowerCase() === skill.toLowerCase()))
+        .map((name) => ({ name, title: "From your project tech stacks" })),
+    [derivedSkills, mySkills]
+  );
+
+  const handleSkillToggle = (skill: string) => {
+    if (selectedSkillNames.has(skill)) {
+      const existing = mySkills.find((s) => s.name === skill);
+      if (existing) void removeSkill(existing.id);
+      return;
+    }
+    void handleAddSkill(skill);
+  };
+
   const handleAddSkill = async (skill: string) => {
-    if (skillNames.has(skill.toLowerCase())) return;
+    if (
+      mySkills.some((s) => s.name.toLowerCase() === skill.toLowerCase()) ||
+      derivedSkills.some((s) => s.toLowerCase() === skill.toLowerCase())
+    ) {
+      return;
+    }
     try {
       const token = await AuthService.getIdToken();
       if (!token) return;
@@ -174,6 +181,10 @@ export default function StudentDashboard() {
 
   const certifications = useMemo(() => profile?.certifications ?? [], [profile?.certifications]);
   const awards = useMemo(() => profile?.awards ?? [], [profile?.awards]);
+  const hackathonsCompetitions = useMemo(
+    () => profile?.hackathonsCompetitions ?? [],
+    [profile?.hackathonsCompetitions],
+  );
 
   return (
     <StudentPageContainer>
@@ -389,64 +400,29 @@ export default function StudentDashboard() {
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-slate-100 bg-gradient-to-r from-amber-50/80 to-white px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
-              <Zap className="h-5 w-5 fill-amber-500 text-amber-500" />
+        <SkillsPicker
+          variant="tags"
+          showLabel={false}
+          toolbar={
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                <Zap className="h-5 w-5 fill-amber-500 text-amber-500" />
+              </div>
+              <div>
+                <h2 className="text-lg font-extrabold tracking-tight text-slate-900">Technical Skills</h2>
+                <p className="text-xs font-medium text-slate-500">Showcase what you work with</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-extrabold tracking-tight text-slate-900">Technical Skills</h2>
-              <p className="text-xs font-medium text-slate-500">Showcase what you work with</p>
-            </div>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" className="rounded-xl bg-[#6C5DD3] hover:bg-[#5b4eb8]">
-                <Plus className="mr-2 h-4 w-4" /> Add Skill
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="max-h-60 overflow-y-auto rounded-xl border-slate-200 bg-white">
-              {AVAILABLE_SKILLS.filter((s) => !skillNames.has(s.toLowerCase())).map((skill) => (
-                <DropdownMenuItem key={skill} onClick={() => void handleAddSkill(skill)}>
-                  {skill}
-                </DropdownMenuItem>
-              ))}
-              {AVAILABLE_SKILLS.filter((s) => !skillNames.has(s.toLowerCase())).length === 0 && (
-                <div className="p-2 text-xs text-slate-400">All skills added</div>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        <div className="flex flex-wrap gap-2 p-6">
-          {mySkills.map((skill) => (
-            <div key={skill.id} className="group relative">
-              <Badge className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700 shadow-sm transition-colors hover:border-violet-100 hover:bg-violet-50/50">
-                {skill.name}
-                <X
-                  className="h-3 w-3 cursor-pointer text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-500"
-                  onClick={() => void removeSkill(skill.id)}
-                />
-              </Badge>
-            </div>
-          ))}
-          {derivedSkills
-            .filter((s) => !mySkills.some((m) => m.name.toLowerCase() === s.toLowerCase()))
-            .map((skill) => (
-              <Badge
-                key={`project-${skill}`}
-                title="From your project tech stacks"
-                className="rounded-xl border border-violet-100 bg-violet-50/60 px-4 py-2 text-sm font-bold text-violet-700 shadow-sm"
-              >
-                {skill}
-              </Badge>
-            ))}
-          {!mySkills.length && !derivedSkills.length && (
-            <p className="text-sm text-slate-400">
-              No skills yet. Add skills here, or create projects — tech stacks appear automatically.
-            </p>
-          )}
-        </div>
+          }
+          toolbarClassName="border-b border-slate-100 bg-gradient-to-r from-amber-50/80 to-white px-6 py-5"
+          tagsContainerClassName="flex-wrap gap-2 border-0 bg-transparent p-6 shadow-none min-h-0"
+          menuAlign="end"
+          selected={selectedSkillNames}
+          onToggle={handleSkillToggle}
+          readonlyTags={readonlySkillTags}
+          emptyMessage="No skills yet. Add skills here, or create projects — tech stacks appear automatically."
+          className="space-y-0"
+        />
       </section>
 
       <section className="space-y-4">
@@ -476,6 +452,12 @@ export default function StudentDashboard() {
             title="Awards & Honors"
             items={awards}
             emptyLabel="Add awards & honors from Settings."
+          />
+          <ProfileListCard
+            icon={<Trophy className="h-5 w-5" />}
+            title="Hackathons & Competitions"
+            items={hackathonsCompetitions}
+            emptyLabel="Add hackathons & competitions from Settings."
           />
         </div>
       </section>
