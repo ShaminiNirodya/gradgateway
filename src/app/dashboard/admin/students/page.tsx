@@ -22,11 +22,24 @@ import {
 } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
+import { AdminPagination } from "@/components/features/admin/AdminPagination";
+import type { PagedResult } from "@/lib/types/paged";
+
+const PAGE_SIZE = 20;
 
 export default function AdminStudentsPage() {
   const { show } = useToast();
   const { data: stats, refresh: refreshStats } = useAdminDashboard();
-  const [students, setStudents] = useState<AdminUserListItem[]>([]);
+  const [paged, setPaged] = useState<PagedResult<AdminUserListItem>>({
+    items: [],
+    totalCount: 0,
+    page: 1,
+    pageSize: PAGE_SIZE,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
@@ -38,29 +51,45 @@ export default function AdminStudentsPage() {
     try {
       const token = await AuthService.getIdToken();
       if (!token) return;
-      const list = await AdminService.getUsers(token, {
+      const result = await AdminService.getUsers(token, {
         role: "Student",
         search: search.trim() || undefined,
         activeOnly:
           activeFilter === "active" ? true : activeFilter === "removed" ? false : undefined,
+        page,
+        pageSize: PAGE_SIZE,
       });
-      setStudents(list);
+      setPaged(result);
     } catch (e) {
       show({
         title: "Load failed",
         description: e instanceof Error ? e.message : "Could not load students.",
         variant: "error",
       });
-      setStudents([]);
+      setPaged({
+        items: [],
+        totalCount: 0,
+        page: 1,
+        pageSize: PAGE_SIZE,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      });
     } finally {
       setLoading(false);
     }
-  }, [search, activeFilter, show]);
+  }, [search, activeFilter, page, show]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, activeFilter]);
 
   useEffect(() => {
     const timer = setTimeout(() => void load(), 300);
     return () => clearTimeout(timer);
   }, [load]);
+
+  const students = paged.items;
 
   const confirmRemoveStudent = async () => {
     if (!studentToRemove) return;
@@ -226,6 +255,14 @@ export default function AdminStudentsPage() {
             </table>
           </div>
         )}
+        <AdminPagination
+          page={paged.page}
+          totalPages={paged.totalPages}
+          totalCount={paged.totalCount}
+          pageSize={paged.pageSize}
+          loading={loading}
+          onPageChange={setPage}
+        />
       </div>
 
       <ConfirmDialog

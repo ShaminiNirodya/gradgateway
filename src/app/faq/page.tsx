@@ -4,7 +4,6 @@ import Link from "next/link";
 import { CircleHelp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PlatformContentService } from "@/lib/services/platform-content.service";
-import { publicFaqs } from "@/lib/content/platform-content-fallback";
 
 export const metadata = {
   title: "FAQ - GradGateway",
@@ -12,18 +11,16 @@ export const metadata = {
 };
 
 export default async function FaqPage() {
-  let faqs = publicFaqs.map((item) => ({ title: item.q, body: item.a }));
+  let faqs: { title: string; body: string }[] = [];
 
   try {
     const items = await PlatformContentService.getPublished({
       contentType: "Faq",
       section: "Public",
     });
-    if (items.length > 0) {
-      faqs = items.map((item) => ({ title: item.title, body: item.body }));
-    }
+    faqs = items.map((item) => ({ title: item.title, body: item.body }));
   } catch {
-    // API unavailable — seeded fallback copy above
+    // API unavailable — show empty state below
   }
 
   return (
@@ -44,7 +41,12 @@ export default async function FaqPage() {
 
       <section className="px-4 py-12">
         <div className="container mx-auto max-w-3xl space-y-4">
-          {faqs.map((item) => (
+          {faqs.length === 0 ? (
+            <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-600 shadow-sm">
+              No FAQs have been published yet. Contact support if you need help.
+            </p>
+          ) : (
+            faqs.map((item) => (
             <details
               key={item.title}
               className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm open:border-indigo-200"
@@ -54,7 +56,8 @@ export default async function FaqPage() {
               </summary>
               <p className="mt-3 text-sm leading-relaxed text-slate-600">{item.body}</p>
             </details>
-          ))}
+            ))
+          )}
         </div>
 
         <div className="container mx-auto mt-12 max-w-xl text-center">

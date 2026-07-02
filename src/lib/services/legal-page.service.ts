@@ -1,29 +1,21 @@
 import { PlatformContentService } from "@/lib/services/platform-content.service";
-import {
-  legalPagesFallback,
-  type LegalPageContent,
-  type LegalPageSlug,
-} from "@/lib/content/legal-pages-fallback";
+import type { LegalPageContent, LegalPageSlug } from "@/lib/content/legal-pages-fallback";
 
-export async function getLegalPageContent(slug: LegalPageSlug): Promise<LegalPageContent> {
-  const fallback = legalPagesFallback[slug];
-
+export async function getLegalPageContent(slug: LegalPageSlug): Promise<LegalPageContent | null> {
   try {
     const items = await PlatformContentService.getPublished({
       contentType: "Legal",
       slug,
     });
     const item = items[0];
-    if (item) {
-      return {
-        slug,
-        title: item.title,
-        body: item.body,
-      };
-    }
-  } catch {
-    // use fallback
-  }
+    if (!item) return null;
 
-  return fallback;
+    return {
+      slug,
+      title: item.title,
+      body: item.body,
+    };
+  } catch {
+    return null;
+  }
 }

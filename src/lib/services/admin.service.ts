@@ -20,7 +20,7 @@ import {
   type PlatformContentItem,
   toApiPayload,
 } from '@/lib/types/platform-content';
-import { unwrapPagedItems, type PagedResult } from '@/lib/types/paged';
+import { unwrapPagedItems, normalizePagedResult, type PagedResult } from '@/lib/types/paged';
 
 async function getJsonOrThrow<T>(response: Response, fallbackMessage: string): Promise<T> {
   if (!response.ok) {
@@ -108,12 +108,20 @@ export class AdminService {
 
   static async getUsers(
     token: string,
-    params?: { role?: string; search?: string; activeOnly?: boolean }
-  ): Promise<AdminUserListItem[]> {
+    params?: {
+      role?: string;
+      search?: string;
+      activeOnly?: boolean;
+      page?: number;
+      pageSize?: number;
+    }
+  ): Promise<PagedResult<AdminUserListItem>> {
     const qs = new URLSearchParams();
     if (params?.role) qs.set('role', params.role);
     if (params?.search) qs.set('search', params.search);
     if (params?.activeOnly !== undefined) qs.set('activeOnly', String(params.activeOnly));
+    if (params?.page != null) qs.set('page', String(params.page));
+    if (params?.pageSize != null) qs.set('pageSize', String(params.pageSize));
 
     const url = qs.toString()
       ? `${API_ENDPOINTS.ADMIN.USERS}?${qs}`
@@ -124,7 +132,7 @@ export class AdminService {
       response,
       'Failed to load users'
     );
-    return unwrapPagedItems(data);
+    return normalizePagedResult(data, params?.pageSize ?? 20);
   }
 
   static async setUserActive(token: string, userId: string, isActive: boolean): Promise<void> {
@@ -138,11 +146,13 @@ export class AdminService {
 
   static async getCompanies(
     token: string,
-    params?: { status?: string; search?: string }
-  ): Promise<AdminCompanyListItem[]> {
+    params?: { status?: string; search?: string; page?: number; pageSize?: number }
+  ): Promise<PagedResult<AdminCompanyListItem>> {
     const qs = new URLSearchParams();
     if (params?.status) qs.set('status', params.status);
     if (params?.search) qs.set('search', params.search);
+    if (params?.page != null) qs.set('page', String(params.page));
+    if (params?.pageSize != null) qs.set('pageSize', String(params.pageSize));
 
     const url = qs.toString()
       ? `${API_ENDPOINTS.ADMIN.COMPANIES}?${qs}`
@@ -153,7 +163,7 @@ export class AdminService {
       response,
       'Failed to load companies'
     );
-    return unwrapPagedItems(data);
+    return normalizePagedResult(data, params?.pageSize ?? 20);
   }
 
   static async removeUser(token: string, userId: string): Promise<void> {

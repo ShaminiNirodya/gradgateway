@@ -206,29 +206,41 @@ export default function CompanyStudentDashboardPreviewPage() {
 					return;
 				}
 
-				const [directory, apps, convs] = await Promise.all([
-					StudentService.getStudentDirectory(token),
+				const [apps, convs] = await Promise.all([
 					DashboardService.getCompanyApplications(token),
 					DashboardService.getMyConversations(token),
 				]);
 
 				const slugName = slug.replace(/-/g, " ").toLowerCase();
-				const found = directory.find(
-					(item) =>
-						(candidateId && item.studentProfileId === candidateId) ||
-						(candidateEmail &&
-							item.email.toLowerCase() === candidateEmail.toLowerCase()) ||
-						item.fullName.toLowerCase() === slugName
-				);
+				let merged: DirectoryCandidate | null = null;
 
-				const profileId = (candidateId || found?.studentProfileId || "").trim();
+				if (candidateId) {
+					merged = await StudentService.getStudentDirectoryEntry(token, candidateId);
+				} else if (candidateEmail) {
+					const result = await StudentService.searchStudentDirectory(token, {
+						q: candidateEmail,
+						page: 1,
+						pageSize: 20,
+					});
+					const found = result.items.find(
+						(item) => item.email.toLowerCase() === candidateEmail.toLowerCase()
+					);
+					merged = found ?? null;
+				} else if (slug) {
+					const result = await StudentService.searchStudentDirectory(token, {
+						q: slug.replace(/-/g, " "),
+						page: 1,
+						pageSize: 20,
+					});
+					merged =
+						result.items.find(
+							(item) => item.fullName.toLowerCase() === slugName
+						) ??
+						result.items[0] ??
+						null;
+				}
 
-				let merged = found
-					? {
-							...found,
-							studentProfileId: profileId || found.studentProfileId,
-						}
-					: null;
+				const profileId = (candidateId || merged?.studentProfileId || "").trim();
 
 				if (profileId) {
 					try {
@@ -237,7 +249,7 @@ export default function CompanyStudentDashboardPreviewPage() {
 							merged = merged ? { ...merged, ...fresh } : fresh;
 						}
 					} catch {
-						// keep directory match if refresh fails
+						// keep search match if refresh fails
 					}
 				}
 

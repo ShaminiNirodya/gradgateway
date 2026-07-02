@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Building2, Briefcase, Mail, RefreshCw, Search } from "lucide-react";
 import { AdminViewToggle, type AdminViewMode } from "@/components/features/admin/AdminViewToggle";
 import { Button } from "@/components/ui/button";
@@ -23,11 +23,24 @@ import {
 import { AdminMessageUserButton } from "@/components/features/admin/AdminMessageUserButton";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
+import { AdminPagination } from "@/components/features/admin/AdminPagination";
+import type { PagedResult } from "@/lib/types/paged";
+
+const PAGE_SIZE = 20;
 
 export default function AdminCompaniesPage() {
   const { show } = useToast();
   const { data: stats, refresh: refreshStats } = useAdminDashboard();
-  const [companies, setCompanies] = useState<AdminCompanyListItem[]>([]);
+  const [paged, setPaged] = useState<PagedResult<AdminCompanyListItem>>({
+    items: [],
+    totalCount: 0,
+    page: 1,
+    pageSize: PAGE_SIZE,
+    totalPages: 0,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -40,32 +53,48 @@ export default function AdminCompaniesPage() {
     try {
       const token = await AuthService.getIdToken();
       if (!token) return;
-      const list = await AdminService.getCompanies(token, {
+      const result = await AdminService.getCompanies(token, {
         search: search.trim() || undefined,
+        status:
+          statusFilter === "active"
+            ? "active"
+            : statusFilter === "removed"
+              ? "blocked"
+              : undefined,
+        page,
+        pageSize: PAGE_SIZE,
       });
-      setCompanies(list);
+      setPaged(result);
     } catch (e) {
       show({
         title: "Load failed",
         description: e instanceof Error ? e.message : "Could not load companies.",
         variant: "error",
       });
-      setCompanies([]);
+      setPaged({
+        items: [],
+        totalCount: 0,
+        page: 1,
+        pageSize: PAGE_SIZE,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      });
     } finally {
       setLoading(false);
     }
-  }, [search, show]);
+  }, [search, statusFilter, page, show]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
 
   useEffect(() => {
     const timer = setTimeout(() => void load(), 300);
     return () => clearTimeout(timer);
   }, [load]);
 
-  const filtered = useMemo(() => {
-    if (statusFilter === "active") return companies.filter((c) => c.userIsActive);
-    if (statusFilter === "removed") return companies.filter((c) => !c.userIsActive);
-    return companies;
-  }, [companies, statusFilter]);
+  const companies = paged.items;
 
   const confirmRemoveCompany = async () => {
     if (!companyToRemove) return;
@@ -164,20 +193,20 @@ export default function AdminCompaniesPage() {
       </AdminFilterPanel>
 
       <p className="text-sm text-slate-500">
-        Showing {filtered.length} compan{filtered.length === 1 ? "y" : "ies"}
+        {paged.totalCount} compan{paged.totalCount === 1 ? "y" : "ies"} total
       </p>
 
       {loading ? (
         <p className="rounded-[20px] border border-slate-100 bg-white p-10 text-center text-slate-500 shadow-sm">
           Loading companies…
         </p>
-      ) : filtered.length === 0 ? (
+      ) : companies.length === 0 ? (
         <p className="rounded-[20px] border border-slate-100 bg-white p-10 text-center text-slate-500 shadow-sm">
           No companies match your filters.
         </p>
       ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {filtered.map((c) => (
+          {companies.map((c) => (
             <CompanyCard
               key={c.id}
               company={c}
@@ -202,7 +231,7 @@ export default function AdminCompaniesPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((c) => (
+                {companies.map((c) => (
                   <CompanyListRow
                     key={c.id}
                     company={c}
@@ -213,7 +242,26 @@ export default function AdminCompaniesPage() {
               </tbody>
             </table>
           </div>
+          <AdminPagination
+            page={paged.page}
+            totalPages={paged.totalPages}
+            totalCount={paged.totalCount}
+            pageSize={paged.pageSize}
+            loading={loading}
+            onPageChange={setPage}
+          />
         </div>
+      )}
+
+      {!loading && companies.length > 0 && viewMode === "grid" && (
+        <AdminPagination
+          page={paged.page}
+          totalPages={paged.totalPages}
+          totalCount={paged.totalCount}
+          pageSize={paged.pageSize}
+          loading={loading}
+          onPageChange={setPage}
+        />
       )}
 
       <ConfirmDialog

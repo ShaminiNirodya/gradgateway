@@ -28,7 +28,6 @@ import { useToast } from "@/components/ui/toast";
 import { contactSchema, type ContactFormData, inquiryTypes } from "@/lib/validators/contact";
 import { SupportService } from "@/lib/services/support.service";
 import { PlatformContentService } from "@/lib/services/platform-content.service";
-import { contactFaqs } from "@/lib/content/platform-content-fallback";
 import {
   Select,
   SelectContent,
@@ -445,20 +444,22 @@ function InfoCard({
 }
 
 function FAQAccordion({ query }: { query: string }) {
-  const [data, setData] = useState(() => contactFaqs.map((item) => ({ q: item.q, a: item.a })));
+  const [data, setData] = useState<{ q: string; a: string }[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     void (async () => {
+      setLoading(true);
       try {
         const items = await PlatformContentService.getPublished({
           contentType: "Faq",
           section: "Contact",
         });
-        if (items.length > 0) {
-          setData(items.map((item) => ({ q: item.title, a: item.body })));
-        }
+        setData(items.map((item) => ({ q: item.title, a: item.body })));
       } catch {
-        // keep fallback
+        setData([]);
+      } finally {
+        setLoading(false);
       }
     })();
   }, []);
@@ -472,7 +473,16 @@ function FAQAccordion({ query }: { query: string }) {
 
   return (
     <div className="divide-y divide-slate-200 rounded-2xl border border-slate-200">
-      {filtered.map((item, idx) => {
+      {loading ? (
+        <p className="px-4 py-6 text-sm text-slate-500">Loading FAQs…</p>
+      ) : filtered.length === 0 ? (
+        <p className="px-4 py-6 text-sm text-slate-500">
+          {query.trim()
+            ? "No matching FAQ. Try another keyword."
+            : "No FAQs have been published yet."}
+        </p>
+      ) : (
+        filtered.map((item, idx) => {
         const isOpen = open === idx;
         return (
           <div key={item.q}>
@@ -490,9 +500,7 @@ function FAQAccordion({ query }: { query: string }) {
             {isOpen && <p className="px-4 pb-4 text-sm leading-relaxed text-slate-600">{item.a}</p>}
           </div>
         );
-      })}
-      {filtered.length === 0 && (
-        <p className="px-4 py-6 text-sm text-slate-500">No matching FAQ. Try another keyword.</p>
+      })
       )}
     </div>
   );

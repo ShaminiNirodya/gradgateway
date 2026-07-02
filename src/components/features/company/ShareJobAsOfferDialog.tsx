@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -83,17 +83,24 @@ export default function ShareJobAsOfferDialog({
       setSearch("");
       setSelectedStudentId("");
       setIsSent(false);
+      setStudents([]);
       return;
     }
 
-    const load = async () => {
+    let cancelled = false;
+    const timer = setTimeout(async () => {
       setLoadingStudents(true);
       try {
         const token = await AuthService.getIdToken();
         if (!token) return;
-        const rows = await StudentService.getStudentDirectory(token);
+        const result = await StudentService.searchStudentDirectory(token, {
+          q: search.trim() || undefined,
+          page: 1,
+          pageSize: 50,
+        });
+        if (cancelled) return;
         setStudents(
-          rows
+          result.items
             .filter((r) => r.studentProfileId)
             .map((r) => ({
               studentProfileId: r.studentProfileId,
@@ -104,30 +111,24 @@ export default function ShareJobAsOfferDialog({
             }))
         );
       } catch {
-        setStudents([]);
-        show({
-          title: "Could not load students",
-          description: "Try again from Talent Search.",
-          variant: "error",
-        });
+        if (!cancelled) {
+          setStudents([]);
+          show({
+            title: "Could not load students",
+            description: "Try again from Talent Search.",
+            variant: "error",
+          });
+        }
       } finally {
-        setLoadingStudents(false);
+        if (!cancelled) setLoadingStudents(false);
       }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
     };
-
-    load();
-  }, [open, show]);
-
-  const filteredStudents = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return students;
-    return students.filter(
-      (s) =>
-        s.fullName.toLowerCase().includes(q) ||
-        s.email.toLowerCase().includes(q) ||
-        s.university.toLowerCase().includes(q)
-    );
-  }, [students, search]);
+  }, [open, search, show]);
 
   const selectedStudent = students.find((s) => s.studentProfileId === selectedStudentId);
 
@@ -272,10 +273,10 @@ export default function ShareJobAsOfferDialog({
               <div className="max-h-64 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100">
                 {loadingStudents ? (
                   <p className="p-6 text-center text-sm text-slate-500">Loading students...</p>
-                ) : filteredStudents.length === 0 ? (
+                ) : students.length === 0 ? (
                   <p className="p-6 text-center text-sm text-slate-500">No students match your search.</p>
                 ) : (
-                  filteredStudents.map((student) => {
+                  students.map((student) => {
                     const selected = selectedStudentId === student.studentProfileId;
                     return (
                       <button

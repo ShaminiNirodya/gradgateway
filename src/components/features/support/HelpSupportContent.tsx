@@ -17,20 +17,18 @@ import { Input } from "@/components/ui/input";
 import { SupportInquiryForm } from "@/components/features/support/SupportInquiryForm";
 import { PopularArticles } from "@/components/features/support/PopularArticles";
 import type { HelpAudience } from "@/lib/content/help-articles";
-import {
-  getArticlesForAudience as getInsightArticlesForAudience,
-  getGuidesForAudience,
-  getHelpFaqsForAudience,
-  type ContentArticle,
-} from "@/lib/content/platform-content-fallback";
+import type { ContentArticle } from "@/lib/content/platform-content-fallback";
 import { PlatformContentService } from "@/lib/services/platform-content.service";
 import { toGuideArticle } from "@/lib/types/platform-content";
 import { cn } from "@/lib/utils";
 
-function mapHelpFaqs(audience: HelpAudience) {
-  return getHelpFaqsForAudience(audience).map((item) => ({
-    q: item.q,
-    a: item.a,
+function mapHelpFaqs(
+  items: { title: string; body: string; audiences?: string[] }[],
+  audience: HelpAudience
+) {
+  return items.map((item) => ({
+    q: item.title,
+    a: item.body,
     audiences: (item.audiences ?? ["All"]) as HelpAudience[],
   }));
 }
@@ -99,16 +97,18 @@ function getHeroCopy(audience: HelpAudience) {
 
 export function HelpSupportContent({ audience = "All" }: HelpSupportContentProps) {
   const [search, setSearch] = useState("");
-  const [guideItems, setGuideItems] = useState(() => getGuidesForAudience(audience));
-  const [faqItems, setFaqItems] = useState(() => mapHelpFaqs(audience));
-  const [insightArticles, setInsightArticles] = useState<ContentArticle[]>(() =>
-    getInsightArticlesForAudience(audience)
-  );
+  const [guideItems, setGuideItems] = useState<ReturnType<typeof toGuideArticle>[]>([]);
+  const [faqItems, setFaqItems] = useState<
+    { q: string; a: string; audiences: HelpAudience[] }[]
+  >([]);
+  const [insightArticles, setInsightArticles] = useState<ContentArticle[]>([]);
+  const [contentLoading, setContentLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
 
     void (async () => {
+      setContentLoading(true);
       try {
         const [guides, faqs, articles] = await Promise.all([
           PlatformContentService.getPublished({
@@ -130,38 +130,26 @@ export function HelpSupportContent({ audience = "All" }: HelpSupportContentProps
 
         if (!active) return;
 
-        setGuideItems(
-          guides.length > 0 ? guides.map(toGuideArticle) : getGuidesForAudience(audience)
-        );
-
-        setFaqItems(
-          faqs.length > 0
-            ? faqs.map((item) => ({
-                q: item.title,
-                a: item.body,
-                audiences: item.audiences as HelpAudience[],
-              }))
-            : mapHelpFaqs(audience)
-        );
-
+        setGuideItems(guides.map(toGuideArticle));
+        setFaqItems(mapHelpFaqs(faqs, audience));
         setInsightArticles(
-          articles.length > 0
-            ? articles.map((item) => ({
-                id: item.slug ?? item.id,
-                title: item.title,
-                summary: item.summary ?? "",
-                body: item.body,
-                audiences: item.audiences as HelpAudience[],
-                category: item.category ?? undefined,
-              }))
-            : getInsightArticlesForAudience(audience)
+          articles.map((item) => ({
+            id: item.slug ?? item.id,
+            title: item.title,
+            summary: item.summary ?? "",
+            body: item.body,
+            audiences: item.audiences as HelpAudience[],
+            category: item.category ?? undefined,
+          }))
         );
       } catch {
         if (active) {
-          setGuideItems(getGuidesForAudience(audience));
-          setFaqItems(mapHelpFaqs(audience));
-          setInsightArticles(getInsightArticlesForAudience(audience));
+          setGuideItems([]);
+          setFaqItems([]);
+          setInsightArticles([]);
         }
+      } finally {
+        if (active) setContentLoading(false);
       }
     })();
 

@@ -30,8 +30,6 @@ export default function Footer() {
             <ul className="space-y-4 text-sm text-slate-400">
               <li><FooterLink href="/about">About Us</FooterLink></li>
               <li><FooterLink href="/contact">Contact</FooterLink></li>
-              <li><FooterLink href="/careers">Careers</FooterLink></li>
-              <li><FooterLink href="/partners">Partners</FooterLink></li>
             </ul>
           </div>
 

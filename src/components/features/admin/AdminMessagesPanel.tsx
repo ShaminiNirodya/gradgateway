@@ -201,8 +201,8 @@ export function AdminMessagesPanel() {
       try {
         const token = await AuthService.getIdToken();
         if (!token) return;
-        const users = await AdminService.getUsers(token, { search: query });
-        const messageable = users.filter(
+        const result = await AdminService.getUsers(token, { search: query, pageSize: 20 });
+        const messageable = result.items.filter(
           (u) => u.role === "Student" || u.role === "Company"
         );
         setUserResults(messageable);

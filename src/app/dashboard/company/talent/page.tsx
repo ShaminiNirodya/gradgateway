@@ -48,7 +48,6 @@ import {
 import {
   FIELDS_OF_MAJOR,
   getDegreesForFieldOfMajor,
-  candidateMatchesFieldsOfMajor,
   resolveFieldOfMajorLabel,
   type FieldOfMajorId,
 } from "@/lib/constants/field-of-major";
@@ -80,7 +79,10 @@ export default function TalentSearchPage() {
   const { show } = useToast();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [pageItems, setPageItems] = useState<Candidate[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [selectedUniversities, setSelectedUniversities] = useState<Set<string>>(new Set());
   const [selectedFieldsOfMajor, setSelectedFieldsOfMajor] = useState<Set<FieldOfMajorId>>(new Set());
   const [selectedDegrees, setSelectedDegrees] = useState<Set<string>>(new Set());
@@ -146,80 +148,135 @@ export default function TalentSearchPage() {
     return ALL_UNIVERSITIES;
   }, [selectedDegrees, selectedFieldsOfMajor]);
 
+  const effectiveDegrees = useMemo(() => {
+    let degrees: string[] = [];
+    if (selectedFieldsOfMajor.size > 0) {
+      const fieldDegrees = new Set<string>();
+      selectedFieldsOfMajor.forEach((fieldId) => {
+        getDegreesForFieldOfMajor(fieldId).forEach((d) => fieldDegrees.add(d));
+      });
+      degrees = Array.from(fieldDegrees);
+    }
+    if (selectedDegrees.size > 0) {
+      const picked = Array.from(selectedDegrees);
+      degrees = degrees.length > 0 ? degrees.filter((d) => selectedDegrees.has(d)) : picked;
+    }
+    return degrees;
+  }, [selectedFieldsOfMajor, selectedDegrees]);
+
+  const mapDirectoryToCandidate = (row: {
+    studentProfileId: string;
+    fullName: string;
+    university: string;
+    degree: string;
+    fieldOfMajor: string;
+    gradYear: number;
+    gpa: number;
+    skills: string;
+    availability: string;
+    photoDataUrl?: string;
+    cvUrl?: string;
+  }): Candidate => {
+    const skillList = row.skills
+      ? row.skills.split(",").map((item) => item.trim()).filter(Boolean)
+      : [];
+
+    return {
+      id: row.studentProfileId,
+      name: row.fullName,
+      university: row.university,
+      degree: normalizeDegreeName(row.degree),
+      fieldOfMajor: row.fieldOfMajor || "",
+      classOf: Number(row.gradYear),
+      gpa: Number(row.gpa),
+      skills: skillList,
+      status: row.availability || "Available Now",
+      photoDataUrl: row.photoDataUrl,
+      cvUrl: row.cvUrl,
+    };
+  };
+
   useEffect(() => {
-    const load = async () => {
+    setPage(1);
+  }, [
+    query,
+    selectedUniversities,
+    selectedFieldsOfMajor,
+    selectedDegrees,
+    graduationYear,
+    gpaFrom,
+    gpaTo,
+    skills,
+    availability,
+    sortKey,
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setLoading(true);
       try {
         const token = await AuthService.getIdToken();
         if (!token) {
-          setCandidates([]);
+          if (!cancelled) {
+            setPageItems([]);
+            setTotalCount(0);
+            setTotalPages(0);
+          }
           return;
         }
 
-        const rows = await StudentService.getStudentDirectory(token);
-        const currentYear = new Date().getFullYear();
+        const minGpa = gpaFrom.trim() === "" ? undefined : Number(gpaFrom);
+        const maxGpa = gpaTo.trim() === "" ? undefined : Number(gpaTo);
 
-        setCandidates(rows.map((row) => {
-          const gradYear = Number(row.gradYear);
-          const skillList = row.skills
-            ? row.skills.split(",").map((item) => item.trim()).filter(Boolean)
-            : [];
+        const result = await StudentService.searchStudentDirectory(token, {
+          q: query.trim() || undefined,
+          universities:
+            selectedUniversities.size > 0 ? Array.from(selectedUniversities) : undefined,
+          degrees: effectiveDegrees.length > 0 ? effectiveDegrees : undefined,
+          gradYear: graduationYear ? Number(graduationYear) : undefined,
+          gpaMin: minGpa != null && !Number.isNaN(minGpa) ? minGpa : undefined,
+          gpaMax: maxGpa != null && !Number.isNaN(maxGpa) ? maxGpa : undefined,
+          skills: skills.size > 0 ? Array.from(skills) : undefined,
+          availability: availability.size > 0 ? Array.from(availability) : undefined,
+          sort: sortKey,
+          page,
+          pageSize,
+        });
 
-          return {
-            id: row.studentProfileId,
-            name: row.fullName,
-            university: row.university,
-            degree: normalizeDegreeName(row.degree),
-            fieldOfMajor: row.fieldOfMajor || "",
-            classOf: gradYear,
-            gpa: Number(row.gpa),
-            skills: skillList,
-            status: row.availability || "Available Now",
-            photoDataUrl: row.photoDataUrl,
-            cvUrl: row.cvUrl,
-          };
-        }));
+        if (cancelled) return;
+
+        setPageItems(result.items.map(mapDirectoryToCandidate));
+        setTotalCount(result.totalCount);
+        setTotalPages(Math.max(1, result.totalPages));
       } catch {
-        setCandidates([]);
+        if (!cancelled) {
+          setPageItems([]);
+          setTotalCount(0);
+          setTotalPages(0);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
     };
-
-    load();
-  }, []);
-
-  const filtered = useMemo(() => {
-    let list = candidates.filter((candidate) => {
-      const matchesQuery =
-        !query ||
-        candidate.name.toLowerCase().includes(query.toLowerCase()) ||
-        candidate.skills.join(" ").toLowerCase().includes(query.toLowerCase()) ||
-        candidate.degree.toLowerCase().includes(query.toLowerCase());
-
-      const matchesUniversity = selectedUniversities.size === 0 || selectedUniversities.has(candidate.university);
-      const matchesFieldOfMajor = candidateMatchesFieldsOfMajor(candidate.degree, selectedFieldsOfMajor);
-      const matchesDegree = selectedDegrees.size === 0 || selectedDegrees.has(candidate.degree);
-      const matchesYear = !graduationYear || candidate.classOf === Number(graduationYear);
-      const minGpa = gpaFrom.trim() === "" ? null : Number(gpaFrom);
-      const maxGpa = gpaTo.trim() === "" ? null : Number(gpaTo);
-      const matchesGpa =
-        (minGpa == null || (!Number.isNaN(minGpa) && candidate.gpa >= minGpa)) &&
-        (maxGpa == null || (!Number.isNaN(maxGpa) && candidate.gpa <= maxGpa));
-      const matchesSkill = skills.size === 0 || candidate.skills.some((skill) => skills.has(skill));
-      const matchesAvailability = availability.size === 0 || availability.has(candidate.status);
-
-      return matchesQuery && matchesUniversity && matchesFieldOfMajor && matchesDegree && matchesYear && matchesGpa && matchesSkill && matchesAvailability;
-    });
-
-    list = [...list].sort((a, b) => {
-      if (sortKey === "GPA") return b.gpa - a.gpa;
-      if (sortKey === "Class") return b.classOf - a.classOf;
-      return 0;
-    });
-
-    return list;
-  }, [availability, candidates, gpaFrom, gpaTo, graduationYear, query, selectedUniversities, selectedFieldsOfMajor, selectedDegrees, skills, sortKey]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const pageItems = filtered.slice((page - 1) * pageSize, page * pageSize);
+  }, [
+    query,
+    selectedUniversities,
+    effectiveDegrees,
+    graduationYear,
+    gpaFrom,
+    gpaTo,
+    skills,
+    availability,
+    sortKey,
+    page,
+    pageSize,
+  ]);
 
   const activeFilterCount = useMemo(() => {
     let count =
@@ -255,16 +312,44 @@ export default function TalentSearchPage() {
     setPage(1);
   };
 
-  const exportCSV = () => {
-    if (filtered.length === 0) {
+  const exportCSV = async () => {
+    if (totalCount === 0) {
       show({ title: "No data", description: "No candidates to export", variant: "error" });
       return;
     }
 
+    try {
+      const token = await AuthService.getIdToken();
+      if (!token) return;
+
+      const minGpa = gpaFrom.trim() === "" ? undefined : Number(gpaFrom);
+      const maxGpa = gpaTo.trim() === "" ? undefined : Number(gpaTo);
+
+      const result = await StudentService.searchStudentDirectory(token, {
+        q: query.trim() || undefined,
+        universities:
+          selectedUniversities.size > 0 ? Array.from(selectedUniversities) : undefined,
+        degrees: effectiveDegrees.length > 0 ? effectiveDegrees : undefined,
+        gradYear: graduationYear ? Number(graduationYear) : undefined,
+        gpaMin: minGpa != null && !Number.isNaN(minGpa) ? minGpa : undefined,
+        gpaMax: maxGpa != null && !Number.isNaN(maxGpa) ? maxGpa : undefined,
+        skills: skills.size > 0 ? Array.from(skills) : undefined,
+        availability: availability.size > 0 ? Array.from(availability) : undefined,
+        sort: sortKey,
+        page: 1,
+        pageSize: 100,
+      });
+
+      const exportRows = result.items.map(mapDirectoryToCandidate);
+      if (exportRows.length === 0) {
+        show({ title: "No data", description: "No candidates to export", variant: "error" });
+        return;
+      }
+
     // CSV headers
     const headers = ["Name", "University", "Field of Major", "Degree", "Class Of", "GPA", "Skills", "Status"];
     
-    const rows = filtered.map(candidate => [
+    const rows = exportRows.map(candidate => [
       candidate.name,
       candidate.university,
       resolveFieldOfMajorLabel(candidate.fieldOfMajor, candidate.degree),
@@ -289,6 +374,9 @@ export default function TalentSearchPage() {
     a.click();
     URL.revokeObjectURL(url);
     show({ title: "Exported", description: "Results saved as CSV", variant: "success" });
+    } catch {
+      show({ title: "Export failed", description: "Could not export results.", variant: "error" });
+    }
   };
 
   const filterTriggerClass =
@@ -607,16 +695,18 @@ export default function TalentSearchPage() {
 
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
           <p className="font-medium text-slate-600">
-            {filtered.length === 0
+            {totalCount === 0
               ? "No results"
-              : `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, filtered.length)} of ${filtered.length}`}
+              : `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, totalCount)} of ${totalCount}`}
           </p>
-          {candidates.length > 0 && filtered.length !== candidates.length && (
-            <p className="text-slate-500">{filtered.length} of {candidates.length} in directory</p>
-          )}
+          {loading && <p className="text-slate-500">Loading candidates…</p>}
         </div>
 
-        {pageItems.length === 0 ? (
+        {loading ? (
+          <div className="rounded-2xl border border-slate-100 bg-white p-12 text-center text-slate-500 shadow-sm">
+            Loading candidates…
+          </div>
+        ) : pageItems.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-16 text-center">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white border border-slate-200">
               <Sparkles className="h-6 w-6 text-slate-400" />

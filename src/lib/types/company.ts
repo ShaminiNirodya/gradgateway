@@ -54,19 +54,3 @@ export interface CompanyPublicProfile {
   activeOpeningsCount: number;
   openings: CompanyPublicOpening[];
 }
-
-export interface TeamMember {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  status: 'Pending' | 'Active' | 'Removed';
-  invitedAt: string;
-  acceptedAt?: string | null;
-}
-
-export interface InviteTeamMemberPayload {
-  name: string;
-  email: string;
-  role: string;
-}
