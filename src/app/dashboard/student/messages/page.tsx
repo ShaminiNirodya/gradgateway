@@ -1052,6 +1052,7 @@ export default function StudentMessagesPage() {
 
       <ConfirmDialog
         open={deleteConfirmOpen}
+        onOpenChange={(value) => !value && setDeleteConfirmOpen(false)}
         title="Delete this chat?"
         description="All messages in this conversation will be permanently removed from your inbox. The other party will no longer see this thread either."
         confirmLabel="Delete chat"

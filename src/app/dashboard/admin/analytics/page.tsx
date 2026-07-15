@@ -40,6 +40,7 @@ export default function AdminAnalyticsPage() {
           applicationsByWeek: [],
           applicationsByStatus: [],
           topIndustries: [],
+          studentBreakdownByUniversity: [],
         });
         show({
           title: "Limited analytics",
@@ -67,6 +68,8 @@ export default function AdminAnalyticsPage() {
     if (!data || data.totalApplications === 0) return 0;
     return Math.round((data.hiredApplications / data.totalApplications) * 100);
   }, [data]);
+
+  const formatHiringRate = (value: number) => `${Math.round(value)}%`;
 
   const exportCsv = () => {
     if (!data) return;
@@ -163,6 +166,55 @@ export default function AdminAnalyticsPage() {
           hint={`${data.publishedTestimonials} published on the homepage.`}
         />
       </div>
+
+      <AnalyticsSection
+        title="Student mix by university and degree"
+        description="See how many students come from each university, how many are in each degree program there, and the hiring rate for each group."
+      >
+        <div className="space-y-4">
+          {data.studentBreakdownByUniversity.length === 0 ? (
+            <p className="text-sm text-slate-500">No university breakdown data is available yet.</p>
+          ) : (
+            data.studentBreakdownByUniversity.map((university) => (
+              <div key={university.university} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h4 className="text-base font-extrabold text-slate-900">{university.university}</h4>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {university.studentCount} student{university.studentCount === 1 ? "" : "s"} • {formatHiringRate(university.hiringRate)} hiring rate
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-right">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Students</p>
+                    <p className="text-lg font-extrabold text-slate-900">{university.studentCount}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-2 md:grid-cols-2">
+                  {university.degrees.length === 0 ? (
+                    <p className="text-sm text-slate-500 md:col-span-2">No degree-level data is available for this university yet.</p>
+                  ) : (
+                    university.degrees.map((degree) => (
+                      <div key={`${university.university}-${degree.degree}`} className="rounded-xl border border-slate-200 bg-white px-3 py-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-800">{degree.degree}</p>
+                            <p className="text-xs text-slate-500">{degree.studentCount} student{degree.studentCount === 1 ? "" : "s"}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-slate-900">{formatHiringRate(degree.hiringRate)}</p>
+                            <p className="text-[11px] uppercase tracking-wide text-slate-400">hire rate</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </AnalyticsSection>
 
       <AnalyticsSection
         title="Operational follow-ups"

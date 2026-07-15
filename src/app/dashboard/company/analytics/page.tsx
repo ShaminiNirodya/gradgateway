@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
-  BarChart3,
   Briefcase,
   Download,
   Filter,
@@ -63,29 +62,36 @@ function PipelineStep({
   label,
   value,
   rate,
+  max,
   isLast,
 }: {
   label: string;
   value: number;
   rate: number;
+  max: number;
   isLast?: boolean;
 }) {
+  const width = Math.max(12, Math.round((value / Math.max(max, 1)) * 100));
+
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-2">
-      <div className="min-w-0 flex-1 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-3 text-center sm:px-4">
-        <p className="truncate text-[10px] font-bold uppercase tracking-wide text-slate-400 sm:text-[11px]">
-          {label}
-        </p>
-        <p className="mt-1 text-xl font-extrabold tabular-nums text-slate-900 sm:text-2xl">{value}</p>
-        {!isLast ? (
-          <p className="mt-1 text-[10px] font-semibold text-[#6C5DD3] sm:text-xs">{rate}% → next</p>
-        ) : (
-          <p className="mt-1 text-[10px] font-semibold text-emerald-600 sm:text-xs">Final stage</p>
-        )}
+    <div className="min-w-0 flex-1 rounded-3xl border border-slate-100 bg-slate-50/90 p-4 transition duration-200 ease-out hover:border-[#6C5DD3]/20 hover:bg-white/90">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="truncate text-[10px] font-bold uppercase tracking-wide text-slate-400 sm:text-[11px]">
+            {label}
+          </p>
+          <p className="mt-1 text-xl font-extrabold tabular-nums text-slate-900 sm:text-2xl">{value}</p>
+        </div>
+        <span className={cn(
+          "rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]",
+          isLast ? "bg-emerald-100 text-emerald-700" : "bg-[#6C5DD3]/10 text-[#3341c5]"
+        )}>
+          {isLast ? "Final" : `${rate}% to next`}
+        </span>
       </div>
-      {!isLast ? (
-        <div className="hidden h-px w-3 shrink-0 bg-slate-200 sm:block" aria-hidden />
-      ) : null}
+      <div className="mt-4 rounded-full bg-slate-200/80 p-1">
+        <div className="h-2 rounded-full bg-[#6C5DD3]" style={{ width: `${width}%` }} />
+      </div>
     </div>
   );
 }
@@ -152,6 +158,11 @@ export default function CompanyAnalyticsPage() {
     [total, shortlisted, interviewed, offersSent, hired]
   );
 
+  const maxPipelineValue = useMemo(
+    () => Math.max(...funnel.map((stage) => stage.value), 1),
+    [funnel]
+  );
+
   const conversionRates = useMemo(
     () => [
       pct(shortlisted, total),
@@ -162,6 +173,9 @@ export default function CompanyAnalyticsPage() {
     [total, shortlisted, interviewed, offersSent, hired]
   );
 
+  const offerRate = useMemo(() => pct(offersSent, interviewed), [offersSent, interviewed]);
+  const hireRate = useMemo(() => pct(hired, total), [hired, total]);
+
   const recentApplications = useMemo(() => {
     const points = analytics?.applicationsByDay ?? [];
     return points.slice(-14).map((p) => ({ label: p.label, value: p.value }));
@@ -170,6 +184,11 @@ export default function CompanyAnalyticsPage() {
   const applicationsThisPeriod = useMemo(
     () => recentApplications.reduce((sum, point) => sum + point.value, 0),
     [recentApplications]
+  );
+
+  const avgDailyApplications = useMemo(
+    () => Math.round(applicationsThisPeriod / 14),
+    [applicationsThisPeriod]
   );
 
   const workModeMix = useMemo(() => {
@@ -234,9 +253,14 @@ export default function CompanyAnalyticsPage() {
         showSearch={false}
         showNotifications={false}
         badge={
-          <span className="rounded-full bg-[#6C5DD3]/10 px-2.5 py-0.5 text-xs font-bold text-[#6C5DD3]">
-            {activeJobs} active {activeJobs === 1 ? "role" : "roles"}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-[#6C5DD3]/10 px-2.5 py-0.5 text-xs font-bold text-[#6C5DD3]">
+              {activeJobs} active {activeJobs === 1 ? "role" : "roles"}
+            </span>
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+              {applicationsThisPeriod} apps last 14 days
+            </span>
+          </div>
         }
         primaryAction={
           <Button
@@ -285,6 +309,24 @@ export default function CompanyAnalyticsPage() {
         />
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <p className="text-sm font-semibold text-slate-900">Daily applicant average</p>
+          <p className="mt-4 text-3xl font-extrabold tracking-tight text-slate-900">{avgDailyApplications}</p>
+          <p className="mt-2 text-sm text-slate-500">Average new applications over the last 14 days.</p>
+        </div>
+        <div className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <p className="text-sm font-semibold text-slate-900">Offer progress</p>
+          <p className="mt-4 text-3xl font-extrabold tracking-tight text-slate-900">{offerRate}%</p>
+          <p className="mt-2 text-sm text-slate-500">Interviewed candidates who received an offer.</p>
+        </div>
+        <div className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm">
+          <p className="text-sm font-semibold text-slate-900">Hire efficiency</p>
+          <p className="mt-4 text-3xl font-extrabold tracking-tight text-slate-900">{hireRate}%</p>
+          <p className="mt-2 text-sm text-slate-500">Applicants hired from your total applicant pool.</p>
+        </div>
+      </div>
+
       <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -300,31 +342,19 @@ export default function CompanyAnalyticsPage() {
             </Link>
           </Button>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="grid gap-3 sm:grid-cols-5">
           {funnel.map((stage, index) => (
             <PipelineStep
               key={stage.label}
               label={stage.label}
               value={stage.value}
+              max={maxPipelineValue}
               rate={index < conversionRates.length ? conversionRates[index] : 0}
               isLast={index === funnel.length - 1}
             />
           ))}
         </div>
       </section>
-
-      <AnalyticsSection
-        title="Hiring funnel"
-        description="Volume at each stage compared side by side."
-        icon={<BarChart3 className="h-5 w-5" />}
-      >
-        <BarChart
-          data={funnel}
-          height={260}
-          color="#6C5DD3"
-          emptyLabel="Applications will populate this funnel once candidates start applying."
-        />
-      </AnalyticsSection>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <AnalyticsSection
@@ -342,7 +372,7 @@ export default function CompanyAnalyticsPage() {
         >
           <LineChart
             data={recentApplications}
-            height={260}
+            height={210}
             stroke="#6C5DD3"
             fill="#6C5DD3/10"
             emptyLabel="New applications will appear here as candidates apply."
@@ -372,23 +402,6 @@ export default function CompanyAnalyticsPage() {
         </AnalyticsSection>
       </div>
 
-      <AnalyticsSection
-        title="Role mix across active posts"
-        description="Work modes and role types in your current hiring posts."
-        icon={<PieChart className="h-5 w-5" />}
-        action={
-          activeJobs === 0 ? (
-            <Button asChild size="sm" className="rounded-xl bg-[#6C5DD3] hover:bg-[#5b4eb8]">
-              <Link href="/dashboard/company/jobs/new">Create first post</Link>
-            </Button>
-          ) : null
-        }
-      >
-        <HorizontalBarChart
-          data={workModeMix}
-          emptyLabel="Create or activate job posts to see your hiring mix."
-        />
-      </AnalyticsSection>
     </CompanyPageContainer>
   );
 }

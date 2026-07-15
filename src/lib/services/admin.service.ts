@@ -88,6 +88,46 @@ export class AdminService {
       return raw ?? [];
     };
 
+    const mapUniversityBreakdown = () => {
+      const raw = (data.studentBreakdownByUniversity ?? data.StudentBreakdownByUniversity) as
+        | Array<{
+            university?: string;
+            University?: string;
+            studentCount?: number;
+            StudentCount?: number;
+            hiringRate?: number;
+            HiringRate?: number;
+            degrees?: Array<{
+              degree?: string;
+              Degree?: string;
+              studentCount?: number;
+              StudentCount?: number;
+              hiringRate?: number;
+              HiringRate?: number;
+            }>;
+            Degrees?: Array<{
+              degree?: string;
+              Degree?: string;
+              studentCount?: number;
+              StudentCount?: number;
+              hiringRate?: number;
+              HiringRate?: number;
+            }>;
+          }>
+        | undefined;
+
+      return (raw ?? []).map((item) => ({
+        university: String(item.university ?? item.University ?? ''),
+        studentCount: Number(item.studentCount ?? item.StudentCount ?? 0),
+        hiringRate: Number(item.hiringRate ?? item.HiringRate ?? 0),
+        degrees: (item.degrees ?? item.Degrees ?? []).map((degreeItem) => ({
+          degree: String(degreeItem.degree ?? degreeItem.Degree ?? ''),
+          studentCount: Number(degreeItem.studentCount ?? degreeItem.StudentCount ?? 0),
+          hiringRate: Number(degreeItem.hiringRate ?? degreeItem.HiringRate ?? 0),
+        })),
+      }));
+    };
+
     return {
       totalStudents: Number(data.totalStudents ?? data.TotalStudents ?? 0),
       totalCompanies: Number(data.totalCompanies ?? data.TotalCompanies ?? 0),
@@ -103,6 +143,7 @@ export class AdminService {
       applicationsByWeek: mapPoints('applicationsByWeek', 'ApplicationsByWeek'),
       applicationsByStatus: mapCounts('applicationsByStatus', 'ApplicationsByStatus'),
       topIndustries: mapCounts('topIndustries', 'TopIndustries'),
+      studentBreakdownByUniversity: mapUniversityBreakdown(),
     };
   }
 

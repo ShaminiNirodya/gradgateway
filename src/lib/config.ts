@@ -85,6 +85,7 @@ export const API_ENDPOINTS = {
     SETTINGS: `${API_URL}/api/platform/settings`,
     TESTIMONIALS: `${API_URL}/api/platform/testimonials`,
     CONTENT: `${API_URL}/api/platform/content`,
+    ACADEMIC_CATALOG: `${API_URL}/api/platform/academic-catalog`,
   },
   TESTIMONIALS: {
     SUBMIT: `${API_URL}/api/testimonials/submit`,
@@ -106,6 +107,18 @@ export const API_ENDPOINTS = {
     TESTIMONIAL_STATUS: (id: string) => `${API_URL}/api/admin/testimonials/${id}/status`,
     CONTENT: `${API_URL}/api/admin/content`,
     CONTENT_ITEM: (id: string) => `${API_URL}/api/admin/content/${id}`,
+    ACADEMIC_CATALOG_UNIVERSITIES: `${API_URL}/api/admin/academic-catalog/universities`,
+    ACADEMIC_CATALOG_UNIVERSITY: (id: string) =>
+      `${API_URL}/api/admin/academic-catalog/universities/${id}`,
+    ACADEMIC_CATALOG_UNIVERSITY_ACTIVE: (id: string) =>
+      `${API_URL}/api/admin/academic-catalog/universities/${id}/active`,
+    ACADEMIC_CATALOG_UNIVERSITY_DEGREES: (id: string) =>
+      `${API_URL}/api/admin/academic-catalog/universities/${id}/degrees`,
+    ACADEMIC_CATALOG_DEGREES: `${API_URL}/api/admin/academic-catalog/degrees`,
+    ACADEMIC_CATALOG_DEGREE: (id: string) =>
+      `${API_URL}/api/admin/academic-catalog/degrees/${id}`,
+    ACADEMIC_CATALOG_DEGREE_ACTIVE: (id: string) =>
+      `${API_URL}/api/admin/academic-catalog/degrees/${id}/active`,
     SETTINGS: `${API_URL}/api/admin/settings`,
   },
 } as const;

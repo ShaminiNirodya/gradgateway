@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Building2, Briefcase, Mail, RefreshCw, Search } from "lucide-react";
+import { Building2, Briefcase, Mail, Search } from "lucide-react";
 import { AdminViewToggle, type AdminViewMode } from "@/components/features/admin/AdminViewToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -145,17 +145,7 @@ export default function AdminCompaniesPage() {
         subtitle="Block or unblock company access and visibility — accounts remain in the system and jobs can be restored when unblocked."
         badge={stats ? `${stats.totalCompanies} profiles` : undefined}
         variant="slate"
-      >
-        <Button
-          variant="secondary"
-          className="rounded-xl border-0 bg-white/15 text-white hover:bg-white/25"
-          onClick={() => void load()}
-          disabled={loading}
-        >
-          <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
-          Refresh
-        </Button>
-      </AdminPageHeader>
+      />
 
       {stats && (
         <AdminStatCards

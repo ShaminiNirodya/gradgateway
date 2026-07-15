@@ -21,23 +21,11 @@ import { auth } from "@/lib/firebase";
 import { StorageService } from "@/lib/services/storage.service";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/contexts/AuthContext";
+import { useAcademicCatalog } from "@/lib/hooks/use-academic-catalog";
 import {
-    ALL_UNIVERSITIES,
-    getDegreesForUniversity,
-    universityOffersDegree,
     normalizeDegreeName,
+    universityOffersDegree,
 } from "@/lib/constants/university-degrees";
-import {
-    type FieldOfMajorId,
-    getDegreesForFieldAtUniversity,
-    getFieldsOfMajorForUniversity,
-    getFieldOfMajorById,
-    getFieldOfMajorByLabel,
-    inferFieldOfMajorFromDegree,
-    degreeBelongsToField,
-    fieldOfMajorFromDegreeSelection,
-} from "@/lib/constants/field-of-major";
-import { FieldOfMajorSelect } from "@/components/shared/FieldOfMajorSelect";
 import {
   SELECT_UNSET,
   fromControlledSelectValue,
@@ -49,7 +37,6 @@ import {
   normalizeGpaOption,
   normalizeGraduationYear,
 } from "@/lib/constants/academic-options";
-import { FieldOfMajorSubcategoriesNotice } from "@/components/shared/FieldOfMajorSubcategoriesNotice";
 import {
     ClearableFilterField,
     CLEARABLE_FIELD_PADDING,
@@ -65,11 +52,11 @@ export default function StudentSettingsPage() {
     const { userData, resetPassword, changePassword } = useAuth();
     const { show } = useToast();
     const { profile, initials, loading, refresh } = useStudentProfile();
+    const { universities: catalogUniversities, getDegreesForUniversity } = useAcademicCatalog();
     const [isSaving, setIsSaving] = useState(false);
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [degree, setDegree] = useState("");
-    const [fieldOfMajorId, setFieldOfMajorId] = useState<FieldOfMajorId | "">("");
     const [university, setUniversity] = useState("");
     const [gradYear, setGradYear] = useState("");
     const [currentYear, setCurrentYear] = useState<number | "">(1);
@@ -94,19 +81,10 @@ export default function StudentSettingsPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const cvInputRef = useRef<HTMLInputElement>(null);
 
-    // Dynamic filtering based on selections
-    const availableFields = useMemo(
-        () => getFieldsOfMajorForUniversity(university),
-        [university]
-    );
-
     const availableDegrees = useMemo(() => {
         if (!university) return [];
-        if (fieldOfMajorId) {
-            return getDegreesForFieldAtUniversity(fieldOfMajorId, university);
-        }
         return getDegreesForUniversity(university);
-    }, [university, fieldOfMajorId]);
+    }, [university, getDegreesForUniversity]);
 
     const applyUniversityChange = (nextUniversity: string) => {
         setUniversity(nextUniversity);
@@ -114,25 +92,16 @@ export default function StudentSettingsPage() {
         setIsUniversityDropdownOpen(false);
 
         if (!nextUniversity) {
-            setFieldOfMajorId("");
             setDegree("");
             return;
         }
 
-        const fieldsForUni = getFieldsOfMajorForUniversity(nextUniversity);
-        if (fieldOfMajorId && !fieldsForUni.some((f) => f.id === fieldOfMajorId)) {
-            setFieldOfMajorId("");
-        }
-
-        const nextDegrees = fieldOfMajorId
-            ? getDegreesForFieldAtUniversity(fieldOfMajorId, nextUniversity)
-            : getDegreesForUniversity(nextUniversity);
+        const nextDegrees = getDegreesForUniversity(nextUniversity);
         if (degree && !nextDegrees.includes(degree)) {
             setDegree("");
         }
     };
 
-    const canSelectFieldOfMajor = !!university;
     const canSelectDegree = !!university;
 
     const degreeNotOfferedAtUniversity = useMemo(() => {
@@ -144,7 +113,6 @@ export default function StudentSettingsPage() {
 
     const applyDegreeChoice = (degreeOption: string) => {
         setDegree(degreeOption);
-        setFieldOfMajorId((prev) => fieldOfMajorFromDegreeSelection(degreeOption, prev));
         setDegreeSearch("");
         setIsDegreeDropdownOpen(false);
     };
@@ -161,14 +129,6 @@ export default function StudentSettingsPage() {
         setDegree(normalizeDegreeName(profile.degree || ""));
         const savedUniversity = profile.university || "";
         setUniversity(savedUniversity === "Other" ? "" : savedUniversity);
-        const savedField = profile.fieldOfMajor
-            ? getFieldOfMajorByLabel(profile.fieldOfMajor)?.id
-            : "";
-        setFieldOfMajorId(
-            (savedField as FieldOfMajorId) ||
-                inferFieldOfMajorFromDegree(profile.degree || "") ||
-                ""
-        );
         setGradYear(normalizeGraduationYear(profile.gradYear));
         setCurrentYear(profile.currentYear || 1);
         setGpa(normalizeGpaOption(profile.gpa));
@@ -185,10 +145,8 @@ export default function StudentSettingsPage() {
     const persistProfile = async (nextCvUrl: string) => {
         if (!profile) return;
 
-        const resolvedFieldId =
-            fieldOfMajorId || fieldOfMajorFromDegreeSelection(degree, "");
-        if (!resolvedFieldId) {
-            throw new Error("Select your field of major before saving your CV.");
+        if (!university || !degree) {
+            throw new Error("Select your university and degree before saving your CV.");
         }
 
         const token = await AuthService.getIdToken();
@@ -209,7 +167,7 @@ export default function StudentSettingsPage() {
             university,
             studentId: profile.studentId,
             degree: normalizeDegreeName(degree),
-            fieldOfMajor: getFieldOfMajorById(resolvedFieldId)?.label ?? "",
+            fieldOfMajor: "",
             gradYear,
             currentYear: typeof currentYear === "number" ? currentYear : profile.currentYear || 1,
             gpa,
@@ -305,12 +263,10 @@ export default function StudentSettingsPage() {
     const handleSave = async () => {
         if (!profile) return;
 
-        const resolvedFieldId =
-            fieldOfMajorId || fieldOfMajorFromDegreeSelection(degree, "");
-        if (!resolvedFieldId) {
+        if (!university || !degree) {
             show({
-                title: "Field of major required",
-                description: "Select your field of major, or choose a degree so we can set it automatically.",
+                title: "University and degree required",
+                description: "Select your university and degree before saving.",
                 variant: "error",
             });
             return;
@@ -320,15 +276,6 @@ export default function StudentSettingsPage() {
             show({
                 title: "Degree does not match university",
                 description: "Please select a degree offered by your chosen university before saving.",
-                variant: "error",
-            });
-            return;
-        }
-
-        if (degree && !degreeBelongsToField(degree, resolvedFieldId)) {
-            show({
-                title: "Degree does not match field",
-                description: "Please select a degree that matches your field of major.",
                 variant: "error",
             });
             return;
@@ -354,7 +301,7 @@ export default function StudentSettingsPage() {
                 university,
                 studentId: profile.studentId,
                 degree: normalizeDegreeName(degree),
-                fieldOfMajor: getFieldOfMajorById(resolvedFieldId)?.label ?? "",
+                fieldOfMajor: "",
                 gradYear,
                 currentYear: typeof currentYear === "number" ? currentYear : profile.currentYear || 1,
                 gpa,
@@ -542,9 +489,7 @@ export default function StudentSettingsPage() {
                             </div>
 
                             <div className="md:col-span-2 rounded-xl border border-indigo-100 bg-indigo-50/60 px-3 py-2.5 text-xs font-medium leading-relaxed text-indigo-800">
-                                <span className="font-bold">Tip:</span> Select your university first, then either pick a{" "}
-                                <span className="font-semibold">field of major</span> to narrow degrees, or choose your{" "}
-                                <span className="font-semibold">degree</span> directly and we&apos;ll set the major for you.
+                                <span className="font-bold">Tip:</span> Select your university first, then choose the degree program you are enrolled in.
                             </div>
 
                             <div className="space-y-2">
@@ -553,7 +498,6 @@ export default function StudentSettingsPage() {
                                     showClear={!!university}
                                     onClear={() => {
                                         setUniversity("");
-                                        setFieldOfMajorId("");
                                         setDegree("");
                                     }}
                                     clearLabel="university"
@@ -589,7 +533,7 @@ export default function StudentSettingsPage() {
                                             </div>
                                         </div>
                                         <div className="max-h-60 overflow-y-auto">
-                                            {ALL_UNIVERSITIES
+                                            {catalogUniversities
                                                 .filter(u => u.toLowerCase().includes(universitySearch.toLowerCase()))
                                                 .map((uni) => (
                                                     <DropdownMenuItem
@@ -600,7 +544,7 @@ export default function StudentSettingsPage() {
                                                         {uni}
                                                     </DropdownMenuItem>
                                                 ))}
-                                            {ALL_UNIVERSITIES
+                                            {catalogUniversities
                                                 .filter(u => u.toLowerCase().includes(universitySearch.toLowerCase()))
                                                 .length === 0 && (
                                                 <div className="p-4 text-sm text-slate-400 text-center">
@@ -620,51 +564,12 @@ export default function StudentSettingsPage() {
                                 )}
                             </div>
 
-                            <div className="space-y-2">
-                                <Label>Field of Major</Label>
-                                <ClearableFilterField
-                                    showClear={!!fieldOfMajorId}
-                                    onClear={() => {
-                                        setFieldOfMajorId("");
-                                        setDegree("");
-                                    }}
-                                    clearLabel="field of major"
-                                    variant="select"
-                                >
-                                    <FieldOfMajorSelect
-                                        value={fieldOfMajorId}
-                                        onValueChange={(next) => {
-                                            setFieldOfMajorId(next);
-                                            if (degree && !degreeBelongsToField(degree, next)) {
-                                                setDegree("");
-                                            }
-                                        }}
-                                        fields={availableFields}
-                                        disabled={!canSelectFieldOfMajor}
-                                        placeholder={
-                                            canSelectFieldOfMajor
-                                                ? "Select field of major (optional)"
-                                                : "Select university first"
-                                        }
-                                        triggerClassName={cn(
-                                            "w-full rounded-xl h-10",
-                                            fieldOfMajorId && CLEARABLE_SELECT_PADDING
-                                        )}
-                                    />
-                                </ClearableFilterField>
-                                {university && availableFields.length === 0 && (
-                                    <p className="text-xs font-semibold text-amber-600">
-                                        No degree programs are listed for this university yet.
-                                    </p>
-                                )}
-                                <FieldOfMajorSubcategoriesNotice fieldId={fieldOfMajorId} university={university} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Major / Degree</Label>
+                            <div className="space-y-2 md:col-span-2">
+                                <Label>Degree</Label>
                                 <ClearableFilterField
                                     showClear={!!degree}
                                     onClear={() => setDegree("")}
-                                    clearLabel="major or degree"
+                                    clearLabel="degree"
                                 >
                                     <DropdownMenu
                                         open={isDegreeDropdownOpen}
@@ -728,9 +633,7 @@ export default function StudentSettingsPage() {
                                                     {!university
                                                         ? "Select a university first"
                                                         : availableDegrees.length === 0
-                                                            ? fieldOfMajorId
-                                                                ? `No degrees match your field and ${university}. Try a different university or field.`
-                                                                : `No degrees listed for ${university} yet.`
+                                                            ? `No degrees listed for ${university} yet.`
                                                             : "No matching degrees"}
                                                 </div>
                                             )}

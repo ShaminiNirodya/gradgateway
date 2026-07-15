@@ -149,11 +149,6 @@ export function SkillsPicker({
         className="max-h-72 overflow-y-auto overscroll-contain p-2"
         onWheel={(e) => e.stopPropagation()}
       >
-        {isBrowseMode && filteredSkills.length > 0 ? (
-          <p className="px-2 pb-2 text-xs font-medium text-slate-400">
-            Popular picks — type to search {catalogCount.toLocaleString()}+ technologies
-          </p>
-        ) : null}
         {filteredSkills.length === 0 ? (
           <p className="px-2 py-4 text-center text-sm text-slate-500">
             {skillSearch.trim()

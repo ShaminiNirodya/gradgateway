@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MessageSquare, RefreshCw, Trash2 } from "lucide-react";
+import { MessageSquare, Trash2 } from "lucide-react";
 import { AdminPageHeader } from "@/components/features/admin/AdminPageHeader";
 import { AdminFilterPanel } from "@/components/features/admin/AdminFilterPanel";
 import { AdminViewToggle, type AdminViewMode } from "@/components/features/admin/AdminViewToggle";
@@ -116,15 +116,6 @@ export default function AdminInquiriesPage() {
         subtitle="Support messages from students, companies, and the public contact form — review and respond."
         badge={openCount > 0 ? `${openCount} open` : undefined}
       >
-        <Button
-          variant="secondary"
-          className="rounded-xl border-0 bg-white/15 text-white hover:bg-white/25"
-          onClick={() => void load()}
-          disabled={loading}
-        >
-          <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
-          Refresh
-        </Button>
       </AdminPageHeader>
 
       {stats && (

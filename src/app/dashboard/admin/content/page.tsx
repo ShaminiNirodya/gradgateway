@@ -25,7 +25,7 @@ import {
   type PlatformContentSection,
   type PlatformContentType,
 } from "@/lib/types/platform-content";
-import { BookOpen, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { BookOpen, Pencil, Plus, Trash2 } from "lucide-react";
 import { legalPageLabels, legalPageSlugs } from "@/lib/content/legal-pages-fallback";
 import { cn } from "@/lib/utils";
 
@@ -223,15 +223,7 @@ export default function AdminContentPage() {
         title="Site content"
         subtitle="Manage FAQs, help guides, and articles shown on public and dashboard help pages."
       >
-        <Button
-          variant="secondary"
-          className="rounded-xl border-0 bg-white/15 text-white hover:bg-white/25"
-          onClick={() => void load()}
-          disabled={loading}
-        >
-          <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
-          Refresh
-        </Button>
+        
         <Button className="rounded-xl bg-white text-[#6C5DD3] hover:bg-white/90" onClick={() => openCreate("Faq")}>
           <Plus className="mr-2 h-4 w-4" />
           Add content
@@ -591,6 +583,7 @@ export default function AdminContentPage() {
 
       <ConfirmDialog
         open={!!toDelete}
+        onOpenChange={(value) => !value && setToDelete(null)}
         title="Delete this content?"
         description="It will be removed from all public and help pages."
         confirmLabel="Delete"

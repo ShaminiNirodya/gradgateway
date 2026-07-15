@@ -15,7 +15,7 @@ const ROLE_HOME: Record<string, string> = {
   Company: "/dashboard/company",
 };
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const role = request.cookies.get("gg_role")?.value;
 

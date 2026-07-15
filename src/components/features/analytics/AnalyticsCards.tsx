@@ -59,8 +59,10 @@ export function AnalyticsKpiCard({
     </>
   );
 
-  const className =
-    "group rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all hover:border-[#6C5DD3]/20 hover:shadow-md";
+  const className = cn(
+    "group rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:border-[#6C5DD3]/20 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6C5DD3]/50",
+    href && "cursor-pointer"
+  );
 
   if (href) {
     return (
@@ -93,7 +95,7 @@ export function AnalyticsSection({
   return (
     <section
       className={cn(
-        "rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm",
+        "rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm transition duration-200 ease-out hover:shadow-md",
         className
       )}
     >

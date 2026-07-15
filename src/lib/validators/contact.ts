@@ -1,12 +1,14 @@
 import { z } from "zod";
 
 export const inquiryTypes = [
-  "General",
-  "Support",
-  "Billing",
-  "Partnership",
-  "Feedback",
-  "Campus / University",
+  "GENERAL",
+  "SECURITY",
+  "SUPPORT",
+  "FEEDBACK",
+  "COMPANY",
+  "UNIVERSITY",
+  "STUDENT",
+  "OTHER",
 ] as const;
 
 export const contactSchema = z.object({

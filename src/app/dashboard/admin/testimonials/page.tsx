@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { CheckCircle2, MessageSquareQuote, RefreshCw, Trash2, XCircle } from "lucide-react";
+import { CheckCircle2, MessageSquareQuote, Trash2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const statusStyles: Record<string, string> = {
@@ -113,15 +113,6 @@ export default function AdminTestimonialsPage() {
         title="Community testimonials"
         subtitle="Review submissions from signed-in students and recruiters before they appear on the public homepage."
       >
-        <Button
-          variant="secondary"
-          className="rounded-xl border-0 bg-white/15 text-white hover:bg-white/25"
-          onClick={() => void load()}
-          disabled={loading}
-        >
-          <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
-          Refresh
-        </Button>
       </AdminPageHeader>
 
       <AdminFilterPanel>

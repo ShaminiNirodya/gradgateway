@@ -16,22 +16,13 @@ import {
 import { motion } from "framer-motion";
 import RegistrationStepHeader from "@/components/features/auth/RegistrationStepHeader";
 import { GraduationCap, BookOpen, Calendar, Award } from "lucide-react";
-import { ALL_UNIVERSITIES, getDegreesForUniversity } from "@/lib/constants/university-degrees";
-import {
-  getDegreesForFieldAtUniversity,
-  getFieldsOfMajorForUniversity,
-  degreeBelongsToField,
-  fieldOfMajorFromDegreeSelection,
-  type FieldOfMajorId,
-} from "@/lib/constants/field-of-major";
-import { FieldOfMajorSelect } from "@/components/shared/FieldOfMajorSelect";
-import { FieldOfMajorSubcategoriesNotice } from "@/components/shared/FieldOfMajorSubcategoriesNotice";
 import {
   SELECT_UNSET,
   fromControlledSelectValue,
   toControlledSelectValue,
 } from "@/lib/utils/controlled-select";
 import { GPA_OPTIONS, GRADUATION_YEARS } from "@/lib/constants/academic-options";
+import { useAcademicCatalog } from "@/lib/hooks/use-academic-catalog";
 
 interface Step2Props {
   onNext: (data: AcademicInfoData) => void;
@@ -40,27 +31,18 @@ interface Step2Props {
 }
 
 export default function Step2Academic({ onNext, onBack, defaultValues }: Step2Props) {
+  const { universities, loading, getDegreesForUniversity } = useAcademicCatalog();
   const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<AcademicInfoData>({
     resolver: zodResolver(academicInfoSchema),
     defaultValues,
   });
 
   const selectedUniversity = watch("university");
-  const selectedFieldOfMajor = watch("fieldOfMajor");
-  const selectedDegree = watch("degree");
-
-  const availableFields = useMemo(
-    () => getFieldsOfMajorForUniversity(selectedUniversity),
-    [selectedUniversity]
-  );
 
   const availableDegrees = useMemo(() => {
     if (!selectedUniversity) return [];
-    if (selectedFieldOfMajor) {
-      return getDegreesForFieldAtUniversity(selectedFieldOfMajor, selectedUniversity);
-    }
     return getDegreesForUniversity(selectedUniversity);
-  }, [selectedUniversity, selectedFieldOfMajor]);
+  }, [selectedUniversity, getDegreesForUniversity]);
 
   const selectTriggerClass =
     "h-14 w-full min-w-0 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3] data-[state=open]:border-[#6C5DD3]";
@@ -76,14 +58,8 @@ export default function Step2Academic({ onNext, onBack, defaultValues }: Step2Pr
       <RegistrationStepHeader
         accent="student"
         title="Academic background"
-        description="Select your university first, then pick a field of major or degree — either order works."
+        description="Select your university and degree program."
       />
-
-      <p className="rounded-xl border border-indigo-100 bg-indigo-50/60 px-3 py-2.5 text-xs font-medium leading-relaxed text-indigo-800">
-        <span className="font-bold">Tip:</span> Choose your university, then either pick a{" "}
-        <span className="font-semibold">field of major</span> and narrow degrees, or pick your{" "}
-        <span className="font-semibold">degree</span> directly and we&apos;ll set the major for you.
-      </p>
 
       <div className="space-y-5">
         <div className="space-y-2">
@@ -98,12 +74,12 @@ export default function Step2Academic({ onNext, onBack, defaultValues }: Step2Pr
                   const nextUniversity = fromControlledSelectValue(val);
                   field.onChange(nextUniversity);
                   setValue("degree", "");
-                  setValue("fieldOfMajor", "");
                 }}
+                disabled={loading}
               >
                 <SelectTrigger className={selectTriggerClass}>
                   <GraduationCap className="h-5 w-5 shrink-0 text-[#6C5DD3]" />
-                  <SelectValue placeholder="Select University" />
+                  <SelectValue placeholder={loading ? "Loading universities…" : "Select University"} />
                 </SelectTrigger>
                 <SelectContent
                   position="popper"
@@ -113,7 +89,7 @@ export default function Step2Academic({ onNext, onBack, defaultValues }: Step2Pr
                   <SelectItem value={SELECT_UNSET} disabled className="hidden">
                     Select University
                   </SelectItem>
-                  {ALL_UNIVERSITIES.map((u) => (
+                  {universities.map((u) => (
                     <SelectItem
                       key={u}
                       value={u}
@@ -130,42 +106,6 @@ export default function Step2Academic({ onNext, onBack, defaultValues }: Step2Pr
         </div>
 
         <div className="space-y-2">
-          <Label className="text-slate-600 font-bold ml-1">Field of Major</Label>
-          <Controller
-            name="fieldOfMajor"
-            control={control}
-            render={({ field }) => (
-              <FieldOfMajorSelect
-                value={(field.value as FieldOfMajorId) || ""}
-                onValueChange={(val) => {
-                  field.onChange(val);
-                  if (selectedDegree && !degreeBelongsToField(selectedDegree, val)) {
-                    setValue("degree", "");
-                  }
-                }}
-                fields={availableFields}
-                disabled={!selectedUniversity}
-                placeholder={
-                  !selectedUniversity ? "Select university first" : "Select field of major (optional)"
-                }
-                triggerClassName={selectTriggerClass}
-                contentClassName="rounded-xl border-none shadow-xl max-h-72"
-              />
-            )}
-          />
-          {errors.fieldOfMajor && <p className="text-xs text-red-500 font-bold ml-2">{errors.fieldOfMajor.message}</p>}
-          {selectedUniversity && availableFields.length === 0 && (
-            <p className="ml-2 text-xs font-semibold text-amber-600">
-              No degree programs are listed for this university yet.
-            </p>
-          )}
-          <FieldOfMajorSubcategoriesNotice
-            fieldId={(selectedFieldOfMajor as FieldOfMajorId) || ""}
-            university={selectedUniversity}
-          />
-        </div>
-
-        <div className="space-y-2">
           <Label className="text-slate-600 font-bold ml-1">Degree Program</Label>
           <Controller
             name="degree"
@@ -173,15 +113,7 @@ export default function Step2Academic({ onNext, onBack, defaultValues }: Step2Pr
             render={({ field }) => (
               <Select
                 value={toControlledSelectValue(field.value)}
-                onValueChange={(val) => {
-                  const next = fromControlledSelectValue(val);
-                  field.onChange(next);
-                  const inferred = fieldOfMajorFromDegreeSelection(
-                    next,
-                    (selectedFieldOfMajor as FieldOfMajorId) || ""
-                  );
-                  if (inferred) setValue("fieldOfMajor", inferred);
-                }}
+                onValueChange={(val) => field.onChange(fromControlledSelectValue(val))}
                 disabled={!selectedUniversity}
               >
                 <SelectTrigger className={selectTriggerClass}>
@@ -191,9 +123,7 @@ export default function Step2Academic({ onNext, onBack, defaultValues }: Step2Pr
                       !selectedUniversity
                         ? "Select university first"
                         : availableDegrees.length === 0
-                          ? selectedFieldOfMajor
-                            ? "No degrees for this major at your university"
-                            : "No degrees listed for this university"
+                          ? "No degrees listed for this university"
                           : "Select degree"
                     }
                   />

@@ -466,14 +466,6 @@ export default function NewCompanyJobPage() {
               deadline={deadlineAt}
               hasRole={roleComplete}
             />
-            <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 text-sm text-indigo-900">
-              <p className="font-semibold">Tips for a strong post</p>
-              <ul className="mt-2 list-inside list-disc space-y-1 text-xs leading-relaxed text-indigo-800/90">
-                <li>Use a clear position title students recognize.</li>
-                <li>List 3–6 core skills — not every technology you use.</li>
-                <li>Mention stipend or mark it optional to reduce drop-off.</li>
-              </ul>
-            </div>
           </div>
         </aside>
       </div>

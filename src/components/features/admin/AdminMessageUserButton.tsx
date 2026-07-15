@@ -28,7 +28,7 @@ export function AdminMessageUserButton({
       asChild
       size="sm"
       variant="outline"
-      className="rounded-lg"
+      className="rounded-lg min-w-[110px]"
       disabled={disabled}
     >
       <Link href={href}>

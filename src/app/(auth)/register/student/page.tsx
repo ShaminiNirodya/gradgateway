@@ -12,7 +12,6 @@ import { AuthService } from "@/lib/services/auth.service";
 import { StudentService } from "@/lib/services/student.service";
 import { StorageService } from "@/lib/services/storage.service";
 import { auth } from "@/lib/firebase";
-import { getFieldOfMajorById } from "@/lib/constants/field-of-major";
 
 const STUDENT_BENEFITS = [
   { title: "Showcase your work", description: "Build a portfolio employers can browse before they message you." },
@@ -69,10 +68,10 @@ export default function StudentRegistrationPage() {
         university: payload.university as string,
         studentId: payload.studentId as string,
         degree: payload.degree as string,
-        fieldOfMajor: getFieldOfMajorById(payload.fieldOfMajor as string)?.label ?? (payload.fieldOfMajor as string) ?? "",
-        gradYear: payload.gradYear as number,
+        fieldOfMajor: "",
+        gradYear: String(payload.gradYear ?? ""),
         currentYear: payload.currentYear as number,
-        gpa: payload.gpa as number,
+        gpa: String(payload.gpa ?? ""),
       });
 
       setBanner({

@@ -7,13 +7,15 @@ import { cn } from "@/lib/utils";
 
 type ConfirmDialogProps = {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange?: (open: boolean) => void;
   title: string;
   description: string;
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: "danger" | "default";
+  destructive?: boolean;
   loading?: boolean;
+  onCancel?: () => void;
   onConfirm: () => void | Promise<void>;
 };
 
@@ -25,7 +27,9 @@ export function ConfirmDialog({
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   variant = "default",
+  destructive = false,
   loading = false,
+  onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
   useEffect(() => {
@@ -33,7 +37,11 @@ export function ConfirmDialog({
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !loading) {
-        onOpenChange(false);
+        if (onCancel) {
+          onCancel();
+        } else {
+          onOpenChange?.(false);
+        }
       }
     };
 
@@ -49,15 +57,22 @@ export function ConfirmDialog({
 
   if (!open) return null;
 
-  const isDanger = variant === "danger";
+  const isDanger = variant === "danger" || destructive;
+
+  const handleClose = () => {
+    if (loading) return;
+    if (onCancel) {
+      onCancel();
+    } else {
+      onOpenChange?.(false);
+    }
+  };
 
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-[2px]"
       role="presentation"
-      onClick={() => {
-        if (!loading) onOpenChange(false);
-      }}
+      onClick={handleClose}
     >
       <div
         role="alertdialog"
@@ -83,7 +98,14 @@ export function ConfirmDialog({
               </h2>
               <button
                 type="button"
-                onClick={() => !loading && onOpenChange(false)}
+                onClick={() => {
+                  if (loading) return;
+                  if (onCancel) {
+                    onCancel();
+                  } else {
+                    onOpenChange?.(false);
+                  }
+                }}
                 className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
                 aria-label="Close"
                 disabled={loading}
@@ -102,7 +124,7 @@ export function ConfirmDialog({
             type="button"
             variant="outline"
             className="rounded-xl"
-            onClick={() => onOpenChange(false)}
+            onClick={handleClose}
             disabled={loading}
           >
             {cancelLabel}

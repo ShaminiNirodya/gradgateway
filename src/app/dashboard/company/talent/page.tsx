@@ -38,19 +38,10 @@ import { useSearchParams } from "next/navigation";
 import { CompanyPageHeader } from "@/components/layout/company/CompanyPageHeader";
 import { AuthService } from "@/lib/services/auth.service";
 import { StudentService } from "@/lib/services/student.service";
+import { useAcademicCatalog } from "@/lib/hooks/use-academic-catalog";
 import {
-  ALL_UNIVERSITIES,
-  ALL_DEGREES,
-  getDegreesForUniversity,
-  getUniversitiesForDegree,
   normalizeDegreeName,
 } from "@/lib/constants/university-degrees";
-import {
-  FIELDS_OF_MAJOR,
-  getDegreesForFieldOfMajor,
-  resolveFieldOfMajorLabel,
-  type FieldOfMajorId,
-} from "@/lib/constants/field-of-major";
 import { SkillsPicker } from "@/components/shared/SkillsPicker";
 import {
   GRADUATION_YEARS,
@@ -77,6 +68,8 @@ type Candidate = {
 
 export default function TalentSearchPage() {
   const { show } = useToast();
+  const { universities: catalogUniversities, allDegrees, getDegreesForUniversity, getUniversitiesForDegree } =
+    useAcademicCatalog();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
   const [pageItems, setPageItems] = useState<Candidate[]>([]);
@@ -84,7 +77,6 @@ export default function TalentSearchPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedUniversities, setSelectedUniversities] = useState<Set<string>>(new Set());
-  const [selectedFieldsOfMajor, setSelectedFieldsOfMajor] = useState<Set<FieldOfMajorId>>(new Set());
   const [selectedDegrees, setSelectedDegrees] = useState<Set<string>>(new Set());
   const [graduationYear, setGraduationYear] = useState<string>("");
   const [gpaFrom, setGpaFrom] = useState<string>("");
@@ -98,7 +90,6 @@ export default function TalentSearchPage() {
   const [universitySearch, setUniversitySearch] = useState("");
   const [degreeSearch, setDegreeSearch] = useState("");
   const [isUniversityDropdownOpen, setIsUniversityDropdownOpen] = useState(false);
-  const [isFieldOfMajorDropdownOpen, setIsFieldOfMajorDropdownOpen] = useState(false);
   const [isDegreeDropdownOpen, setIsDegreeDropdownOpen] = useState(false);
 
   useEffect(() => {
@@ -106,27 +97,16 @@ export default function TalentSearchPage() {
     if (qParam) setQuery(qParam);
   }, [searchParams]);
 
-  // Dynamic filtering based on selections
   const availableDegrees = useMemo(() => {
-    let degrees: string[];
     if (selectedUniversities.size === 0) {
-      degrees = [...ALL_DEGREES];
-    } else {
-      const degreesSet = new Set<string>();
-      selectedUniversities.forEach((uni) => {
-        getDegreesForUniversity(uni).forEach((d) => degreesSet.add(d));
-      });
-      degrees = Array.from(degreesSet);
+      return [...allDegrees].sort();
     }
-    if (selectedFieldsOfMajor.size > 0) {
-      const fieldDegrees = new Set<string>();
-      selectedFieldsOfMajor.forEach((fieldId) => {
-        getDegreesForFieldOfMajor(fieldId).forEach((d) => fieldDegrees.add(d));
-      });
-      degrees = degrees.filter((d) => fieldDegrees.has(d));
-    }
-    return degrees.sort();
-  }, [selectedUniversities, selectedFieldsOfMajor]);
+    const degreesSet = new Set<string>();
+    selectedUniversities.forEach((uni) => {
+      getDegreesForUniversity(uni).forEach((d) => degreesSet.add(d));
+    });
+    return Array.from(degreesSet).sort();
+  }, [selectedUniversities, allDegrees, getDegreesForUniversity]);
 
   const availableUniversities = useMemo(() => {
     if (selectedDegrees.size > 0) {
@@ -136,33 +116,13 @@ export default function TalentSearchPage() {
       });
       return Array.from(universitiesSet).sort();
     }
-    if (selectedFieldsOfMajor.size > 0) {
-      const universitiesSet = new Set<string>();
-      selectedFieldsOfMajor.forEach((fieldId) => {
-        getDegreesForFieldOfMajor(fieldId).forEach((degree) => {
-          getUniversitiesForDegree(degree).forEach((u) => universitiesSet.add(u));
-        });
-      });
-      return Array.from(universitiesSet).sort();
-    }
-    return ALL_UNIVERSITIES;
-  }, [selectedDegrees, selectedFieldsOfMajor]);
+    return catalogUniversities;
+  }, [selectedDegrees, catalogUniversities, getUniversitiesForDegree]);
 
-  const effectiveDegrees = useMemo(() => {
-    let degrees: string[] = [];
-    if (selectedFieldsOfMajor.size > 0) {
-      const fieldDegrees = new Set<string>();
-      selectedFieldsOfMajor.forEach((fieldId) => {
-        getDegreesForFieldOfMajor(fieldId).forEach((d) => fieldDegrees.add(d));
-      });
-      degrees = Array.from(fieldDegrees);
-    }
-    if (selectedDegrees.size > 0) {
-      const picked = Array.from(selectedDegrees);
-      degrees = degrees.length > 0 ? degrees.filter((d) => selectedDegrees.has(d)) : picked;
-    }
-    return degrees;
-  }, [selectedFieldsOfMajor, selectedDegrees]);
+  const effectiveDegrees = useMemo(
+    () => (selectedDegrees.size > 0 ? Array.from(selectedDegrees) : []),
+    [selectedDegrees]
+  );
 
   const mapDirectoryToCandidate = (row: {
     studentProfileId: string;
@@ -201,7 +161,6 @@ export default function TalentSearchPage() {
   }, [
     query,
     selectedUniversities,
-    selectedFieldsOfMajor,
     selectedDegrees,
     graduationYear,
     gpaFrom,
@@ -281,7 +240,6 @@ export default function TalentSearchPage() {
   const activeFilterCount = useMemo(() => {
     let count =
       selectedUniversities.size +
-      selectedFieldsOfMajor.size +
       selectedDegrees.size +
       skills.size +
       availability.size;
@@ -290,7 +248,6 @@ export default function TalentSearchPage() {
     return count;
   }, [
     selectedUniversities,
-    selectedFieldsOfMajor,
     selectedDegrees,
     skills,
     availability,
@@ -301,7 +258,6 @@ export default function TalentSearchPage() {
 
   const clearFilters = () => {
     setSelectedUniversities(new Set());
-    setSelectedFieldsOfMajor(new Set());
     setSelectedDegrees(new Set());
     setGraduationYear("");
     setGpaFrom("");
@@ -347,12 +303,11 @@ export default function TalentSearchPage() {
       }
 
     // CSV headers
-    const headers = ["Name", "University", "Field of Major", "Degree", "Class Of", "GPA", "Skills", "Status"];
+    const headers = ["Name", "University", "Degree", "Class Of", "GPA", "Skills", "Status"];
     
     const rows = exportRows.map(candidate => [
       candidate.name,
       candidate.university,
-      resolveFieldOfMajorLabel(candidate.fieldOfMajor, candidate.degree),
       candidate.degree,
       candidate.classOf.toString(),
       candidate.gpa.toString(),
@@ -448,56 +403,6 @@ export default function TalentSearchPage() {
                       <span className="text-slate-700">{university}</span>
                     </label>
                   ))}
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </Section>
-
-        <Section title="Field of Major">
-          <DropdownMenu open={isFieldOfMajorDropdownOpen} onOpenChange={setIsFieldOfMajorDropdownOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className={filterTriggerClass}
-              >
-                <FilterMultiSelectChips
-                  placeholder="Select fields..."
-                  items={Array.from(selectedFieldsOfMajor).map((fieldId) => ({
-                    key: fieldId,
-                    label: FIELDS_OF_MAJOR.find((f) => f.id === fieldId)?.label ?? fieldId,
-                  }))}
-                  onRemove={(key) =>
-                    toggleSet(setSelectedFieldsOfMajor, selectedFieldsOfMajor, key as FieldOfMajorId, false)
-                  }
-                />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[min(320px,100vw)] rounded-xl border border-slate-200 bg-white p-0 shadow-lg">
-              <div className="max-h-60 overflow-y-auto p-2">
-                {FIELDS_OF_MAJOR.map((field) => (
-                  <label
-                    key={field.id}
-                    className="flex cursor-pointer items-center gap-2 rounded-md p-2 text-sm hover:bg-slate-50"
-                  >
-                    <Checkbox
-                      checked={selectedFieldsOfMajor.has(field.id)}
-                      onCheckedChange={(checked) => {
-                        toggleSet(setSelectedFieldsOfMajor, selectedFieldsOfMajor, field.id, !!checked);
-                        if (!checked) return;
-                        const allowed = new Set(getDegreesForFieldOfMajor(field.id));
-                        setSelectedDegrees((prev) => {
-                          const next = new Set<string>();
-                          prev.forEach((d) => {
-                            if (allowed.has(d)) next.add(d);
-                          });
-                          return next;
-                        });
-                      }}
-                    />
-                    <span className="text-slate-700">{field.label}</span>
-                  </label>
-                ))}
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -857,11 +762,6 @@ function CandidateDetailRow({ label, value }: { label: string; value: string }) 
 }
 
 function CandidateCard({ c }: { c: Candidate }) {
-  const majorLabel = resolveFieldOfMajorLabel(c.fieldOfMajor, c.degree);
-  const showDegreeRow =
-    Boolean(c.degree) &&
-    Boolean(majorLabel) &&
-    c.degree.trim().toLowerCase() !== majorLabel.trim().toLowerCase();
   const extraSkills = Math.max(0, c.skills.length - 4);
   const messageHref = `/dashboard/company/messages?studentProfileId=${encodeURIComponent(c.id)}`;
 
@@ -895,10 +795,7 @@ function CandidateCard({ c }: { c: Candidate }) {
       {/* Education */}
       <CandidateCardSection title="Education">
         <div className="space-y-3">
-          {(majorLabel || c.degree) && (
-            <CandidateDetailRow label="Major" value={majorLabel || c.degree} />
-          )}
-          {showDegreeRow && <CandidateDetailRow label="Degree" value={c.degree} />}
+          {c.degree && <CandidateDetailRow label="Degree" value={c.degree} />}
           <div className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50/90 px-3 py-2 text-xs font-semibold text-slate-600">
             <span>Class of {c.classOf}</span>
             <span className="text-slate-300" aria-hidden>
@@ -976,7 +873,6 @@ function CandidateCard({ c }: { c: Candidate }) {
 }
 
 function CandidateListRow({ c }: { c: Candidate }) {
-  const majorLabel = resolveFieldOfMajorLabel(c.fieldOfMajor, c.degree);
   const messageHref = `/dashboard/company/messages?studentProfileId=${encodeURIComponent(c.id)}`;
 
   return (
@@ -995,7 +891,7 @@ function CandidateListRow({ c }: { c: Candidate }) {
           </div>
           <p className="mt-1 text-sm text-slate-600 line-clamp-1" title={c.university}>
             {c.university}
-            {(majorLabel || c.degree) && ` · ${majorLabel || c.degree}`}
+            {c.degree && ` · ${c.degree}`}
           </p>
           <p className="mt-1 text-xs font-semibold text-slate-500">
             Class of {c.classOf} · GPA {c.gpa.toFixed(2)}
@@ -1057,9 +953,10 @@ function FilterMultiSelectChips({
           className="inline-flex max-w-full items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700"
         >
           <span className="truncate">{label}</span>
-          <button
-            type="button"
-            className="flex-shrink-0 rounded-sm hover:text-indigo-900"
+          <div
+            role="button"
+            tabIndex={0}
+            className="flex-shrink-0 rounded-sm hover:text-indigo-900 cursor-pointer"
             aria-label={`Remove ${label}`}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
@@ -1067,9 +964,16 @@ function FilterMultiSelectChips({
               e.stopPropagation();
               onRemove(key);
             }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                onRemove(key);
+              }
+            }}
           >
             <X className="w-3 h-3" />
-          </button>
+          </div>
         </span>
       ))}
     </div>

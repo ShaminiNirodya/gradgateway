@@ -17,18 +17,23 @@ import { Input } from "@/components/ui/input";
 import { SupportInquiryForm } from "@/components/features/support/SupportInquiryForm";
 import { PopularArticles } from "@/components/features/support/PopularArticles";
 import type { HelpAudience } from "@/lib/content/help-articles";
-import type { ContentArticle } from "@/lib/content/platform-content-fallback";
+import type { ContentArticle, ContentFaq } from "@/lib/content/platform-content-fallback";
+import { getHelpFaqsForAudience } from "@/lib/content/platform-content-fallback";
 import { PlatformContentService } from "@/lib/services/platform-content.service";
 import { toGuideArticle } from "@/lib/types/platform-content";
 import { cn } from "@/lib/utils";
 
+type HelpFaqSource =
+  | ContentFaq
+  | { title: string; body: string; audiences?: string[] };
+
 function mapHelpFaqs(
-  items: { title: string; body: string; audiences?: string[] }[],
+  items: HelpFaqSource[],
   audience: HelpAudience
 ) {
   return items.map((item) => ({
-    q: item.title,
-    a: item.body,
+    q: "title" in item ? item.title : item.q,
+    a: "body" in item ? item.body : item.a,
     audiences: (item.audiences ?? ["All"]) as HelpAudience[],
   }));
 }
@@ -348,7 +353,7 @@ function FAQAccordion({
   search: string;
   items: { q: string; a: string; audiences: HelpAudience[] }[];
 }) {
-  const fallbackFaqs = mapHelpFaqs(audience);
+  const fallbackFaqs = mapHelpFaqs(getHelpFaqsForAudience(audience), audience);
 
   const allItems =
     dynamicItems.length > 0

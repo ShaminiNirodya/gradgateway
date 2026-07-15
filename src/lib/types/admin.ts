@@ -58,6 +58,19 @@ export interface AdminCompanyListItem {
   userIsActive: boolean;
 }
 
+export interface DegreeStudentAnalyticsItem {
+  degree: string;
+  studentCount: number;
+  hiringRate: number;
+}
+
+export interface UniversityStudentAnalyticsItem {
+  university: string;
+  studentCount: number;
+  hiringRate: number;
+  degrees: DegreeStudentAnalyticsItem[];
+}
+
 export interface AdminAnalytics {
   totalStudents: number;
   totalCompanies: number;
@@ -73,6 +86,7 @@ export interface AdminAnalytics {
   applicationsByWeek: { label: string; value: number; date: string }[];
   applicationsByStatus: { label: string; value: number }[];
   topIndustries: { label: string; value: number }[];
+  studentBreakdownByUniversity: UniversityStudentAnalyticsItem[];
 }
 
 export interface PublicPlatformSettings {

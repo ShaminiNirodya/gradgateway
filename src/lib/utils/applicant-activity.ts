@@ -62,7 +62,7 @@ export function buildMonthlyBuckets(applications: ApplicationItem[]): ActivityBu
     const monthStart = new Date(now.getFullYear(), now.getMonth() - offset, 1);
     buckets.push({
       key: `${monthStart.getFullYear()}-${monthStart.getMonth()}`,
-      label: monthStart.toLocaleDateString("en-LK", { month: "short", year: "2-digit" }),
+      label: monthStart.toLocaleDateString("en-LK", { month: "short" }),
       value: 0,
     });
   }

@@ -10,7 +10,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   MessageSquare,
-  RefreshCw,
+  
   TrendingUp,
   UserCheck,
   UserMinus,
@@ -62,15 +62,7 @@ export function AdminOverviewDashboard({
               </p>
             )}
           </div>
-          <Button
-            variant="secondary"
-            className="rounded-xl border-0 bg-white/15 text-white backdrop-blur-sm hover:bg-white/25"
-            onClick={() => void onRefresh()}
-            disabled={loading}
-          >
-            <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
-            Refresh data
-          </Button>
+          {/* refresh removed */}
         </div>
       </section>
 

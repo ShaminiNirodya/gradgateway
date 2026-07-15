@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { MailCheck, RefreshCw, Search } from "lucide-react";
+import { MailCheck, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AuthService } from "@/lib/services/auth.service";
@@ -66,15 +66,7 @@ export default function AdminEmailLogsPage() {
         title="Email logs"
         subtitle="Every email the platform has sent or simulated — verification, password resets, and notifications."
         badge={`${logs.length} shown`}
-      >
-        <Button
-          variant="outline"
-          className="rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20"
-          onClick={() => void load()}
-        >
-          <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} /> Refresh
-        </Button>
-      </AdminPageHeader>
+      />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative w-full max-w-sm">

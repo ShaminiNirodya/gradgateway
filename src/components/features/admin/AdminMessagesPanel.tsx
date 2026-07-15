@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MessageSquare, RefreshCw, Search, Send } from "lucide-react";
+import { MessageSquare, Search, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -260,15 +260,6 @@ export function AdminMessagesPanel() {
         title="Messages"
         subtitle="Message any student or company account. All admins share the same support threads."
       >
-        <Button
-          variant="secondary"
-          className="rounded-xl border-0 bg-white/15 text-white hover:bg-white/25"
-          onClick={() => void loadConversations()}
-          disabled={loading}
-        >
-          <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
-          Refresh
-        </Button>
       </AdminPageHeader>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

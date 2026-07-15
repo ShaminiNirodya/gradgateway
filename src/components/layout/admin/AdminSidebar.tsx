@@ -15,6 +15,7 @@ import {
   BarChart3,
   BookOpen,
   Settings,
+  School,
 } from "lucide-react";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { useState } from "react";

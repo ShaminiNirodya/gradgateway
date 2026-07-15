@@ -8,7 +8,7 @@ import { useToast } from "@/components/ui/toast";
 import { AdminPageHeader } from "@/components/features/admin/AdminPageHeader";
 import type { AdminPlatformSettings } from "@/lib/types/admin";
 import { cn } from "@/lib/utils";
-import { RefreshCw, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 
 export default function AdminSettingsPage() {
   const { show } = useToast();
@@ -70,15 +70,6 @@ export default function AdminSettingsPage() {
         subtitle="Platform registration and maintenance controls."
         variant="slate"
       >
-        <Button
-          variant="secondary"
-          className="rounded-xl border-0 bg-white/15 text-white hover:bg-white/25"
-          onClick={() => void load()}
-          disabled={loading}
-        >
-          <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
-          Refresh
-        </Button>
       </AdminPageHeader>
 
       <section className="rounded-[20px] border border-slate-100 bg-white p-6 shadow-sm">

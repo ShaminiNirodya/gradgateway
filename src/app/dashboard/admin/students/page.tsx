@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { GraduationCap, RefreshCw, Search } from "lucide-react";
+import { GraduationCap, Search } from "lucide-react";
 import { AdminMessageUserButton } from "@/components/features/admin/AdminMessageUserButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/toast";
 import { useAdminDashboard } from "@/components/features/admin/AdminDashboardProvider";
 import { AdminPageHeader } from "@/components/features/admin/AdminPageHeader";
 import { AdminFilterPanel } from "@/components/features/admin/AdminFilterPanel";
+import { useRouter } from "next/navigation";
 import { AdminStatCards } from "@/components/features/admin/AdminStatCards";
 import {
   Select,
@@ -28,6 +29,7 @@ import type { PagedResult } from "@/lib/types/paged";
 const PAGE_SIZE = 20;
 
 export default function AdminStudentsPage() {
+  const router = useRouter();
   const { show } = useToast();
   const { data: stats, refresh: refreshStats } = useAdminDashboard();
   const [paged, setPaged] = useState<PagedResult<AdminUserListItem>>({
@@ -139,32 +141,24 @@ export default function AdminStudentsPage() {
         title="Students"
         subtitle="Block or unblock student access and visibility — accounts stay in the system and can be restored anytime."
         badge={stats ? `${stats.totalStudents} profiles` : undefined}
-      >
-        <Button
-          variant="secondary"
-          className="rounded-xl border-0 bg-white/15 text-white hover:bg-white/25"
-          onClick={() => void load()}
-          disabled={loading}
-        >
-          <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
-          Refresh
-        </Button>
-      </AdminPageHeader>
+      />
 
       {stats && (
-        <AdminStatCards
-          columns={4}
-          items={[
-            { label: "Student profiles", value: stats.totalStudents },
-            { label: "Active accounts", value: activeCount || stats.studentAccounts },
-            {
-              label: "Blocked",
-              value: stats.suspendedUsers,
-              highlight: false,
-            },
-            { label: "Projects (platform)", value: stats.totalProjects },
-          ]}
-        />
+        <>
+          <AdminStatCards
+            columns={4}
+            items={[
+              { label: "Student profiles", value: stats.totalStudents },
+              { label: "Active accounts", value: activeCount || stats.studentAccounts },
+              {
+                label: "Blocked",
+                value: stats.suspendedUsers,
+                highlight: false,
+              },
+              { label: "Projects (platform)", value: stats.totalProjects },
+            ]}
+          />
+        </>
       )}
 
       <AdminFilterPanel>
@@ -187,6 +181,14 @@ export default function AdminStudentsPage() {
             <SelectItem value="removed">Blocked only</SelectItem>
           </SelectContent>
         </Select>
+        <div className="ml-auto">
+          <Button
+            className="rounded-xl bg-[#6C5DD3] hover:bg-[#5b4eb8]"
+            onClick={() => router.push("/dashboard/admin/academic-catalog")}
+          >
+            Go to Universities & degrees
+          </Button>
+        </div>
       </AdminFilterPanel>
 
       <p className="text-sm text-slate-500">
@@ -226,27 +228,29 @@ export default function AdminStudentsPage() {
                       <StatusPill active={s.isActive} />
                     </td>
                     <td className="px-5 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <AdminMessageUserButton studentProfileId={s.studentProfileId} />
+                      <div className="flex justify-end gap-2 items-center">
+                        <AdminMessageUserButton
+                          studentProfileId={s.studentProfileId}
+                        />
                         {s.isActive ? (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="rounded-lg"
-                          onClick={() => setStudentToRemove(s)}
-                        >
-                          Block
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="rounded-lg"
-                          onClick={() => void restoreStudent(s)}
-                        >
-                          Unblock
-                        </Button>
-                      )}
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="rounded-lg min-w-[110px]"
+                            onClick={() => setStudentToRemove(s)}
+                          >
+                            Block
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="rounded-lg min-w-[110px]"
+                            onClick={() => void restoreStudent(s)}
+                          >
+                            Unblock
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
