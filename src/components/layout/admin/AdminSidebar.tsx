@@ -34,7 +34,6 @@ const navItems = [
   { name: "Settings", href: "/dashboard/admin/settings", icon: Settings, badgeKey: null },
   { name: "Students", href: "/dashboard/admin/students", icon: GraduationCap, badgeKey: null },
   { name: "Companies", href: "/dashboard/admin/companies", icon: Building2, badgeKey: null },
-  { name: "Email logs", href: "/dashboard/admin/email-logs", icon: MailCheck, badgeKey: null },
 ];
 
 export default function AdminSidebar() {

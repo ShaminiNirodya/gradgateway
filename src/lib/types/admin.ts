@@ -97,16 +97,3 @@ export interface PublicPlatformSettings {
 export interface AdminPlatformSettings extends PublicPlatformSettings {
   updatedAt: string;
 }
-
-export interface AdminEmailLogItem {
-  id: string;
-  userEmail: string;
-  toEmail: string;
-  templateType: string;
-  purpose: string;
-  provider: string;
-  status: string;
-  error?: string | null;
-  createdAt: string;
-  sentAt?: string | null;
-}

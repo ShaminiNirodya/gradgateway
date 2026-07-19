@@ -3,7 +3,6 @@ import {
   AdminAnalytics,
   AdminCompanyListItem,
   AdminDashboard,
-  AdminEmailLogItem,
   AdminPlatformSettings,
   AdminUserListItem,
   PublicPlatformSettings,
@@ -249,26 +248,6 @@ export class AdminService {
       headers: authHeaders(token),
     });
     await getJsonOrThrow(response, 'Failed to update inquiry');
-  }
-
-  static async getEmailLogs(
-    token: string,
-    params?: { search?: string; status?: string; take?: number }
-  ): Promise<AdminEmailLogItem[]> {
-    const qs = new URLSearchParams();
-    if (params?.search) qs.set('search', params.search);
-    if (params?.status) qs.set('status', params.status);
-    if (params?.take) qs.set('take', String(params.take));
-
-    const url = qs.toString()
-      ? `${API_ENDPOINTS.ADMIN.EMAIL_LOGS}?${qs}`
-      : API_ENDPOINTS.ADMIN.EMAIL_LOGS;
-    const response = await fetch(url, { headers: authHeaders(token) });
-    const data = await getJsonOrThrow<PagedResult<AdminEmailLogItem> | AdminEmailLogItem[]>(
-      response,
-      'Failed to load email logs'
-    );
-    return unwrapPagedItems(data);
   }
 
   static async getPublicSettings(): Promise<PublicPlatformSettings> {

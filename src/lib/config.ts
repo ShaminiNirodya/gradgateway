@@ -100,7 +100,6 @@ export const API_ENDPOINTS = {
     INQUIRIES: `${API_URL}/api/admin/inquiries`,
     INQUIRY_REVIEWED: (inquiryId: string) => `${API_URL}/api/admin/inquiries/${inquiryId}/reviewed`,
     INQUIRY_DELETE: (inquiryId: string) => `${API_URL}/api/admin/inquiries/${inquiryId}`,
-    EMAIL_LOGS: `${API_URL}/api/admin/email-logs`,
     ANALYTICS: `${API_URL}/api/admin/analytics`,
     TESTIMONIALS: `${API_URL}/api/admin/testimonials`,
     TESTIMONIAL: (id: string) => `${API_URL}/api/admin/testimonials/${id}`,
