@@ -5,19 +5,29 @@ export const personalInfoSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   phone: z.string().regex(/^\+94\d{9}$/, "Must be a valid Sri Lankan number (+94...)"),
-  // We'll handle the image file separately in the component state
+  // Optional base64 data URL for preview/upload handoff
+  photoDataUrl: z.string().optional(),
 });
 
 // Step 2: Academic Info
 export const academicInfoSchema = z.object({
   university: z.string().min(1, "Please select your university"),
-  studentId: z.string().min(4, "Student ID is required"),
   degree: z.string().min(1, "Please select your degree program"),
-  gradYear: z.string().min(4, "Please select graduation year"),
-  gpa: z.string().refine((val) => {
-    const num = parseFloat(val);
-    return num >= 0 && num <= 4.0;
-  }, "GPA must be between 0.0 and 4.0"),
+  currentYear: z.number().min(1, "Please select your current year").max(4, "Invalid year"),
+  gradYear: z
+    .string()
+    .min(1, "Please select graduation year")
+    .refine((val) => {
+      const year = Number.parseInt(val, 10);
+      return year >= 2020 && year <= 2040;
+    }, "Graduation year must be between 2020 and 2040"),
+  gpa: z
+    .string()
+    .min(1, "Please select GPA")
+    .refine((val) => {
+      const num = Number.parseFloat(val);
+      return !Number.isNaN(num) && num >= 0 && num <= 4.0;
+    }, "GPA must be between 0.0 and 4.0"),
 });
 
 // Step 3: Security

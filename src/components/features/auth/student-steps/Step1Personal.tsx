@@ -6,88 +6,116 @@ import { personalInfoSchema, PersonalInfoData } from "@/lib/validators/student-r
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { User, Mail, Phone, Camera } from "lucide-react";
+import { User, Mail, Phone } from "lucide-react";
 import { motion } from "framer-motion";
+import { useRef, useState } from "react";
+import RegistrationStepHeader from "@/components/features/auth/RegistrationStepHeader";
+import PhotoUploadField from "@/components/features/auth/PhotoUploadField";
 
 interface Step1Props {
-  onNext: (data: PersonalInfoData) => void;
+  onNext: (data: PersonalInfoData & { photoFile?: File }) => void;
   defaultValues?: Partial<PersonalInfoData>;
 }
 
 export default function Step1Personal({ onNext, defaultValues }: Step1Props) {
-  const { register, handleSubmit, formState: { errors } } = useForm<PersonalInfoData>({
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [preview, setPreview] = useState<string | null>(
+    (defaultValues as PersonalInfoData & { photoDataUrl?: string })?.photoDataUrl ?? null
+  );
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<PersonalInfoData>({
     resolver: zodResolver(personalInfoSchema),
-    defaultValues: defaultValues || { fullName: "", email: "", phone: "+94" }
+    defaultValues: {
+      fullName: defaultValues?.fullName ?? "",
+      email: defaultValues?.email ?? "",
+      phone: defaultValues?.phone ?? "+94",
+      photoDataUrl: (defaultValues as PersonalInfoData & { photoDataUrl?: string })?.photoDataUrl,
+    },
   });
 
+  const onPickFile = () => fileInputRef.current?.click();
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    const maxBytes = 2 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      alert("Image is too large. Please select a file under 2MB.");
+      e.target.value = "";
+      return;
+    }
+
+    setPhotoFile(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = String(reader.result || "");
+      setPreview(url);
+      setValue("photoDataUrl", url, { shouldValidate: false, shouldDirty: true });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const onSubmit = (data: PersonalInfoData) => {
+    onNext({ ...data, photoFile: photoFile || undefined });
+  };
+
+  const inputClass =
+    "h-14 rounded-2xl border-slate-200/80 bg-slate-50/80 pl-12 font-medium text-slate-700 transition-all focus:border-[#6C5DD3] focus:bg-white focus:ring-2 focus:ring-[#6C5DD3]/15";
+
   return (
-    <motion.form 
+    <motion.form
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      onSubmit={handleSubmit(onNext)} 
+      onSubmit={handleSubmit(onSubmit)}
       className="space-y-6"
     >
-      {/* Profile Photo Uploader */}
-      <div className="flex flex-col items-center justify-center mb-8">
-        <div className="relative group cursor-pointer">
-          <div className="w-28 h-28 rounded-full bg-slate-50 border-4 border-white shadow-lg flex items-center justify-center group-hover:bg-slate-100 transition-colors">
-            <Camera className="w-10 h-10 text-slate-300 group-hover:text-[#6C5DD3] transition-colors" />
-          </div>
-          <div className="absolute bottom-0 right-0 w-8 h-8 bg-[#6C5DD3] rounded-full flex items-center justify-center text-white border-2 border-white shadow-sm">
-            <div className="text-lg leading-none mb-0.5">+</div>
-          </div>
-        </div>
-        <span className="text-sm font-bold text-slate-500 mt-3">Upload Photo</span>
-      </div>
+      <RegistrationStepHeader
+        accent="student"
+        title="Personal details"
+        description="Add a photo and contact information so recruiters can recognize and reach you."
+      />
+
+      <PhotoUploadField preview={preview} label="Upload profile photo" onPick={onPickFile} accent="student" />
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={onFileChange} className="hidden" />
+      <input type="hidden" {...register("photoDataUrl")} />
 
       <div className="space-y-5">
-        {/* Full Name */}
         <div className="space-y-2">
-          <Label className="text-slate-600 font-bold ml-1">Full Name</Label>
+          <Label className="ml-1 font-bold text-slate-600">Full Name</Label>
           <div className="relative">
-            <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-            <Input 
-              {...register("fullName")} 
-              className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 transition-all font-medium text-slate-700" 
-              placeholder="e.g. Kasun Perera" 
-            />
+            <User className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <Input {...register("fullName")} className={inputClass} placeholder="e.g. Kasun Perera" />
           </div>
-          {errors.fullName && <p className="text-xs text-red-500 font-bold ml-2">{errors.fullName.message}</p>}
+          {errors.fullName && <p className="ml-2 text-xs font-bold text-red-500">{errors.fullName.message}</p>}
         </div>
 
-        {/* Email */}
         <div className="space-y-2">
-          <Label className="text-slate-600 font-bold ml-1">Email Address</Label>
+          <Label className="ml-1 font-bold text-slate-600">Email Address</Label>
           <div className="relative">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-            <Input 
-              {...register("email")} 
-              className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 transition-all font-medium text-slate-700" 
-              placeholder="kasun@example.com" 
-            />
+            <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <Input {...register("email")} className={inputClass} placeholder="kasun@example.com" />
           </div>
-          {errors.email && <p className="text-xs text-red-500 font-bold ml-2">{errors.email.message}</p>}
+          {errors.email && <p className="ml-2 text-xs font-bold text-red-500">{errors.email.message}</p>}
         </div>
 
-        {/* Phone */}
         <div className="space-y-2">
-          <Label className="text-slate-600 font-bold ml-1">Phone Number</Label>
+          <Label className="ml-1 font-bold text-slate-600">Phone Number</Label>
           <div className="relative">
-            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-            <Input 
-              {...register("phone")} 
-              className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 transition-all font-medium text-slate-700" 
-              placeholder="+94 77 123 4567" 
-            />
+            <Phone className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <Input {...register("phone")} className={inputClass} placeholder="+94 77 123 4567" />
           </div>
-          {errors.phone && <p className="text-xs text-red-500 font-bold ml-2">{errors.phone.message}</p>}
+          {errors.phone && <p className="ml-2 text-xs font-bold text-red-500">{errors.phone.message}</p>}
         </div>
       </div>
 
-      <div className="pt-6">
-        <Button type="submit" className="w-full h-14 rounded-2xl bg-[#6C5DD3] hover:bg-[#5b4eb8] text-white text-lg font-bold shadow-lg shadow-indigo-200 transition-all hover:-translate-y-1">
-          Continue
+      <div className="pt-4">
+        <Button
+          type="submit"
+          className="h-14 w-full rounded-2xl bg-[#6C5DD3] text-lg font-bold text-white shadow-lg shadow-indigo-200/60 transition-all hover:-translate-y-0.5 hover:bg-[#5b4eb8]"
+        >
+          Continue to academic info
         </Button>
       </div>
     </motion.form>

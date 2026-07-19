@@ -1,76 +1,103 @@
 "use client";
 
+import { useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { academicInfoSchema, AcademicInfoData } from "@/lib/validators/student-register";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@/components/ui/select";
 import { motion } from "framer-motion";
-import { GraduationCap, BookOpen, Calendar, Award, Hash } from "lucide-react";
-
-// Mock Data
-const UNIVERSITIES = [
-  "University of Moratuwa", 
-  "University of Colombo", 
-  "University of Peradeniya",
-  "University of Kelaniya",
-  "University of Jayewardenepura",
-  "SLIIT", 
-  "IIT", 
-  "NSBM"
-];
-
-const DEGREES = [
-  "BSc (Hons) Computer Science", 
-  "BSc (Hons) Software Engineering", 
-  "BSc (Hons) Information Systems", 
-  "BSc (Hons) Data Science",
-  "BSc (Hons) Cyber Security"
-];
+import RegistrationStepHeader from "@/components/features/auth/RegistrationStepHeader";
+import { GraduationCap, BookOpen, Calendar, Award } from "lucide-react";
+import {
+  SELECT_UNSET,
+  fromControlledSelectValue,
+  toControlledSelectValue,
+} from "@/lib/utils/controlled-select";
+import { GPA_OPTIONS, GRADUATION_YEARS } from "@/lib/constants/academic-options";
+import { useAcademicCatalog } from "@/lib/hooks/use-academic-catalog";
 
 interface Step2Props {
   onNext: (data: AcademicInfoData) => void;
   onBack: () => void;
+  defaultValues?: Partial<AcademicInfoData>;
 }
 
-export default function Step2Academic({ onNext, onBack }: Step2Props) {
-  const { control, register, handleSubmit, formState: { errors } } = useForm<AcademicInfoData>({
-    resolver: zodResolver(academicInfoSchema)
+export default function Step2Academic({ onNext, onBack, defaultValues }: Step2Props) {
+  const { universities, loading, getDegreesForUniversity } = useAcademicCatalog();
+  const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<AcademicInfoData>({
+    resolver: zodResolver(academicInfoSchema),
+    defaultValues,
   });
 
+  const selectedUniversity = watch("university");
+
+  const availableDegrees = useMemo(() => {
+    if (!selectedUniversity) return [];
+    return getDegreesForUniversity(selectedUniversity);
+  }, [selectedUniversity, getDegreesForUniversity]);
+
+  const selectTriggerClass =
+    "h-14 w-full min-w-0 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3] data-[state=open]:border-[#6C5DD3]";
+
   return (
-    <motion.form 
+    <motion.form
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      onSubmit={handleSubmit(onNext)} 
-      className="space-y-6"
+      onSubmit={handleSubmit(onNext)}
+      className="min-w-0 space-y-6"
     >
+      <RegistrationStepHeader
+        accent="student"
+        title="Academic background"
+        description="Select your university and degree program."
+      />
+
       <div className="space-y-5">
-        {/* University */}
         <div className="space-y-2">
           <Label className="text-slate-600 font-bold ml-1">University</Label>
           <Controller
             name="university"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3] data-[state=open]:border-[#6C5DD3]">
-                  <div className="flex items-center gap-3 text-slate-700">
-                    <GraduationCap className="w-5 h-5 text-[#6C5DD3]" />
-                    <SelectValue placeholder="Select University" />
-                  </div>
+              <Select
+                value={toControlledSelectValue(field.value)}
+                onValueChange={(val) => {
+                  const nextUniversity = fromControlledSelectValue(val);
+                  field.onChange(nextUniversity);
+                  setValue("degree", "");
+                }}
+                disabled={loading}
+              >
+                <SelectTrigger className={selectTriggerClass}>
+                  <GraduationCap className="h-5 w-5 shrink-0 text-[#6C5DD3]" />
+                  <SelectValue placeholder={loading ? "Loading universities…" : "Select University"} />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl border-none shadow-xl">
-                  {UNIVERSITIES.map((u) => <SelectItem key={u} value={u} className="rounded-lg my-1 cursor-pointer">{u}</SelectItem>)}
+                <SelectContent
+                  position="popper"
+                  align="start"
+                  className="max-h-72 w-[var(--radix-select-trigger-width)] rounded-xl border-slate-200 shadow-xl"
+                >
+                  <SelectItem value={SELECT_UNSET} disabled className="hidden">
+                    Select University
+                  </SelectItem>
+                  {universities.map((u) => (
+                    <SelectItem
+                      key={u}
+                      value={u}
+                      className="cursor-pointer whitespace-normal rounded-lg py-2.5 leading-snug"
+                    >
+                      {u}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
@@ -78,32 +105,46 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
           {errors.university && <p className="text-xs text-red-500 font-bold ml-2">{errors.university.message}</p>}
         </div>
 
-        {/* Student ID */}
-        <div className="space-y-2">
-          <Label className="text-slate-600 font-bold ml-1">Student ID</Label>
-          <div className="relative">
-            <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-            <Input {...register("studentId")} className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 transition-all font-medium" placeholder="e.g. 2025001" />
-          </div>
-          {errors.studentId && <p className="text-xs text-red-500 font-bold ml-2">{errors.studentId.message}</p>}
-        </div>
-
-        {/* Degree */}
         <div className="space-y-2">
           <Label className="text-slate-600 font-bold ml-1">Degree Program</Label>
           <Controller
             name="degree"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <SelectTrigger className="h-14 rounded-2xl bg-slate-50 border-transparent focus:ring-0 focus:border-[#6C5DD3]">
-                  <div className="flex items-center gap-3 text-slate-700">
-                    <BookOpen className="w-5 h-5 text-[#6C5DD3]" />
-                    <SelectValue placeholder="Select Degree" />
-                  </div>
+              <Select
+                value={toControlledSelectValue(field.value)}
+                onValueChange={(val) => field.onChange(fromControlledSelectValue(val))}
+                disabled={!selectedUniversity}
+              >
+                <SelectTrigger className={selectTriggerClass}>
+                  <BookOpen className="h-5 w-5 shrink-0 text-[#6C5DD3]" />
+                  <SelectValue
+                    placeholder={
+                      !selectedUniversity
+                        ? "Select university first"
+                        : availableDegrees.length === 0
+                          ? "No degrees listed for this university"
+                          : "Select degree"
+                    }
+                  />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl border-none shadow-xl">
-                  {DEGREES.map((d) => <SelectItem key={d} value={d} className="rounded-lg my-1 cursor-pointer">{d}</SelectItem>)}
+                <SelectContent
+                  position="popper"
+                  align="start"
+                  className="max-h-72 w-[var(--radix-select-trigger-width)] rounded-xl border-slate-200 shadow-xl"
+                >
+                  <SelectItem value={SELECT_UNSET} disabled className="hidden">
+                    Select Degree
+                  </SelectItem>
+                  {availableDegrees.map((d) => (
+                    <SelectItem
+                      key={d}
+                      value={d}
+                      className="cursor-pointer whitespace-normal rounded-lg py-2.5 leading-snug"
+                    >
+                      {d}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
@@ -111,21 +152,106 @@ export default function Step2Academic({ onNext, onBack }: Step2Props) {
           {errors.degree && <p className="text-xs text-red-500 font-bold ml-2">{errors.degree.message}</p>}
         </div>
 
-        {/* GPA & Year */}
+        <div className="space-y-2">
+          <Label className="text-slate-600 font-bold ml-1">Current Academic Year</Label>
+          <Controller
+            name="currentYear"
+            control={control}
+            render={({ field }) => (
+              <Select
+                value={toControlledSelectValue(
+                  field.value != null ? String(field.value) : ""
+                )}
+                onValueChange={(val) => {
+                  const next = fromControlledSelectValue(val);
+                  field.onChange(next === "" ? undefined : parseInt(next, 10));
+                }}
+              >
+                <SelectTrigger className={selectTriggerClass}>
+                  <GraduationCap className="h-5 w-5 shrink-0 text-[#6C5DD3]" />
+                  <SelectValue placeholder="Select Academic Year" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-none shadow-xl">
+                  <SelectItem value={SELECT_UNSET} disabled className="hidden">
+                    Select Academic Year
+                  </SelectItem>
+                  <SelectItem value="1" className="rounded-lg my-1 cursor-pointer">1st Year</SelectItem>
+                  <SelectItem value="2" className="rounded-lg my-1 cursor-pointer">2nd Year</SelectItem>
+                  <SelectItem value="3" className="rounded-lg my-1 cursor-pointer">3rd Year</SelectItem>
+                  <SelectItem value="4" className="rounded-lg my-1 cursor-pointer">4th Year</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.currentYear && <p className="text-xs text-red-500 font-bold ml-2">{errors.currentYear.message}</p>}
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label className="text-slate-600 font-bold ml-1">GPA</Label>
-            <div className="relative">
-                <Award className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                <Input {...register("gpa")} type="number" step="0.01" className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 font-medium" placeholder="3.8" />
-            </div>
+            <Controller
+              name="gpa"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  value={toControlledSelectValue(field.value)}
+                  onValueChange={(val) => field.onChange(fromControlledSelectValue(val))}
+                >
+                  <SelectTrigger className={selectTriggerClass}>
+                    <Award className="h-5 w-5 shrink-0 text-[#6C5DD3]" />
+                    <SelectValue placeholder="Select GPA" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60 rounded-xl border-none shadow-xl">
+                    <SelectItem value={SELECT_UNSET} disabled className="hidden">
+                      Select GPA
+                    </SelectItem>
+                    {GPA_OPTIONS.map((option) => (
+                      <SelectItem
+                        key={option.value}
+                        value={option.value}
+                        className="cursor-pointer rounded-lg my-1"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.gpa && <p className="text-xs text-red-500 font-bold ml-2">{errors.gpa.message}</p>}
           </div>
           <div className="space-y-2">
             <Label className="text-slate-600 font-bold ml-1">Grad Year</Label>
-            <div className="relative">
-                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                <Input {...register("gradYear")} type="number" className="pl-12 h-14 rounded-2xl bg-slate-50 border-transparent focus:bg-white focus:border-[#6C5DD3] focus:ring-0 font-medium" placeholder="2026" />
-            </div>
+            <Controller
+              name="gradYear"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  value={toControlledSelectValue(field.value)}
+                  onValueChange={(val) => field.onChange(fromControlledSelectValue(val))}
+                >
+                  <SelectTrigger className={selectTriggerClass}>
+                    <Calendar className="h-5 w-5 shrink-0 text-[#6C5DD3]" />
+                    <SelectValue placeholder="Select year" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60 rounded-xl border-none shadow-xl">
+                    <SelectItem value={SELECT_UNSET} disabled className="hidden">
+                      Select year
+                    </SelectItem>
+                    {GRADUATION_YEARS.map((year) => (
+                      <SelectItem
+                        key={year}
+                        value={String(year)}
+                        className="cursor-pointer rounded-lg my-1"
+                      >
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.gradYear && <p className="text-xs text-red-500 font-bold ml-2">{errors.gradYear.message}</p>}
           </div>
         </div>
       </div>

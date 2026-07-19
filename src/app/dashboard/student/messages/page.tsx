@@ -1,0 +1,1360 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Paperclip, MoreVertical, X, ExternalLink, MessageSquare, Search, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  conversationHighlightElementId,
+  scrollAndHighlightElement,
+} from "@/lib/utils/highlight-target";
+import { useToast } from "@/components/ui/toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { AuthService } from "@/lib/services/auth.service";
+import { DashboardService } from "@/lib/services/dashboard.service";
+import { StorageService } from "@/lib/services/storage.service";
+import { ConversationItem } from "@/lib/types/dashboard";
+import { useAuth } from "@/lib/contexts/AuthContext";
+import { signalRService } from "@/lib/services/signalr.service";
+import { UnreadMessageIndicator } from "@/components/shared/UnreadMessageIndicator";
+import { StudentPageContainer } from "@/components/layout/student/StudentPageContainer";
+import { StudentPageHero } from "@/components/layout/student/StudentPageHero";
+import { useUnreadConversations } from "@/components/shared/UnreadConversationsProvider";
+import {
+  formatChatMessageTime,
+  formatConversationListDate,
+  formatMessageDateTime,
+  parseApiUtcDate,
+} from "@/lib/utils/datetime";
+import {
+  matchesJobOfferAcceptReply,
+  matchesJobOfferReply,
+  notifyApplicationsRefresh,
+  OFFER_REPLY_INTERVIEW,
+  OFFER_REPLY_REJECTED,
+} from "@/lib/constants/offer-reply";
+
+type MessageItem = {
+  id: string;
+  conversationId: string;
+  senderUserId: string;
+  senderName: string;
+  content: string;
+  isRead: boolean;
+  sentAt: string;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
+  attachmentType?: string | null;
+};
+
+type OfferMessagePayload = {
+  applicationId?: string;
+  position: string;
+  jobType: string;
+  compensation?: string | null;
+  message: string;
+  note?: string;
+};
+
+type InterviewInvitation = {
+  role: string;
+  company: string;
+  date: string;
+  dates?: string[];
+  multipleDates?: boolean;
+  duration: string;
+  format: string;
+  meetingLink?: string | null;
+  location?: string | null;
+  notes?: string | null;
+};
+
+function parseInterviewInvitation(content: string): InterviewInvitation | null {
+  if (!content || !content.startsWith('INTERVIEW_INVITATION::')) return null;
+
+  try {
+    const jsonData = content.slice('INTERVIEW_INVITATION::'.length);
+    const parsed = JSON.parse(jsonData) as InterviewInvitation;
+    if (parsed?.role && parsed?.company && parsed?.date) {
+      return parsed;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function parseOfferMessage(content: string): OfferMessagePayload | null {
+  if (!content) return null;
+
+  if (content.startsWith("JOB_OFFER::")) {
+    const raw = content.slice("JOB_OFFER::".length);
+    try {
+      const parsed = JSON.parse(raw) as OfferMessagePayload;
+      if (parsed?.position && parsed?.jobType && parsed?.message) {
+        return parsed;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Backward compatibility for older plain-text offer format.
+  if (content.startsWith("JOB OFFER")) {
+    const compact = content.replace(/\s+/g, " ").trim();
+
+    const positionMatch = compact.match(/Position:\s*(.*?)\s+Type:/i);
+    const typeMatch = compact.match(/Type:\s*(.*?)\s+(Compensation:|Please reply|$)/i);
+    const compensationMatch = compact.match(/Compensation:\s*(.*?)\s+Please reply/i);
+
+    const position = positionMatch?.[1]?.trim();
+    const jobType = typeMatch?.[1]?.trim();
+
+    if (!position || !jobType) {
+      // If legacy message cannot be parsed, keep it as a normal message (no fake values).
+      return null;
+    }
+
+    const messageBody = compact
+      .replace(/^JOB OFFER(?: PROPOSAL)?\s*/i, "")
+      .replace(/Position:\s*.*?\s+Type:\s*.*?(\s+Compensation:\s*.*?\s+Please reply|\s+Please reply|$)/i, "")
+      .trim();
+
+    return {
+      position,
+      jobType,
+      compensation: compensationMatch?.[1]?.trim() || null,
+      message: messageBody || compact,
+      note: "Please reply in this chat if you are interested.",
+    };
+  }
+
+  return null;
+}
+
+function hasOfferBeenResponded(
+  offerIndex: number,
+  messages: MessageItem[],
+  userEmail?: string | null
+): boolean {
+  const email = userEmail?.toLowerCase();
+  if (!email) return false;
+
+  let nextOfferIndex = messages.length;
+  for (let i = offerIndex + 1; i < messages.length; i++) {
+    const laterOffer = parseOfferMessage(messages[i].content);
+    if (laterOffer && messages[i].senderName?.toLowerCase() !== email) {
+      nextOfferIndex = i;
+      break;
+    }
+  }
+
+  for (let i = offerIndex + 1; i < nextOfferIndex; i++) {
+    if (messages[i].senderName?.toLowerCase() === email) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function conversationPreviewText(raw: string): string {
+  const interview = parseInterviewInvitation(raw);
+  if (interview) return `Interview Invitation: ${interview.role}`;
+  
+  const offer = parseOfferMessage(raw);
+  if (offer) return `Job Offer: ${offer.position}`;
+  
+  return raw;
+}
+
+function sortConversationsForInbox(list: ConversationItem[]): ConversationItem[] {
+  return [...list].sort((a, b) => {
+    const aUnread = Boolean(a.hasUnread);
+    const bUnread = Boolean(b.hasUnread);
+    if (aUnread !== bUnread) return aUnread ? -1 : 1;
+    return parseApiUtcDate(b.lastMessageAt).getTime() - parseApiUtcDate(a.lastMessageAt).getTime();
+  });
+}
+
+function conversationShowsUnread(conversation: ConversationItem): boolean {
+  return Boolean(conversation.hasUnread);
+}
+
+function findScrollTargetMessageId(
+  messages: MessageItem[],
+  userEmail?: string | null
+): string | null {
+  if (messages.length === 0) return null;
+
+  const email = userEmail?.toLowerCase();
+  if (!email) return messages[messages.length - 1]?.id ?? null;
+
+  const isIncoming = (message: MessageItem) =>
+    message.senderName?.toLowerCase() !== email;
+
+  const firstUnreadIncoming = messages.find((m) => isIncoming(m) && !m.isRead);
+  if (firstUnreadIncoming) return firstUnreadIncoming.id;
+
+  const lastIncoming = [...messages].reverse().find(isIncoming);
+  if (lastIncoming) return lastIncoming.id;
+
+  return messages[messages.length - 1]?.id ?? null;
+}
+
+export default function StudentMessagesPage() {
+  const { show } = useToast();
+  const { refreshUnreadCount } = useUnreadConversations();
+  const { user, userData } = useAuth();
+  const searchParams = useSearchParams();
+  const [query, setQuery] = useState("");
+  const [input, setInput] = useState("");
+  const [conversations, setConversations] = useState<ConversationItem[]>([]);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<MessageItem[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [sendingAttachment, setSendingAttachment] = useState(false);
+  const attachmentInputRef = useRef<HTMLInputElement | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletingChat, setDeletingChat] = useState(false);
+  const isCompany = userData?.role === "Company";
+  const selectedConversationIdRef = useRef<string | null>(null);
+  const lastActiveRefreshAtRef = useRef<number>(0);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const scrollToMessageConversationIdRef = useRef<string | null>(null);
+  const conversationIdParam = searchParams.get("conversationId");
+  const opportunityIdParam = searchParams.get("opportunityId");
+  const studentProfileIdParam = searchParams.get("studentProfileId");
+  const highlightParam = searchParams.get("highlight");
+
+  useEffect(() => {
+    selectedConversationIdRef.current = selectedConversationId;
+  }, [selectedConversationId]);
+
+  const loadConversations = useCallback(async () => {
+    try {
+      const token = await AuthService.getIdToken();
+      if (!token) {
+        setConversations([]);
+        setSelectedConversationId(null);
+        return;
+      }
+
+      const rows = await DashboardService.getMyConversations(token);
+
+      let selected = null;
+      let finalRows = rows;
+
+      // Priority 1: Direct conversation ID from params
+      if (conversationIdParam) {
+        selected = rows.find((c) => c.id === conversationIdParam) || null;
+      }
+
+      // Priority 2: Opportunity ID from params (try to find or create)
+      if (!selected && opportunityIdParam) {
+        selected = rows.find((c) => c.opportunityId === opportunityIdParam) || null;
+
+        // If no conversation exists for this opportunity, create it
+        if (!selected) {
+          try {
+            const created = await DashboardService.startConversation(token, { opportunityId: opportunityIdParam });
+            finalRows = [created, ...rows.filter((c) => c.id !== created.id)];
+            selected = created;
+          } catch {
+            // Keep empty state if conversation cannot be created for this opportunity.
+          }
+        }
+      }
+
+      // Priority 3: Student profile ID from params (company talent -> message)
+      if (!selected && studentProfileIdParam) {
+        try {
+          const created = await DashboardService.startConversation(token, { studentProfileId: studentProfileIdParam });
+          finalRows = [created, ...rows.filter((c) => c.id !== created.id)];
+          selected = created;
+        } catch {
+          // Keep empty state if conversation cannot be created for this student.
+        }
+      }
+
+      // Keep the active chat only while still on this page (no auto-open of first chat).
+      if (
+        !selected &&
+        !conversationIdParam &&
+        !opportunityIdParam &&
+        !studentProfileIdParam &&
+        selectedConversationIdRef.current
+      ) {
+        selected = rows.find((c) => c.id === selectedConversationIdRef.current) || null;
+      }
+
+      setConversations(finalRows);
+      if (selected?.hasUnread) {
+        scrollToMessageConversationIdRef.current = selected.id;
+      }
+      setSelectedConversationId(selected?.id || null);
+    } catch {
+      setConversations([]);
+      setSelectedConversationId(null);
+    }
+  }, [conversationIdParam, opportunityIdParam, studentProfileIdParam]);
+
+  const handleDeleteChat = useCallback(async () => {
+    if (!selectedConversationId) return;
+    setDeletingChat(true);
+    try {
+      const token = await AuthService.getIdToken();
+      if (!token) return;
+      await DashboardService.deleteConversation(token, selectedConversationId);
+      setDeleteConfirmOpen(false);
+      setSelectedConversationId(null);
+      setMessages([]);
+      DashboardService.clearMessagesCache();
+      await loadConversations();
+      void refreshUnreadCount();
+      show({
+        title: "Chat deleted",
+        description: "This conversation was removed from your inbox.",
+        variant: "success",
+      });
+    } catch (e) {
+      show({
+        title: "Delete failed",
+        description: e instanceof Error ? e.message : "Could not delete this chat.",
+        variant: "error",
+      });
+    } finally {
+      setDeletingChat(false);
+    }
+  }, [selectedConversationId, loadConversations, refreshUnreadCount, show]);
+
+  useEffect(() => {
+    if (highlightParam !== "1" || !conversationIdParam || !conversations.length) return;
+    if (selectedConversationId !== conversationIdParam) return;
+    scrollAndHighlightElement(conversationHighlightElementId(conversationIdParam), {
+      durationMs: 3500,
+    });
+  }, [highlightParam, conversationIdParam, conversations.length, selectedConversationId]);
+
+  const loadMessages = useCallback(async (conversationId: string, silent = false) => {
+    try {
+      if (!conversationId) {
+        setMessages([]);
+        return;
+      }
+
+      if (!silent) {
+        setLoadingMessages(true);
+      }
+
+      const token = await AuthService.getIdToken();
+      if (!token) {
+        setMessages([]);
+        return;
+      }
+
+      const rows = await DashboardService.getConversationMessages(token, conversationId, {
+        skipCache: true,
+      });
+      setMessages(rows);
+      setConversations((prev) =>
+        prev.map((c) => (c.id === conversationId ? { ...c, hasUnread: false } : c))
+      );
+      DashboardService.clearConversationsCache();
+      void loadConversations();
+      void refreshUnreadCount();
+    } catch {
+      if (!silent) {
+        setMessages([]);
+      }
+    } finally {
+      if (!silent) {
+        setLoadingMessages(false);
+      }
+    }
+  }, [loadConversations, refreshUnreadCount]);
+
+  useEffect(() => {
+    const unsubscribe = signalRService.onMessage((raw) => {
+      const newMessage = raw as MessageItem;
+      const isActiveChat = selectedConversationIdRef.current === newMessage.conversationId;
+      const myEmail = user?.email?.toLowerCase();
+      const isFromMe =
+        Boolean(myEmail) &&
+        newMessage.senderName?.toLowerCase() === myEmail;
+
+      if (isActiveChat) {
+        setMessages((prev) => [...prev, newMessage]);
+        if (!isFromMe) {
+          scrollToMessageConversationIdRef.current = newMessage.conversationId;
+        }
+        void loadMessages(newMessage.conversationId, true);
+      }
+
+      setConversations((prev) => {
+        const exists = prev.some((c) => c.id === newMessage.conversationId);
+        if (!exists) {
+          void loadConversations();
+          return prev;
+        }
+
+        const updated = prev.map((c) =>
+          c.id === newMessage.conversationId
+            ? {
+                ...c,
+                lastMessage: newMessage.content,
+                lastMessageAt: newMessage.sentAt,
+                hasUnread: !isFromMe && !isActiveChat,
+              }
+            : c
+        );
+        return sortConversationsForInbox(updated);
+      });
+
+      DashboardService.clearConversationsCache();
+      void loadConversations();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [loadConversations, loadMessages, user?.email]);
+
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  useEffect(() => {
+    if (!selectedConversationId) {
+      setMessages([]);
+      return;
+    }
+
+    loadMessages(selectedConversationId);
+  }, [selectedConversationId, loadMessages]);
+
+  useEffect(() => {
+    const shouldPoll = () => typeof document === "undefined" || document.visibilityState === "visible";
+
+    const conversationInterval = setInterval(() => {
+      if (!shouldPoll()) return;
+      loadConversations();
+    }, 15000);
+
+    return () => clearInterval(conversationInterval);
+  }, [loadConversations]);
+
+  useEffect(() => {
+    if (!selectedConversationId) return;
+
+    const shouldPoll = () => typeof document === "undefined" || document.visibilityState === "visible";
+
+    const messageInterval = setInterval(() => {
+      if (!shouldPoll()) return;
+      loadMessages(selectedConversationId, true);
+    }, 8000);
+
+    return () => clearInterval(messageInterval);
+  }, [selectedConversationId, loadMessages]);
+
+  useEffect(() => {
+    const handleActiveRefresh = () => {
+      const now = Date.now();
+      if (now - lastActiveRefreshAtRef.current < 1000) {
+        return;
+      }
+      lastActiveRefreshAtRef.current = now;
+
+      loadConversations();
+      if (selectedConversationId) {
+        loadMessages(selectedConversationId, true);
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        handleActiveRefresh();
+      }
+    };
+
+    window.addEventListener("focus", handleActiveRefresh);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", handleActiveRefresh);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [loadConversations, loadMessages, selectedConversationId]);
+
+  const filteredConversations = useMemo(() => {
+    if (!query.trim()) return conversations;
+    const term = query.toLowerCase();
+    return conversations.filter(
+      (conversation) =>
+        conversation.otherPartyName.toLowerCase().includes(term) ||
+        conversation.lastMessage.toLowerCase().includes(term)
+    );
+  }, [conversations, query]);
+
+  const sortedConversations = useMemo(
+    () => sortConversationsForInbox(filteredConversations),
+    [filteredConversations]
+  );
+
+  const handleSelectConversation = useCallback(
+    (conversationId: string) => {
+      const conversation = conversations.find((c) => c.id === conversationId);
+      if (conversation?.hasUnread) {
+        scrollToMessageConversationIdRef.current = conversationId;
+      }
+      setConversations((prev) =>
+        prev.map((c) => (c.id === conversationId ? { ...c, hasUnread: false } : c))
+      );
+      DashboardService.clearMessagesCache(conversationId);
+      DashboardService.clearConversationsCache();
+      setSelectedConversationId(conversationId);
+    },
+    [conversations]
+  );
+
+  const scrollToTargetMessage = useCallback(() => {
+    const targetConversationId = scrollToMessageConversationIdRef.current;
+    if (!targetConversationId || targetConversationId !== selectedConversationId) return;
+
+    const container = messagesScrollRef.current;
+    if (!container || loadingMessages || messages.length === 0) return;
+
+    const targetMessageId = findScrollTargetMessageId(messages, user?.email);
+    if (!targetMessageId) {
+      scrollToMessageConversationIdRef.current = null;
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      const element = container.querySelector(`[data-message-id="${targetMessageId}"]`);
+      element?.scrollIntoView({ behavior: "smooth", block: "center" });
+      scrollToMessageConversationIdRef.current = null;
+    });
+  }, [selectedConversationId, loadingMessages, messages, user?.email]);
+
+  useEffect(() => {
+    scrollToTargetMessage();
+  }, [scrollToTargetMessage]);
+
+  const selectedConversation = useMemo(
+    () => conversations.find((conversation) => conversation.id === selectedConversationId) || null,
+    [conversations, selectedConversationId]
+  );
+
+  const sendConversationReply = useCallback(
+    async (content: string) => {
+      const trimmed = content.trim();
+      if (!trimmed || !selectedConversationId) return;
+
+      const token = await AuthService.getIdToken();
+      if (!token) throw new Error("Please log in again.");
+
+      const sent = await DashboardService.sendConversationMessage(token, selectedConversationId, trimmed);
+      setMessages((prev) => [...prev, sent]);
+      await loadConversations();
+      show({ title: "Message sent", description: "Your message has been delivered", variant: "success" });
+      return sent;
+    },
+    [selectedConversationId, loadConversations, show]
+  );
+
+  const syncOfferStatusAfterReply = useCallback(
+    async (trimmed: string, applicationId?: string) => {
+      if (!selectedConversationId) return;
+      if (!matchesJobOfferReply(trimmed)) return;
+
+      const token = await AuthService.getIdToken();
+      if (!token) return;
+
+      const accepted = matchesJobOfferAcceptReply(trimmed);
+      try {
+        await DashboardService.syncOfferRepliesFromMessages(token);
+      } catch {
+        // Sync endpoint may be unavailable until API restart.
+      }
+      try {
+        await DashboardService.respondToJobOffer(
+          token,
+          selectedConversationId,
+          accepted,
+          applicationId
+        );
+      } catch {
+        // Message send may have already updated status on the server.
+      }
+      notifyApplicationsRefresh();
+    },
+    [selectedConversationId]
+  );
+
+  const offerSyncAttemptedRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!selectedConversationId || loadingMessages || messages.length === 0) return;
+
+    const myEmail = user?.email?.toLowerCase();
+    if (!myEmail) return;
+
+    const syncKey = selectedConversationId;
+    if (offerSyncAttemptedRef.current.has(syncKey)) return;
+
+    const studentReplies = messages.filter(
+      (m) =>
+        m.senderName?.toLowerCase() === myEmail && matchesJobOfferReply(m.content)
+    );
+    const latest = studentReplies[studentReplies.length - 1];
+    if (!latest) return;
+
+    offerSyncAttemptedRef.current.add(syncKey);
+    void syncOfferStatusAfterReply(latest.content.trim());
+  }, [
+    selectedConversationId,
+    loadingMessages,
+    messages,
+    user?.email,
+    syncOfferStatusAfterReply,
+  ]);
+
+  const sendOfferResponse = useCallback(
+    async (content: string, applicationId?: string) => {
+      const trimmed = content.trim();
+      if (!trimmed || !selectedConversationId) return;
+
+      await sendConversationReply(trimmed);
+      await syncOfferStatusAfterReply(trimmed, applicationId);
+    },
+    [selectedConversationId, sendConversationReply, syncOfferStatusAfterReply]
+  );
+
+  const sendMessage = async () => {
+    const content = input.trim();
+    if ((!content && !attachmentFile) || !selectedConversationId) return;
+
+    try {
+      if (attachmentFile) {
+        setSendingAttachment(true);
+        const token = await AuthService.getIdToken();
+        if (!token || !user?.uid) throw new Error("Please log in again.");
+
+        const url = await StorageService.uploadChatAttachment(attachmentFile, user.uid);
+        const sent = await DashboardService.sendConversationMessage(
+          token,
+          selectedConversationId,
+          content,
+          { url, name: attachmentFile.name, type: attachmentFile.type }
+        );
+        setMessages((prev) => [...prev, sent]);
+        await loadConversations();
+        setAttachmentFile(null);
+        if (attachmentInputRef.current) attachmentInputRef.current.value = "";
+        show({ title: "Message sent", description: "Your attachment has been delivered", variant: "success" });
+      } else {
+        await sendConversationReply(content);
+        await syncOfferStatusAfterReply(content);
+      }
+      setInput("");
+    } catch (error: any) {
+      show({ title: "Send failed", description: error?.message || "Unable to send message.", variant: "error" });
+    } finally {
+      setSendingAttachment(false);
+    }
+  };
+
+  const inboxUnread = sortedConversations.filter((c) => conversationShowsUnread(c)).length;
+
+  return (
+    <StudentPageContainer fillViewport className="min-h-0 flex-1 overflow-hidden pb-0 space-y-4">
+      <StudentPageHero
+        eyebrow="Inbox"
+        title="Messages"
+        description="Chat with companies about roles, offers, and interviews."
+        badge={
+          inboxUnread > 0 ? (
+            <span className="rounded-full bg-[#6C5DD3] px-2.5 py-0.5 text-xs font-bold text-white">
+              {inboxUnread} new
+            </span>
+          ) : undefined
+        }
+      />
+
+      <div className="grid min-h-0 flex-1 gap-4 overflow-hidden md:gap-4 lg:grid-cols-3 lg:min-h-[0]">
+      <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5 lg:col-span-1 lg:max-h-full">
+        <div className="relative mb-4 shrink-0">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            placeholder="Search conversations..."
+            className="h-10 rounded-xl border-slate-200/80 pl-9"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
+
+        <div className="chat-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1">
+          {sortedConversations.length === 0 && (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-8 text-center">
+              <MessageSquare className="mx-auto mb-2 h-8 w-8 text-slate-300" />
+              <p className="text-sm font-semibold text-slate-600">No conversations yet</p>
+              <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+                {isCompany
+                  ? "Message candidates from Talent Search or Applications."
+                  : "Apply to openings or message companies to start a chat."}
+              </p>
+            </div>
+          )}
+          {sortedConversations.map((conversation) => {
+            const isUnread = conversationShowsUnread(conversation);
+            return (
+            <div
+              key={conversation.id}
+              id={conversationHighlightElementId(conversation.id)}
+              onClick={() => handleSelectConversation(conversation.id)}
+              className={cn(
+                "flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-all",
+                selectedConversationId === conversation.id
+                  ? "border-[#6C5DD3]/30 bg-violet-50 shadow-sm"
+                  : isUnread
+                    ? "border-emerald-100/80 bg-emerald-50/40 hover:bg-emerald-50/60"
+                    : "border-transparent hover:border-slate-100 hover:bg-slate-50"
+              )}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative shrink-0">
+                  <Avatar className="h-10 w-10 border border-slate-100 shadow-sm">
+                    {conversation.otherPartyPhotoUrl && <AvatarImage src={conversation.otherPartyPhotoUrl} alt={conversation.otherPartyName} />}
+                    <AvatarFallback>{conversation.otherPartyName[0]}</AvatarFallback>
+                  </Avatar>
+                  {isUnread && (
+                    <UnreadMessageIndicator className="absolute -top-0.5 -right-0.5" ringClassName="ring-white" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm truncate ${isUnread ? "font-extrabold text-slate-900" : "font-bold text-slate-800"}`}>
+                    {conversation.otherPartyName}
+                  </p>
+                  <p className={`text-xs truncate ${isUnread ? "font-medium text-slate-600" : "text-slate-400"}`}>
+                    {conversationPreviewText(conversation.lastMessage) || "No messages yet"}
+                  </p>
+                </div>
+              </div>
+              <span className={`text-[10px] font-medium shrink-0 ${isUnread ? "text-emerald-600" : "text-slate-400"}`}>
+                {formatConversationListDate(conversation.lastMessageAt)}
+              </span>
+            </div>
+            );
+          })}
+        </div>
+      </aside>
+
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm lg:col-span-2">
+        {!selectedConversation ? (
+          <MessagesEmptyPanel
+            isCompany={isCompany}
+            unreadCount={sortedConversations.filter((c) => Boolean(c.hasUnread)).length}
+            hasConversations={sortedConversations.length > 0}
+          />
+        ) : (
+          <>
+            <div className="z-10 flex shrink-0 items-center justify-between border-b border-slate-100 bg-white/80 p-5 backdrop-blur-sm sm:p-6">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-10 w-10 border border-slate-100 shadow-sm">
+                  {selectedConversation.otherPartyPhotoUrl && <AvatarImage src={selectedConversation.otherPartyPhotoUrl} alt={selectedConversation.otherPartyName} />}
+                  <AvatarFallback>{selectedConversation.otherPartyName[0]}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="text-sm font-bold text-slate-800">{selectedConversation.otherPartyName}</p>
+                  <p className="text-xs text-slate-500 font-medium">Conversation</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon-sm"><MoreVertical className="w-4 h-4 text-slate-500" /></Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-white rounded-xl shadow-xl border-slate-100">
+                    <DropdownMenuItem
+                      className="rounded-lg text-red-600 focus:bg-red-50 focus:text-red-600"
+                      onClick={() => setDeleteConfirmOpen(true)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete chat
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+
+            <div
+              ref={messagesScrollRef}
+              className="chat-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain bg-slate-50/30 p-6 pr-4"
+            >
+              {loadingMessages ? (
+                <div className="text-sm text-slate-400">Loading messages...</div>
+              ) : messages.length === 0 ? (
+                <div className="text-sm text-slate-400">No messages yet. Start the conversation.</div>
+              ) : (
+                messages.map((message, messageIndex) => {
+                  const fromMe = message.senderName === user?.email;
+                  const interview = parseInterviewInvitation(message.content);
+                  const offer = parseOfferMessage(message.content);
+
+                  if (interview) {
+                    return (
+                      <div key={message.id} data-message-id={message.id} className={`flex ${fromMe ? "justify-end" : "justify-start"} mb-6`}>
+                        <div className={`max-w-[600px] w-full ${fromMe ? "bg-gradient-to-br from-[#6C5DD3] to-[#8a7cff] text-white" : "bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200"} rounded-2xl overflow-hidden shadow-md`}>
+                          {/* Header */}
+                          <div className={`${fromMe ? "bg-white/10" : "bg-white/80"} px-6 py-4 border-b ${fromMe ? "border-white/20" : "border-indigo-200"}`}>
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2.5 rounded-xl ${fromMe ? "bg-white/20" : "bg-indigo-100"}`}>
+                                <svg className={`w-6 h-6 ${fromMe ? "text-white" : "text-[#6C5DD3]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                              </div>
+                              <div>
+                                <h3 className={`font-bold text-lg ${fromMe ? "text-white" : "text-slate-800"}`}>Interview Invitation</h3>
+                                <p className={`text-sm font-medium ${fromMe ? "text-indigo-100" : "text-indigo-600"}`}>{interview.company}</p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Details */}
+                          <div className="px-6 py-5 space-y-4">
+                            <div className={`${fromMe ? "bg-white/5" : "bg-white/60"} rounded-xl p-4 space-y-3`}>
+                              <div className="grid grid-cols-[120px_1fr] gap-3 items-start">
+                                <span className={`text-sm font-semibold ${fromMe ? "text-indigo-200" : "text-slate-600"}`}>Role:</span>
+                                <span className={`text-sm font-semibold ${fromMe ? "text-white" : "text-slate-900"}`}>{interview.role}</span>
+                              </div>
+                              
+                              <div className={`border-t ${fromMe ? "border-white/10" : "border-indigo-100"} pt-3 grid grid-cols-[120px_1fr] gap-3 items-start`}>
+                                <span className={`text-sm font-semibold ${fromMe ? "text-indigo-200" : "text-slate-600"}`}>Company:</span>
+                                <span className={`text-sm ${fromMe ? "text-white" : "text-slate-800"}`}>{interview.company}</span>
+                              </div>
+                              
+                              <div className={`border-t ${fromMe ? "border-white/10" : "border-indigo-100"} pt-3 grid grid-cols-[120px_1fr] gap-3 items-start`}>
+                                <span className={`text-sm font-semibold ${fromMe ? "text-indigo-200" : "text-slate-600"}`}>
+                                  {interview.multipleDates || (interview.dates && interview.dates.length > 1)
+                                    ? "Tentative dates:"
+                                    : "Proposed date:"}
+                                </span>
+                                <div className={`text-sm space-y-1 ${fromMe ? "text-white" : "text-slate-800"}`}>
+                                  {(interview.dates && interview.dates.length > 0
+                                    ? interview.dates
+                                    : [interview.date]
+                                  ).map((d) => (
+                                    <p key={d}>{d}</p>
+                                  ))}
+                                </div>
+                              </div>
+                              
+                              <div className={`border-t ${fromMe ? "border-white/10" : "border-indigo-100"} pt-3 grid grid-cols-[120px_1fr] gap-3 items-start`}>
+                                <span className={`text-sm font-semibold ${fromMe ? "text-indigo-200" : "text-slate-600"}`}>Approx. Duration:</span>
+                                <span className={`text-sm ${fromMe ? "text-white" : "text-slate-800"}`}>{interview.duration}</span>
+                              </div>
+                              
+                              <div className={`border-t ${fromMe ? "border-white/10" : "border-indigo-100"} pt-3 grid grid-cols-[120px_1fr] gap-3 items-start`}>
+                                <span className={`text-sm font-semibold ${fromMe ? "text-indigo-200" : "text-slate-600"}`}>Format:</span>
+                                <span className={`text-sm ${fromMe ? "text-white" : "text-slate-800"}`}>{interview.format}</span>
+                              </div>
+                              
+                              {interview.meetingLink && (
+                                <div className={`border-t ${fromMe ? "border-white/10" : "border-indigo-100"} pt-3 grid grid-cols-[120px_1fr] gap-3 items-start`}>
+                                  <span className={`text-sm font-semibold ${fromMe ? "text-indigo-200" : "text-slate-600"}`}>Meeting Link:</span>
+                                  <a 
+                                    href={interview.meetingLink} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className={`inline-flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${
+                                      fromMe 
+                                        ? "bg-white/20 hover:bg-white/30 text-white" 
+                                        : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                                    }`}
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                    {interview.meetingLink.length > 40 ? interview.meetingLink.substring(0, 40) + '...' : interview.meetingLink}
+                                  </a>
+                                </div>
+                              )}
+                              
+                              {interview.location && (
+                                <div className={`border-t ${fromMe ? "border-white/10" : "border-indigo-100"} pt-3 grid grid-cols-[120px_1fr] gap-3 items-start`}>
+                                  <span className={`text-sm font-semibold ${fromMe ? "text-indigo-200" : "text-slate-600"}`}>Location:</span>
+                                  <span className={`text-sm ${fromMe ? "text-white" : "text-slate-800"}`}>{interview.location}</span>
+                                </div>
+                              )}
+                              
+                              {interview.notes && (
+                                <div className={`border-t ${fromMe ? "border-white/10" : "border-indigo-100"} pt-3 grid grid-cols-[120px_1fr] gap-3 items-start`}>
+                                  <span className={`text-sm font-semibold ${fromMe ? "text-indigo-200" : "text-slate-600"}`}>Note:</span>
+                                  <span className={`text-sm ${fromMe ? "text-white" : "text-slate-800"}`}>{interview.notes}</span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Footer Note */}
+                            <div className={`${fromMe ? "bg-white/5" : "bg-amber-50/80"} rounded-lg px-4 py-3 border-l-4 ${fromMe ? "border-white/30" : "border-amber-400"}`}>
+                              <p className={`text-xs ${fromMe ? "text-indigo-100" : "text-amber-800"}`}>
+                                <span className="font-semibold">Note:</span> We'll follow up in this chat to confirm your interview time — it may differ per candidate.
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {/* Timestamp */}
+                          <div className={`px-6 pb-4 text-xs ${fromMe ? "text-indigo-200" : "text-slate-500"}`}>
+                            {formatMessageDateTime(message.sentAt)}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (offer) {
+                    return (
+                      <div
+                        key={message.id}
+                        data-message-id={message.id}
+                        className={cn("flex", fromMe ? "justify-end" : "justify-start")}
+                      >
+                        <ChatMessageRow from={fromMe ? "me" : "them"} sentAt={message.sentAt}>
+                          <OfferMessage
+                            from={fromMe ? "me" : "them"}
+                            offer={offer}
+                            showActions={
+                              !isCompany &&
+                              !fromMe &&
+                              !hasOfferBeenResponded(messageIndex, messages, user?.email)
+                            }
+                            onRespond={sendOfferResponse}
+                          />
+                        </ChatMessageRow>
+                      </div>
+                    );
+                  }
+
+                  const isNewIncoming = !fromMe && !message.isRead;
+
+                  return (
+                    <div
+                      key={message.id}
+                      data-message-id={message.id}
+                      className={cn(
+                        "flex",
+                        fromMe ? "justify-end" : "justify-start",
+                        isNewIncoming && "rounded-2xl ring-2 ring-emerald-300/80 ring-offset-2"
+                      )}
+                    >
+                      <ChatMessageRow from={fromMe ? "me" : "them"} sentAt={message.sentAt}>
+                        <Message from={fromMe ? "me" : "them"}>
+                          {message.attachmentUrl && (
+                            <MessageAttachment
+                              from={fromMe ? "me" : "them"}
+                              url={message.attachmentUrl}
+                              name={message.attachmentName}
+                              type={message.attachmentType}
+                            />
+                          )}
+                          {message.content}
+                        </Message>
+                      </ChatMessageRow>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="shrink-0 rounded-b-[24px] border-t bg-white p-4">
+              {attachmentFile && (
+                <div className="mb-2 flex items-center justify-between gap-2 rounded-xl bg-indigo-50/70 px-3 py-2">
+                  <span className="flex min-w-0 items-center gap-2 text-xs font-semibold text-indigo-700">
+                    <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{attachmentFile.name}</span>
+                    <span className="shrink-0 text-indigo-400">
+                      ({(attachmentFile.size / 1024 / 1024).toFixed(1)} MB)
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Remove attachment"
+                    className="shrink-0 rounded-md p-1 text-indigo-400 hover:bg-indigo-100 hover:text-indigo-600"
+                    onClick={() => {
+                      setAttachmentFile(null);
+                      if (attachmentInputRef.current) attachmentInputRef.current.value = "";
+                    }}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <input
+                  ref={attachmentInputRef}
+                  type="file"
+                  className="hidden"
+                  accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,.doc,.docx"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 10 * 1024 * 1024) {
+                      show({ title: "File too large", description: "Attachments must be under 10MB.", variant: "warning" });
+                      event.target.value = "";
+                      return;
+                    }
+                    setAttachmentFile(file);
+                  }}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  title="Attach a file (image, PDF, or Word)"
+                  onClick={() => attachmentInputRef.current?.click()}
+                >
+                  <Paperclip className="w-4 h-4 text-slate-500 hover:text-indigo-600" />
+                </Button>
+                <Input
+                  placeholder="Type your message..."
+                  className="h-12 rounded-xl bg-slate-50 border-none focus-visible:ring-1 focus-visible:ring-indigo-100"
+                  value={input}
+                  onChange={(event) => setInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      sendMessage();
+                    }
+                  }}
+                />
+                <Button onClick={sendMessage} disabled={(!input.trim() && !attachmentFile) || sendingAttachment}>
+                  {sendingAttachment ? "Sending..." : "Send"}
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </main>
+      </div>
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={(value) => !value && setDeleteConfirmOpen(false)}
+        title="Delete this chat?"
+        description="All messages in this conversation will be permanently removed from your inbox. The other party will no longer see this thread either."
+        confirmLabel="Delete chat"
+        destructive
+        loading={deletingChat}
+        onCancel={() => setDeleteConfirmOpen(false)}
+        onConfirm={() => void handleDeleteChat()}
+      />
+    </StudentPageContainer>
+  );
+}
+
+function MessagesEmptyPanel({
+  isCompany,
+  unreadCount,
+  hasConversations,
+}: {
+  isCompany: boolean;
+  unreadCount: number;
+  hasConversations: boolean;
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gradient-to-br from-slate-50/90 via-white to-indigo-50/30">
+      <div className="flex flex-1 flex-col items-center justify-center p-6 sm:p-10">
+        <div className="w-full max-w-lg space-y-8 text-center">
+          <div className="relative mx-auto w-fit">
+            <div className="flex h-24 w-24 items-center justify-center rounded-[28px] bg-gradient-to-br from-[#6C5DD3] to-[#8a7cff] shadow-xl shadow-indigo-200/60">
+              <MessageSquare className="h-11 w-11 text-white" strokeWidth={1.75} />
+            </div>
+            {unreadCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-7 min-w-7 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-xs font-bold text-white shadow-md ring-4 ring-white">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+              {unreadCount > 0 ? "You have new messages" : "Choose a conversation"}
+            </h2>
+            <p className="mx-auto max-w-sm text-sm leading-relaxed text-slate-500">
+              {isCompany
+                ? "Pick a chat from the list to reply to candidates, share offers, or schedule interviews."
+                : "Pick a chat from the list to follow up with companies about roles and interviews."}
+            </p>
+          </div>
+
+          <div className="grid gap-3 text-left sm:grid-cols-3">
+            {[
+              isCompany ? "Review candidate replies" : "Track application updates",
+              isCompany ? "Send job offers in chat" : "Respond to interview invites",
+              "Keep everything in one thread",
+            ].map((tip) => (
+              <div
+                key={tip}
+                className="rounded-2xl border border-slate-100 bg-white/80 px-4 py-3 text-xs font-medium text-slate-600 shadow-sm"
+              >
+                {tip}
+              </div>
+            ))}
+          </div>
+
+          {!hasConversations && (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 px-6 py-8">
+              <p className="text-sm font-semibold text-slate-700">No chats yet</p>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                {isCompany
+                  ? "Start messaging from Talent Search or Applications — conversations will show up on the left."
+                  : "Message a company from Openings or Applications — your chats will appear on the left."}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChatMessageRow({
+  from,
+  sentAt,
+  children,
+}: {
+  from: "me" | "them";
+  sentAt: string;
+  children: ReactNode;
+}) {
+  const isMe = from === "me";
+  return (
+    <div className={cn("flex max-w-xl flex-col gap-1", isMe ? "items-end" : "items-start")}>
+      {children}
+      <time
+        dateTime={sentAt}
+        className={cn(
+          "px-1 text-[10px] font-medium text-slate-400",
+          isMe ? "text-right" : "text-left"
+        )}
+      >
+        {formatChatMessageTime(sentAt)}
+      </time>
+    </div>
+  );
+}
+
+function Message({ children, from }: { children: ReactNode; from: "me" | "them" }) {
+  const isMe = from === "me";
+  return (
+    <div
+      className={cn(
+        "w-full rounded-2xl px-5 py-4 text-sm font-medium",
+        isMe
+          ? "bg-[#6C5DD3] text-white shadow-lg shadow-indigo-100 rounded-br-none"
+          : "bg-white text-slate-700 border border-slate-100 shadow-sm rounded-bl-none"
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+function MessageAttachment({
+  from,
+  url,
+  name,
+  type,
+}: {
+  from: "me" | "them";
+  url: string;
+  name?: string | null;
+  type?: string | null;
+}) {
+  const isMe = from === "me";
+  const isImage = (type ?? "").startsWith("image/");
+
+  if (isImage) {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="mb-2 block">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt={name ?? "Attached image"}
+          className="max-h-64 w-full rounded-xl object-cover"
+        />
+      </a>
+    );
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn(
+        "mb-2 flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
+        isMe
+          ? "bg-white/15 text-white hover:bg-white/25"
+          : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+      )}
+    >
+      <Paperclip className="h-4 w-4 shrink-0" />
+      <span className="truncate">{name ?? "Attachment"}</span>
+      <ExternalLink className="ml-auto h-3.5 w-3.5 shrink-0 opacity-70" />
+    </a>
+  );
+}
+
+function OfferMessage({
+  from,
+  offer,
+  showActions,
+  onRespond,
+}: {
+  from: "me" | "them";
+  offer: OfferMessagePayload;
+  showActions: boolean;
+  onRespond: (text: string, applicationId?: string) => Promise<unknown>;
+}) {
+  const isMe = from === "me";
+  const [replyMode, setReplyMode] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [responded, setResponded] = useState(false);
+
+  const actionsAvailable = showActions && !responded;
+
+  const handleQuickReply = async (text: string) => {
+    setSubmitting(true);
+    try {
+      await onRespond(text, offer.applicationId);
+      setResponded(true);
+      setReplyMode(false);
+      setReplyText("");
+    } catch {
+      // Parent shows toast on failure
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCustomReply = async () => {
+    if (!replyText.trim()) return;
+    await handleQuickReply(replyText.trim());
+  };
+
+  return (
+    <div
+      className={cn(
+        "w-full rounded-2xl px-5 py-4",
+        isMe
+          ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100 rounded-br-none"
+          : "bg-amber-50 text-slate-800 border border-amber-200 shadow-sm rounded-bl-none"
+      )}
+    >
+      <div className="text-[11px] font-extrabold uppercase tracking-wide opacity-90 mb-2">Job Offer</div>
+      <div className="space-y-1 text-sm">
+        <p>
+          <span className="font-bold">Position:</span> {offer.position}
+        </p>
+        <p>
+          <span className="font-bold">Type:</span> {offer.jobType}
+        </p>
+        {offer.compensation ? (
+          <p>
+            <span className="font-bold">Compensation:</span> {offer.compensation}
+          </p>
+        ) : null}
+      </div>
+      <p className={`text-sm mt-3 whitespace-pre-wrap ${isMe ? "text-indigo-50" : "text-slate-700"}`}>{offer.message}</p>
+      {offer.note ? <p className={`text-xs mt-3 ${isMe ? "text-indigo-100" : "text-slate-500"}`}>{offer.note}</p> : null}
+
+      {actionsAvailable ? (
+        <div className="mt-4 pt-4 border-t border-amber-200/80 space-y-3">
+          {!replyMode ? (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={submitting}
+                className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-9 disabled:opacity-50 disabled:pointer-events-none"
+                onClick={() => handleQuickReply(OFFER_REPLY_INTERVIEW)}
+              >
+                Open for an interview
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={submitting}
+                className="rounded-lg border-red-200 text-red-700 hover:bg-red-50 text-xs h-9 disabled:opacity-50 disabled:pointer-events-none"
+                onClick={() => handleQuickReply(OFFER_REPLY_REJECTED)}
+              >
+                Reject
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={submitting}
+                className="rounded-lg border-amber-300 text-slate-700 hover:bg-amber-100 text-xs h-9 disabled:opacity-50 disabled:pointer-events-none"
+                onClick={() => setReplyMode(true)}
+              >
+                Reply
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Type your reply..."
+                rows={3}
+                disabled={submitting}
+                className="w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 resize-none"
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={submitting || !replyText.trim()}
+                  className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-9"
+                  onClick={handleCustomReply}
+                >
+                  {submitting ? "Sending..." : "Send reply"}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={submitting}
+                  className="rounded-lg text-xs h-9 text-slate-600"
+                  onClick={() => {
+                    setReplyMode(false);
+                    setReplyText("");
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}

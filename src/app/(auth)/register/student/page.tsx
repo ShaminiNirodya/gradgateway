@@ -1,55 +1,160 @@
 "use client";
 
-import { useState } from "react";
-import RegistrationStepper from "@/components/features/auth/RegistrationStepper";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Step1Personal from "@/components/features/auth/student-steps/Step1Personal";
 import Step2Academic from "@/components/features/auth/student-steps/Step2Academic";
 import Step3Security from "@/components/features/auth/student-steps/Step3Security";
-import Link from "next/link";
-import { ArrowLeft, Compass } from "lucide-react";
+import RegistrationShell from "@/components/features/auth/RegistrationShell";
+import { Compass } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
+import { AuthService } from "@/lib/services/auth.service";
+import { StudentService } from "@/lib/services/student.service";
+import { StorageService } from "@/lib/services/storage.service";
+import { auth } from "@/lib/firebase";
+
+const STUDENT_BENEFITS = [
+  { title: "Showcase your work", description: "Build a portfolio employers can browse before they message you." },
+  { title: "Apply in one place", description: "Track internships and graduate roles without juggling spreadsheets." },
+  { title: "Talk to recruiters", description: "Message companies directly about roles, offers, and interviews." },
+  { title: "Stay organized", description: "See applications, interviews, and analytics from a single dashboard." },
+];
 
 export default function StudentRegistrationPage() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState<Record<string, unknown>>({});
+  const [banner, setBanner] = useState<null | { type: "success" | "error"; message: string }>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleNextStep = (data: any) => {
+  const handleNextStep = (data: Record<string, unknown>) => {
     setFormData((prev) => ({ ...prev, ...data }));
     setCurrentStep((prev) => prev + 1);
   };
   const handlePrevStep = () => setCurrentStep((prev) => prev - 1);
-  const handleFinalSubmit = (data: any) => console.log({ ...formData, ...data });
+
+  const handleFinalSubmit = async (data: Record<string, unknown>) => {
+    const payload = { ...formData, ...data };
+    setIsSubmitting(true);
+
+    try {
+      await AuthService.register(payload.email as string, payload.password as string, "Student");
+
+      const token = await AuthService.getIdToken();
+      const firebaseUid = auth.currentUser?.uid;
+      const email = auth.currentUser?.email;
+
+      if (!token || !firebaseUid || !email) {
+        throw new Error("Failed to authenticate. Please try again.");
+      }
+
+      let photoUrl = "";
+      if (payload.photoFile) {
+        try {
+          photoUrl = await StorageService.uploadProfilePicture(payload.photoFile as File, firebaseUid);
+        } catch {
+          photoUrl = (payload.photoDataUrl as string) || "";
+        }
+      } else {
+        photoUrl = (payload.photoDataUrl as string) || "";
+      }
+
+      await StudentService.registerStudent(token, {
+        email,
+        firebaseUid,
+        fullName: payload.fullName as string,
+        phone: payload.phone as string,
+        photoDataUrl: photoUrl,
+        university: payload.university as string,
+        studentId: payload.studentId as string,
+        degree: payload.degree as string,
+        fieldOfMajor: "",
+        gradYear: String(payload.gradYear ?? ""),
+        currentYear: payload.currentYear as number,
+        gpa: String(payload.gpa ?? ""),
+      });
+
+      setBanner({
+        type: "success",
+        message: "Registration successful! Redirecting to login...",
+      });
+
+      setTimeout(async () => {
+        try {
+          await AuthService.signOut();
+          router.push("/login");
+        } catch {
+          router.push("/login");
+        }
+      }, 2000);
+    } catch (error: unknown) {
+      setBanner({
+        type: "error",
+        message: error instanceof Error ? error.message : "Registration failed. Please try again.",
+      });
+
+      if (auth.currentUser) {
+        try {
+          await AuthService.signOut();
+        } catch {}
+      }
+    } finally {
+      setIsSubmitting(false);
+      try {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } catch {}
+    }
+  };
+
+  useEffect(() => {
+    if (!banner) return;
+    const t = setTimeout(() => setBanner(null), 4000);
+    return () => clearTimeout(t);
+  }, [banner]);
 
   const steps = ["Personal", "Academic", "Security"];
 
   return (
-    <div className="min-h-screen bg-[#F5F7FB] flex flex-col items-center justify-center py-10 px-4">
-      <div className="mb-8 flex flex-col items-center gap-4">
-        <div className="w-12 h-12 bg-[#6C5DD3] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
-          <Compass className="w-6 h-6" />
-        </div>
-        <h1 className="text-3xl font-bold text-slate-800">Create Account</h1>
-      </div>
-
-      <div className="w-full max-w-lg mb-8">
-        <RegistrationStepper currentStep={currentStep} steps={steps} />
-      </div>
-
-      <div className="w-full max-w-lg bg-white rounded-[32px] shadow-xl shadow-slate-200/60 p-8 sm:p-12 relative">
-        <Link href="/" className="absolute top-8 left-8 text-slate-400 hover:text-slate-600 transition-colors">
-          <ArrowLeft className="w-6 h-6" />
-        </Link>
-
-        <AnimatePresence mode="wait">
-          {currentStep === 1 && <Step1Personal key="step1" onNext={handleNextStep} />}
-          {currentStep === 2 && <Step2Academic key="step2" onNext={handleNextStep} onBack={handlePrevStep} />}
-          {currentStep === 3 && <Step3Security key="step3" onComplete={handleFinalSubmit} onBack={handlePrevStep} />}
-        </AnimatePresence>
-      </div>
-
-      <p className="mt-8 text-sm font-bold text-slate-400">
-        Already have an account? <Link href="/login" className="text-[#6C5DD3] hover:underline">Log in</Link>
-      </p>
-    </div>
+    <RegistrationShell
+      variant="student"
+      icon={Compass}
+      title="Create your account"
+      subtitle="Join thousands of students building careers through GradGateway."
+      steps={steps}
+      currentStep={currentStep}
+      benefits={STUDENT_BENEFITS}
+      banner={banner}
+      onDismissBanner={() => setBanner(null)}
+      footerPrimary={{
+        prefix: "Already have an account?",
+        link: "Log in",
+        href: "/login",
+        className: "text-[#6C5DD3] hover:text-[#5b4eb8]",
+      }}
+      footerSecondary={{
+        prefix: "Registering as an employer?",
+        link: "Create company account",
+        href: "/register/company",
+        className: "text-blue-600 hover:text-blue-700",
+      }}
+    >
+      <AnimatePresence mode="wait">
+        {currentStep === 1 && (
+          <Step1Personal key="step1" onNext={handleNextStep} defaultValues={formData} />
+        )}
+        {currentStep === 2 && (
+          <Step2Academic key="step2" onNext={handleNextStep} onBack={handlePrevStep} defaultValues={formData} />
+        )}
+        {currentStep === 3 && (
+          <Step3Security
+            key="step3"
+            onComplete={handleFinalSubmit}
+            onBack={handlePrevStep}
+            defaultValues={formData}
+            isSubmitting={isSubmitting}
+          />
+        )}
+      </AnimatePresence>
+    </RegistrationShell>
   );
 }
